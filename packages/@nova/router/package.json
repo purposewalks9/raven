@@ -1,0 +1,8 @@
+{
+  "name": "@nova/router",
+  "version": "0.0.1",
+  "description": "Runtime for file-based page routing discovered by the compiler (language/modules.md).",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": { "build": "tsup src/index.ts --format esm --dts --clean", "test": "vitest run" }
+}

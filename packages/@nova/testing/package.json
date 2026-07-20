@@ -1,0 +1,8 @@
+{
+  "name": "@nova/testing",
+  "version": "0.0.1",
+  "description": "Test utilities for Nova apps — page render harness, action-mocking helpers.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": { "build": "tsup src/index.ts --format esm --dts --clean", "test": "vitest run" }
+}

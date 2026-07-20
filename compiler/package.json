@@ -1,0 +1,24 @@
+{
+  "name": "@nova/compiler",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "nova": "./dist/cli/index.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsup src/index.ts src/cli/index.ts --format esm --dts --clean",
+    "dev": "tsup src/cli/index.ts --format esm --watch --onSuccess \"node dist/cli/index.js\"",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src --ext .ts"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "tsup": "^8.2.4",
+    "vitest": "^2.0.5"
+  }
+}

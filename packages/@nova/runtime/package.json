@@ -1,0 +1,8 @@
+{
+  "name": "@nova/runtime",
+  "version": "0.0.1",
+  "description": "Published version of compiler/src/runtime — the small helper library generated code imports for state patching and task-group cancellation.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": { "build": "tsup src/index.ts --format esm --dts --clean", "test": "vitest run" }
+}

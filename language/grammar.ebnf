@@ -1,0 +1,80 @@
+(* Nova Grammar — Draft v0.1, EBNF (ISO 14977-ish) *)
+
+program        = { top_level } ;
+
+top_level       = page_decl | component_decl | server_action_decl | import_decl | type_decl ;
+
+import_decl     = "import" import_spec "from" string_lit ;
+import_spec     = "*" | identifier | "{" identifier { "," identifier } "}" ;
+
+page_decl       = "page" string_lit block ;
+component_decl  = "component" identifier [ params ] block ;
+
+server_action_decl = [ "async" ] "server" "action" identifier params [ "->" type_expr ] block ;
+client_action_decl  = [ "async" ] "action" identifier params [ "->" type_expr ] block ;
+
+params          = "(" [ param { "," param } ] ")" ;
+param           = identifier [ ":" type_expr ] [ "=" expr ] ;
+
+block           = "{" { statement | ui_node } "}" ;
+
+statement       = state_decl
+                | client_action_decl
+                | server_action_decl
+                | expr_stmt
+                | if_stmt
+                | match_stmt
+                | return_stmt ;
+
+state_decl      = "state" identifier [ ":" type_expr ] "=" expr ;
+
+expr_stmt       = expr ;
+if_stmt         = "if" "(" expr ")" block [ "else" ( if_stmt | block ) ] ;
+match_stmt      = "match" "(" expr ")" "{" { match_arm } "}" ;
+match_arm       = pattern "=>" ( expr | block ) ;
+return_stmt     = "return" [ expr ] ;
+
+(* UI nodes: identifier followed by a block of props/children — this is what
+   makes `card { width 420 ... }`, `input { label "Email" ... }` etc. parse. *)
+ui_node         = identifier [ ui_args ] ui_block ;
+ui_args         = "(" [ expr { "," expr } ] ")" ;
+ui_block        = "{" { ui_prop | ui_node | string_lit | expr_stmt } "}" ;
+ui_prop         = identifier ( expr | ui_value_list ) ;
+ui_value_list   = expr { expr } ;   (* e.g. `spacing 24`, `bind email` *)
+
+type_decl       = "type" identifier [ generics ] "=" type_expr
+                | "enum" identifier "{" { identifier [ "(" type_expr ")" ] "," } "}"
+                | "interface" identifier [ generics ] "{" { field } "}" ;
+
+field           = identifier [ "?" ] ":" type_expr ;
+generics        = "<" identifier { "," identifier } ">" ;
+
+type_expr       = identifier [ generics ]
+                | type_expr "|" type_expr        (* union *)
+                | type_expr "[" "]"              (* array *)
+                | "(" type_expr { "," type_expr } ")" "->" type_expr ; (* fn type *)
+
+pattern         = literal_pattern | identifier | "_" | enum_pattern ;
+enum_pattern    = identifier "." identifier [ "(" pattern { "," pattern } ")" ] ;
+literal_pattern = number_lit | string_lit | "true" | "false" ;
+
+expr            = assignment ;
+assignment      = logical_or [ ( "=" | "+=" | "-=" ) assignment ] ;
+logical_or      = logical_and { "||" logical_and } ;
+logical_and     = equality { "&&" equality } ;
+equality        = comparison { ( "==" | "!=" ) comparison } ;
+comparison      = additive { ( "<" | ">" | "<=" | ">=" ) additive } ;
+additive        = multiplicative { ( "+" | "-" ) multiplicative } ;
+multiplicative  = unary { ( "*" | "/" | "%" ) unary } ;
+unary           = [ "!" | "-" | "await" ] postfix ;
+postfix         = primary { call | member | index } ;
+call            = "(" [ expr { "," expr } ] ")" ;
+member          = "." identifier ;
+index           = "[" expr "]" ;
+
+primary         = number_lit | string_lit | "true" | "false" | identifier
+                | "(" expr ")" ;
+
+identifier      = letter { letter | digit | "_" } ;
+string_lit      = '"' { character } '"' ;
+number_lit      = digit { digit } [ "." digit { digit } ] ;

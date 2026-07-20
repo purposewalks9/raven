@@ -1,0 +1,8 @@
+{
+  "name": "@nova/http",
+  "version": "0.0.1",
+  "description": "Typed fetch wrapper generated `server action` RPC calls compile down to.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": { "build": "tsup src/index.ts --format esm --dts --clean", "test": "vitest run" }
+}

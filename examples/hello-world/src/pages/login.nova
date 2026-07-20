@@ -1,0 +1,67 @@
+page "/login" {
+    title "Welcome Back"
+    state email = ""
+    state password = ""
+    state remember = false
+    state loading = false
+
+    async action login() {
+        loading = true
+        let user = await auth.login(email, password)
+        router.push("/dashboard")
+        loading = false
+    }
+
+    center {
+        card {
+            width 420
+            spacing 24
+            heading {
+                text "Welcome Back"
+            }
+            text {
+                color gray
+                "Sign in to continue"
+            }
+            input {
+                label "Email"
+                type email
+                bind email
+                placeholder "purpose@example.com"
+            }
+            input {
+                label "Password"
+                type password
+                bind password
+                placeholder "••••••••"
+            }
+            checkbox {
+                bind remember
+                "Remember me"
+            }
+            button {
+                fullWidth
+                loading loading
+                click login
+                "Sign In"
+            }
+            divider "OR"
+            socialButton {
+                provider google
+            }
+            socialButton {
+                provider github
+            }
+            link {
+                to "/forgot-password"
+                "Forgot Password?"
+            }
+            footer {
+                "Don't have an account?"
+                link "/register" {
+                    "Create Account"
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,25 @@
+{
+  "name": "nova",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Nova — a statically typed language for the JavaScript ecosystem that compiles to optimized JS.",
+  "license": "MIT",
+  "packageManager": "pnpm@9.0.0",
+  "scripts": {
+    "build": "pnpm -r --filter=./compiler --filter=./packages/* run build",
+    "dev": "pnpm --filter @nova/compiler run dev",
+    "test": "pnpm -r run test",
+    "lint": "pnpm -r run lint",
+    "clean": "pnpm -r run clean",
+    "compile": "pnpm --filter @nova/compiler run cli --",
+    "changeset": "changeset"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "tsup": "^8.2.4",
+    "vitest": "^2.0.5",
+    "@types/node": "^20.14.10",
+    "eslint": "^9.8.0",
+    "@changesets/cli": "^2.27.7"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "@nova/core",
+  "version": "0.0.1",
+  "description": "Shared primitives used across Nova packages: Option/Result types, diagnostics formatting re-exports, common utility types.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": { "build": "tsup src/index.ts --format esm --dts --clean", "test": "vitest run" }
+}

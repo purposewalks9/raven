@@ -1,0 +1,8 @@
+{
+  "name": "@nova/auth",
+  "version": "0.0.1",
+  "description": "auth.login(...)-style helpers referenced from server actions.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": { "build": "tsup src/index.ts --format esm --dts --clean", "test": "vitest run" }
+}

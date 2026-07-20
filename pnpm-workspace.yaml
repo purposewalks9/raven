@@ -1,0 +1,6 @@
+packages:
+  - "compiler"
+  - "packages/@nova/*"
+  - "framework/*"
+  - "vscode/language-server"
+  - "examples/*"

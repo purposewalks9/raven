@@ -1,0 +1,8 @@
+{
+  "name": "@nova/ui",
+  "version": "0.0.1",
+  "description": "Built-in UI node component registry matching the syntax in the login.nova example — card, input, button, checkbox, socialButton, etc.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": { "build": "tsup src/index.ts --format esm --dts --clean", "test": "vitest run" }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "@nova/example-hello-world",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Minimal Nova app: a single /login page, used as the compiler's first round-trip target (see language/roadmap.md Phase 0).",
+  "scripts": {
+    "tokens": "node ../../compiler/dist/cli/index.js tokens src/pages/login.nova",
+    "ast": "node ../../compiler/dist/cli/index.js ast src/pages/login.nova",
+    "compile": "node ../../compiler/dist/cli/index.js compile src/pages/login.nova"
+  }
+}

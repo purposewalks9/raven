@@ -1,0 +1,8 @@
+{
+  "name": "@nova/db",
+  "version": "0.0.1",
+  "description": "Query helper layer for server-side data access from `server action` bodies.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": { "build": "tsup src/index.ts --format esm --dts --clean", "test": "vitest run" }
+}
