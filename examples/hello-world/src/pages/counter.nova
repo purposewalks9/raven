@@ -1,0 +1,20 @@
+page "/hello" {
+    title "Hello Nova"
+    state count = 0
+
+    action increment() {
+        count = count + 1
+    }
+
+    center {
+        card {
+            width 300
+            heading { text "Hello, Nova!" }
+            text { "Count: " }
+            button {
+                click increment
+                "Add one"
+            }
+        }
+    }
+}
