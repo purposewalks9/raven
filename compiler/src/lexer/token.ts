@@ -1,43 +1,78 @@
+// lexer/token.ts
 export enum TokenKind {
-  Identifier = "Identifier",
   Keyword = "Keyword",
-  StringLiteral = "StringLiteral",
-  NumberLiteral = "NumberLiteral",
+  Identifier = "Identifier",   // <-- ADD THIS
+  String = "String",
   Punctuation = "Punctuation",
-  Operator = "Operator",
   EOF = "EOF",
 }
 
 export const KEYWORDS = new Set([
-  "page", "component", "import", "from", "export",
-  "type", "enum", "interface",
-  "state", "action", "server", "client", "shared", "async", "await",
-  "if", "else", "match", "for", "while", "return", "break", "continue",
-  "spawn", "task", "race", "all", "timeout", "cancel",
-  "try", "catch", "throws", "Result", "Ok", "Err", "Option", "Some", "None",
-  "true", "false", "null", "void", "never", "any", "unknown",
-  "let", "const",
+  "print",
 ]);
-
-// Longest-match-first matters here — e.g. "->" before "-".
-export const OPERATORS = [
-  "->", "=>", "==", "!=", "<=", ">=", "&&", "||", "+=", "-=",
-  "=", "+", "-", "*", "/", "%", "<", ">", "!", "?",
-];
-
-export const PUNCTUATION = new Set([
-  "{", "}", "(", ")", "[", "]", ",", ".", ";", ":",
-]);
-
-export interface SourceSpan {
-  start: number;
-  end: number;
-  line: number;
-  column: number;
-}
 
 export interface Token {
   kind: TokenKind;
   value: string;
-  span: SourceSpan;
+}
+
+export function tokenize(source: string): Token[] {
+  const tokens: Token[] = [];
+  let pos = 0;
+
+  while (pos < source.length) {
+    const c = source[pos];
+
+    // Skip spaces
+    if (c === " " || c === "\n" || c === "\t") {
+      pos++;
+      continue;
+    }
+
+    // ( and )
+    if (c === "(") {
+      tokens.push({ kind: TokenKind.Punctuation, value: "(" });
+      pos++;
+      continue;
+    }
+    if (c === ")") {
+      tokens.push({ kind: TokenKind.Punctuation, value: ")" });
+      pos++;
+      continue;
+    }
+
+    // "Hello" (strings)
+    if (c === '"') {
+      pos++;
+      let value = "";
+      while (source[pos] !== '"') {
+        value += source[pos];
+        pos++;
+      }
+      pos++; // skip closing quote
+      tokens.push({ kind: TokenKind.String, value });
+      continue;
+    }
+
+    // === ADD THIS BLOCK ===
+    // Keywords / identifiers
+    if (/[a-zA-Z_]/.test(c)) {
+      let value = "";
+      while (pos < source.length && /[a-zA-Z0-9_]/.test(source[pos])) {
+        value += source[pos];
+        pos++;
+      }
+      tokens.push({
+        kind: KEYWORDS.has(value) ? TokenKind.Keyword : TokenKind.Identifier,
+        value
+      });
+      continue;
+    }
+    // ======================
+
+    throw new Error("Unknown character: " + c);
+  }
+
+  tokens.push({ kind: TokenKind.EOF, value: "" });
+  return tokens;
 }

@@ -15,11 +15,10 @@
     "test:watch": "vitest",
     "lint": "eslint src --ext .ts"
   },
-  "dependencies": {},
   "devDependencies": {
-    "typescript": "^5.5.4",
+    "@types/node": "^20.19.43",
     "tsup": "^8.2.4",
-    "vitest": "^2.0.5",
-    "@types/node": "^20.14.10"
+    "typescript": "^5.5.4",
+    "vitest": "^2.0.5"
   }
 }
