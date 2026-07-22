@@ -26,7 +26,18 @@ describe("emitter", () => {
     expect(js).toContain("console.log(");
     expect(js).toContain('"hi"');
   });
-
+  it("emits a boolean literal", () => {
+  const ast: Program = {
+    type: "Program",
+    body: [{
+      type: "VariableDeclaration",
+      name: "isReady",
+      value: { type: "BooleanLiteral", value: true },
+    }],
+  };
+  const js = new Emitter().emit(ast);
+  expect(js).toContain("true");
+});
   it("emits a variable declaration", () => {
   const ast: Program = {
     type: "Program",

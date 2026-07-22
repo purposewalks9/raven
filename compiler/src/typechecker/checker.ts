@@ -38,23 +38,24 @@ export class TypeChecker {
     private checkExpression(node: Expression): TypeAnnotation {
         return this.inferType(node);
     }
-
-    private inferType(node: Expression): TypeAnnotation {
-        switch (node.type) {
-            case "StringLiteral":
+  private inferType(node: Expression): TypeAnnotation {
+    switch (node.type) {
+        case "StringLiteral":
+            return "string";
+        case "NumberLiteral":
+            return "number";
+        case "BooleanLiteral":          // NEW
+            return "boolean";
+        case "Identifier": {
+            const type = this.symbolTable.lookup(node.name);
+            if (!type) {
+                this.errors.push(`Undeclared variable: '${node.name}'`);
                 return "string";
-            case "NumberLiteral":
-                return "number";
-            case "Identifier": {
-                const type = this.symbolTable.lookup(node.name);
-                if (!type) {
-                    this.errors.push(`Undeclared variable: '${node.name}'`);
-                    return "string"; // fallback so checking can continue
-                }
-                return type;
             }
-            default:
-                throw new Error(`Cannot infer type for: ${(node as any).type}`);
+            return type;
         }
+        default:
+            throw new Error(`Cannot infer type for: ${(node as any).type}`);
     }
+}
 }

@@ -23,6 +23,15 @@ describe("parser", () => {
       value: { type: "StringLiteral", value: "hi" },
     });
   });
+
+  it("parses a val declaration with a boolean", () => {
+  const ast = new Parser(tokenize(`val isReady = true`)).parseProgram();
+  expect(ast.body[0]).toEqual({
+    type: "VariableDeclaration",
+    name: "isReady",
+    value: { type: "BooleanLiteral", value: true },
+  });
+});
   it("parses a val declaration with a type annotation", () => {
     const ast = new Parser(tokenize(`val x: string = "hi"`)).parseProgram();
     expect(ast.body[0]).toEqual({

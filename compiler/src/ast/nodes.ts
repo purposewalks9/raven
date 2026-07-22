@@ -19,8 +19,14 @@ export interface VariableDeclaration {
     typeAnnotation?: TypeAnnotation;
 }
 
+export interface BooleanLiteral {   
+    type: "BooleanLiteral";
+    value: boolean;
+}
+
 export type Expression =
     | StringLiteral
+    | BooleanLiteral
     | NumberLiteral
     | Identifier;
 
@@ -40,4 +46,5 @@ export interface Identifier {
 
 export type TypeAnnotation =
     | "string"
+    | "boolean"
     | "number";

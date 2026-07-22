@@ -6,8 +6,12 @@ import { writeFileSync } from "node:fs";
 import { execSync } from "node:child_process";
 
 const source = `
-val name: number = 6393939
+val age: number = 32
+val name: string = "Ekwealor Purpose Uche"
+val verified: boolean = true
+print(age)
 print(name)
+print(verified)
 `;
 
 console.log("=== RAVEN SOURCE ===");
@@ -24,9 +28,9 @@ console.log(JSON.stringify(ast, null, 2));
 console.log("=== TYPE CHECK ===");
 const errors = new TypeChecker().check(ast);
 if (errors.length > 0) {
-  console.log("Found type errors:");
-  errors.forEach(e => console.log("  - " + e));
-  process.exit(1);
+    console.log("Found type errors:");
+    errors.forEach(e => console.log("  - " + e));
+    process.exit(1);
 }
 console.log("No type errors ✔");
 

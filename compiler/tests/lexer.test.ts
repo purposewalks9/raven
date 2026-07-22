@@ -36,7 +36,11 @@ describe("lexer", () => {
     const str = tokens.find(t => t.kind === TokenKind.String);
     expect(str?.value).toBe("Hello, World!");
   });
-
+  it("tokenizes true and false as keywords", () => {
+  const tokens = tokenize(`val isReady = true`);
+  const boolToken = tokens.find(t => t.value === "true");
+  expect(boolToken?.kind).toBe(TokenKind.Keyword);
+});
   it("tokenizes a number literal", () => {
     const tokens = tokenize(`val age = 5`);
     const numberToken = tokens.find(t => t.kind === TokenKind.Number);
