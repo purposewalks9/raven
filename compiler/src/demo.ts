@@ -9,6 +9,8 @@ const source = `
 val age: number = 32
 val name: string = "Ekwealor Purpose Uche"
 val verified: boolean = true
+val total: number = 2 + 3 * 4 / 2
+print(total)
 print(age)
 print(name)
 print(verified)

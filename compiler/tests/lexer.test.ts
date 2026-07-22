@@ -33,8 +33,8 @@ describe("lexer", () => {
 
   it("tokenizes identifiers separately from keywords", () => {
     const tokens = tokenize(`foo`);
-    expect(tokens[0].kind).toBe(TokenKind.Identifier);
-    expect(tokens[0].value).toBe("foo");
+    expect(tokens[0]!.kind).toBe(TokenKind.Identifier);
+    expect(tokens[0]!.value).toBe("foo");
   });
 
   it("extracts string values without quotes", () => {

@@ -22,6 +22,7 @@ export function tokenize(source: string): Token[] {
 
   while (pos < source.length) {
     const c = source[pos];
+    if (c === undefined) break;
 
 
     if (c === " " || c === "\n" || c === "\t") {
@@ -104,18 +105,20 @@ export function tokenize(source: string): Token[] {
       continue;
     }
 
-    if (/[0-9]/.test(c)) {
+       if (/[0-9]/.test(c)) {
       let value = "";
-      while (pos < source.length && /[0-9]/.test(source[pos])) {
+      while (pos < source.length && /[0-9]/.test(source[pos] ?? "")) {   // ADD ?? ""
         value += source[pos];
         pos++;
       }
       tokens.push({ kind: TokenKind.Number, value });
       continue;
     }
+
+    
     if (/[a-zA-Z_]/.test(c)) {
       let value = "";
-      while (pos < source.length && /[a-zA-Z0-9_]/.test(source[pos])) {
+      while (pos < source.length && /[a-zA-Z0-9_]/.test(source[pos] ?? "")) {   // ADD ?? ""
         value += source[pos];
         pos++;
       }

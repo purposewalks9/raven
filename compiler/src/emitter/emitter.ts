@@ -1,4 +1,4 @@
-import { Program, Statement, PrintStatement, VariableDeclaration, Expression, StringLiteral, Identifier, NumberLiteral, BooleanLiteral } from "../ast/nodes.js";
+import { Program, Statement, PrintStatement, VariableDeclaration, Expression, StringLiteral, Identifier, NumberLiteral, BooleanLiteral, BinaryExpression } from "../ast/nodes.js";
 
 export class Emitter {
     private indentLevel = 0;
@@ -57,6 +57,9 @@ export class Emitter {
             case "BooleanLiteral":
                 this.emitBooleanLiteral(node);
                 break;
+             case "BinaryExpression":          
+            this.emitBinaryExpression(node);
+            break;
             default:
                 throw new Error(`Unknown expression type: ${(node as any).type}`);
         }
@@ -70,11 +73,17 @@ export class Emitter {
             .replace(/\t/g, "\\t");
         this.write(`"${escaped}"`);
     }
-
+    private emitBinaryExpression(node: BinaryExpression): void {   
+    this.write("(");
+    this.emitExpression(node.left);
+    this.write(` ${node.operator} `);
+    this.emitExpression(node.right);
+    this.write(")");
+}
     private emitIdentifier(node: Identifier): void {
         this.write(node.name);
     }
-    private emitBooleanLiteral(node: BooleanLiteral): void {   // NEW
+    private emitBooleanLiteral(node: BooleanLiteral): void {   
         this.write(String(node.value));
     }
     private emitNumberLiteral(node: NumberLiteral): void {

@@ -58,6 +58,62 @@ describe("TypeChecker", () => {
     expect(errors).toEqual([]);
   });
 
+
+  it("allows adding two numbers", () => {
+    const ast: Program = {
+      type: "Program",
+      body: [{
+        type: "VariableDeclaration",
+        name: "x",
+        value: {
+          type: "BinaryExpression",
+          operator: "+",
+          left: { type: "NumberLiteral", value: 2 },
+          right: { type: "NumberLiteral", value: 3 },
+        },
+      }],
+    };
+    const errors = new TypeChecker().check(ast);
+    expect(errors).toEqual([]);
+  });
+
+  it("rejects adding a number and a string", () => {
+    const ast: Program = {
+      type: "Program",
+      body: [{
+        type: "VariableDeclaration",
+        name: "x",
+        value: {
+          type: "BinaryExpression",
+          operator: "+",
+          left: { type: "NumberLiteral", value: 2 },
+          right: { type: "StringLiteral", value: "oops" },
+        },
+      }],
+    };
+    const errors = new TypeChecker().check(ast);
+    expect(errors.length).toBe(1);
+    expect(errors[0]).toContain("number");
+  });
+
+  it("allows comparing two numbers, infers boolean", () => {
+    const ast: Program = {
+      type: "Program",
+      body: [{
+        type: "VariableDeclaration",
+        name: "x",
+        typeAnnotation: "boolean",
+        value: {
+          type: "BinaryExpression",
+          operator: ">",
+          left: { type: "NumberLiteral", value: 5 },
+          right: { type: "NumberLiteral", value: 3 },
+        },
+      }],
+    };
+    const errors = new TypeChecker().check(ast);
+    expect(errors).toEqual([]);
+  });
   it("catches a boolean/string mismatch", () => {
     const ast: Program = {
       type: "Program",

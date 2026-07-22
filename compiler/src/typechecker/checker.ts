@@ -38,13 +38,13 @@ export class TypeChecker {
     private checkExpression(node: Expression): TypeAnnotation {
         return this.inferType(node);
     }
-  private inferType(node: Expression): TypeAnnotation {
+private inferType(node: Expression): TypeAnnotation {
     switch (node.type) {
         case "StringLiteral":
             return "string";
         case "NumberLiteral":
             return "number";
-        case "BooleanLiteral":          // NEW
+        case "BooleanLiteral":
             return "boolean";
         case "Identifier": {
             const type = this.symbolTable.lookup(node.name);
@@ -53,6 +53,27 @@ export class TypeChecker {
                 return "string";
             }
             return type;
+        }
+        case "BinaryExpression": {         // NEW
+            const leftType = this.inferType(node.left);
+            const rightType = this.inferType(node.right);
+
+            if (node.operator === "==" || node.operator === "<" || node.operator === ">") {
+                if (leftType !== rightType) {
+                    this.errors.push(
+                        `Cannot compare '${leftType}' with '${rightType}'`
+                    );
+                }
+                return "boolean";
+            }
+
+            // +, -, *, /
+            if (leftType !== "number" || rightType !== "number") {
+                this.errors.push(
+                    `Operator '${node.operator}' requires two numbers, got '${leftType}' and '${rightType}'`
+                );
+            }
+            return "number";
         }
         default:
             throw new Error(`Cannot infer type for: ${(node as any).type}`);

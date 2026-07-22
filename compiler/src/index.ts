@@ -1,4 +1,5 @@
-export { tokenize, LexError } from "./lexer/index.js";
-export type { Token } from "./lexer/index.js";
-export { Parser} from "./parser/index.js";
-export * from "./ast/index.js";
+// src/index.ts
+export { tokenize } from "./lexer/index.js";
+export { Parser } from "./parser/index.js";
+export { TypeChecker } from "./typechecker/checker.js";
+export { Emitter } from "./emitter/emitter.js";

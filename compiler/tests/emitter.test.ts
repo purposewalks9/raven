@@ -38,6 +38,25 @@ describe("emitter", () => {
   const js = new Emitter().emit(ast);
   expect(js).toContain("true");
 });
+
+
+it("emits a binary expression", () => {
+  const ast: Program = {
+    type: "Program",
+    body: [{
+      type: "VariableDeclaration",
+      name: "x",
+      value: {
+        type: "BinaryExpression",
+        operator: "+",
+        left: { type: "NumberLiteral", value: 2 },
+        right: { type: "NumberLiteral", value: 3 },
+      },
+    }],
+  };
+  const js = new Emitter().emit(ast);
+  expect(js.replace(/\s+/g, " ").trim()).toContain("(2 + 3)");
+});
   it("emits a variable declaration", () => {
   const ast: Program = {
     type: "Program",
