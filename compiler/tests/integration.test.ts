@@ -19,4 +19,21 @@ describe("integration", () => {
 
     expect(output).toBe("Hello, World!");
   });
+
+  it("declares and prints a variable", () => {
+  const source = `
+    val name = "World"
+    print(name)
+  `;
+  const tokens = tokenize(source);
+  const ast = new Parser(tokens).parseProgram();
+  const js = new Emitter().emit(ast);
+
+  const tmpFile = "./tmp-val-test.js";
+  writeFileSync(tmpFile, js);
+  const output = execSync(`node ${tmpFile}`).toString().trim();
+  unlinkSync(tmpFile);
+
+  expect(output).toBe("World");
+});
 });

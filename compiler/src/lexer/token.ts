@@ -1,14 +1,14 @@
 // lexer/token.ts
 export enum TokenKind {
   Keyword = "Keyword",
-  Identifier = "Identifier",   // <-- ADD THIS
+  Identifier = "Identifier",
   String = "String",
   Punctuation = "Punctuation",
   EOF = "EOF",
 }
 
 export const KEYWORDS = new Set([
-  "print",
+  "print", "val"
 ]);
 
 export interface Token {
@@ -28,7 +28,18 @@ export function tokenize(source: string): Token[] {
       pos++;
       continue;
     }
+    
+    if (c === "=") {
+  tokens.push({ kind: TokenKind.Punctuation, value: "=" });
+  pos++;
+  continue;
+}
 
+if (c === ":") {                                        // NEW
+  tokens.push({ kind: TokenKind.Punctuation, value: ":" });
+  pos++;
+  continue;
+}
     // ( and )
     if (c === "(") {
       tokens.push({ kind: TokenKind.Punctuation, value: "(" });
@@ -51,6 +62,12 @@ export function tokenize(source: string): Token[] {
       }
       pos++; // skip closing quote
       tokens.push({ kind: TokenKind.String, value });
+      continue;
+    }
+
+    if (c === "=") {
+      tokens.push({ kind: TokenKind.Punctuation, value: "=" });
+      pos++;
       continue;
     }
 

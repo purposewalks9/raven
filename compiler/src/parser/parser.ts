@@ -22,6 +22,9 @@ export class Parser {
         if (this.checkKeyword("print")) {
             return this.parsePrint();
         }
+        if (this.checkKeyword("val")) {
+            return this.parseVal();
+        }
         throw new Error("Expected a statement");
     }
 
@@ -36,6 +39,37 @@ export class Parser {
         };
     }
 
+  parseVal() {
+    this.expectKeyword("val");
+
+    const nameToken = this.peek();
+    if (nameToken.kind !== TokenKind.Identifier) {
+        throw new Error("Expected an identifier after 'val'");
+    }
+    this.advance();
+
+    let typeAnnotation: string | undefined;
+    if (this.peek().value === ":") {
+        this.advance();
+        const typeToken = this.peek();
+        if (typeToken.kind !== TokenKind.Identifier) {
+            throw new Error("Expected a type name after ':'");
+        }
+        typeAnnotation = typeToken.value;
+        this.advance();
+    }
+
+    this.expect("=");
+    const value = this.parseExpression();
+
+    return {
+        type: "VariableDeclaration",
+        name: nameToken.value,
+        value,
+        typeAnnotation
+    };
+}
+
     parseExpression() {
         return this.parsePrimary();
     }
@@ -49,7 +83,14 @@ export class Parser {
                 value: token.value
             };
         }
-        throw new Error("Expected a string");
+        if (token.kind === TokenKind.Identifier) {
+            this.advance();
+            return {
+                type: "Identifier",
+                name: token.value
+            };
+        }
+        throw new Error("Expected a string or identifier");
     }
 
     peek(): Token {

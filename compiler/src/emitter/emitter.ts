@@ -1,5 +1,5 @@
 // emitter/emitter.ts
-import { Program, Statement, PrintStatement, Expression, StringLiteral } from "../ast/nodes.js";
+import { Program, Statement, PrintStatement, VariableDeclaration, Expression, StringLiteral, Identifier } from "../ast/nodes.js";
 
 export class Emitter {
     private indentLevel = 0;
@@ -22,6 +22,9 @@ export class Emitter {
             case "PrintStatement":
                 this.emitPrintStatement(node);
                 break;
+            case "VariableDeclaration":
+                this.emitVariableDeclaration(node);
+                break;
             default:
                 throw new Error(`Unknown statement type: ${(node as any).type}`);
         }
@@ -34,10 +37,20 @@ export class Emitter {
         this.newline();
     }
 
+    private emitVariableDeclaration(node: VariableDeclaration): void {
+        this.write(`let ${node.name} = `);
+        this.emitExpression(node.value);
+        this.write(";");
+        this.newline();
+    }
+
     private emitExpression(node: Expression): void {
         switch (node.type) {
             case "StringLiteral":
                 this.emitStringLiteral(node);
+                break;
+            case "Identifier":
+                this.emitIdentifier(node);
                 break;
             default:
                 throw new Error(`Unknown expression type: ${(node as any).type}`);
@@ -45,7 +58,6 @@ export class Emitter {
     }
 
     private emitStringLiteral(node: StringLiteral): void {
-        // Escape quotes and backslashes in the string value
         const escaped = node.value
             .replace(/\\/g, "\\\\")
             .replace(/"/g, '\\"')
@@ -53,6 +65,10 @@ export class Emitter {
             .replace(/\r/g, "\\r")
             .replace(/\t/g, "\\t");
         this.write(`"${escaped}"`);
+    }
+
+    private emitIdentifier(node: Identifier): void {
+        this.write(node.name);
     }
 
     // --- Output helpers ---
