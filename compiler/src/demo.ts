@@ -6,12 +6,11 @@ import { writeFileSync } from "node:fs";
 import { execSync } from "node:child_process";
 
 const source = `
-val age: number = 32
-val name: string = "Ekwealor Purpose Uche"
-val verified: boolean = true
-print(age)
+val name: string = "World"
+rave goat: string = "Messi"
+print(goat)
 print(name)
-print(verified)
+
 `;
 
 console.log("=== RAVEN SOURCE ===");

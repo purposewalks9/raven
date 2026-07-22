@@ -1,29 +1,19 @@
-let age = 
-32
-;
-
-
 let name = 
-"Ekwealor Purpose Uche"
+"World"
 ;
 
 
-let verified = 
-true
+const goat = 
+"Messi"
 ;
 
 
 console.log(
-age
+goat
 );
 
 
 console.log(
 name
-);
-
-
-console.log(
-verified
 );
 

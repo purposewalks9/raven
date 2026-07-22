@@ -1,136 +1,188 @@
 import { Token, TokenKind } from "../lexer/token.js";
 
 export class Parser {
-    private pos = 0;
+  private pos = 0;
 
-    constructor(private tokens: Token[]) { }
+  constructor(private tokens: Token[]) {}
 
-    parseProgram() {
-        const body = [];
+  parseProgram() {
+    const body = [];
 
-        while (this.peek().kind !== TokenKind.EOF) {
-            body.push(this.parseStatement());
-        }
-
-        return {
-            type: "Program",
-            body
-        };
+    while (this.peek().kind !== TokenKind.EOF) {
+      body.push(this.parseStatement());
     }
 
-    parseStatement() {
-        if (this.checkKeyword("print")) {
-            return this.parsePrint();
-        }
-        if (this.checkKeyword("val")) {
-            return this.parseVal();
-        }
-        throw new Error("Expected a statement");
+    return {
+      type: "Program",
+      body,
+    };
+  }
+
+  parseStatement() {
+    if (this.checkKeyword("print")) {
+      return this.parsePrint();
+    }
+    if (this.checkKeyword("val")) {
+      return this.parseVal();
+    }
+    if (this.checkKeyword("rave")) {
+      return this.parseConst();
+    }
+    throw new Error("Expected a statement");
+  }
+
+  parsePrint() {
+    this.expectKeyword("print");
+    this.expect("(");
+    const argument = this.parseExpression();
+    this.expect(")");
+    return {
+      type: "PrintStatement",
+      argument,
+    };
+  }
+
+  parseConst() {
+    this.expectKeyword("rave");
+
+    const nameToken = this.peek();
+    if (nameToken.kind !== TokenKind.Identifier) {
+      throw new Error("Expected an identifier after 'rave'");
+    }
+    this.advance();
+
+    let typeAnnotation: string | undefined;
+    if (this.peek().value === ":") {
+      this.advance();
+
+      const typeToken = this.peek();
+      if (typeToken.kind !== TokenKind.Identifier) {
+        throw new Error("Expected a type name after ':'");
+      }
+
+      typeAnnotation = typeToken.value;
+      this.advance();
     }
 
-    parsePrint() {
-        this.expectKeyword("print");
-        this.expect("(");
-        const argument = this.parseExpression();
-        this.expect(")");
-        return {
-            type: "PrintStatement",
-            argument
-        };
+    this.expect("=");
+
+    const value = this.parseExpression();
+
+    return {
+      type: "ConstantDeclaration",
+      name: nameToken.value,
+      value,
+      typeAnnotation,
+    };
+  }
+
+ parseVal() {
+  this.expectKeyword("val");
+
+  const nameToken = this.peek();
+  if (nameToken.kind !== TokenKind.Identifier) {
+    throw new Error("Expected an identifier after 'val'");
+  }
+  this.advance();
+
+  let typeAnnotation: string | undefined;
+  if (this.peek().value === ":") {
+    this.advance();
+
+    const typeToken = this.peek();
+    if (typeToken.kind !== TokenKind.Identifier) {
+      throw new Error("Expected a type name after ':'");
     }
 
-    parseVal() {
-        this.expectKeyword("val");
+    typeAnnotation = typeToken.value;
+    this.advance();
+  }
 
-        const nameToken = this.peek();
-        if (nameToken.kind !== TokenKind.Identifier) {
-            throw new Error("Expected an identifier after 'val'");
-        }
-        this.advance();
+  this.expect("=");
+  const value = this.parseExpression();
 
-        let typeAnnotation: string | undefined;
-        if (this.peek().value === ":") {
-            this.advance();
-            const typeToken = this.peek();
-            if (typeToken.kind !== TokenKind.Identifier) {
-                throw new Error("Expected a type name after ':'");
-            }
-            typeAnnotation = typeToken.value;
-            this.advance();
-        }
+  return {
+    type: "VariableDeclaration",
+    name: nameToken.value,
+    value,
+    typeAnnotation,
+  };
+}
 
-        this.expect("=");
-        const value = this.parseExpression();
+parseExpression() {
+  return this.parsePrimary();
+}
 
-        return {
-            type: "VariableDeclaration",
-            name: nameToken.value,
-            value,
-            typeAnnotation
-        };
-    }
+parsePrimary() {
+  const token = this.peek();
 
-    parseExpression() {
-        return this.parsePrimary();
-    }
+  if (token.kind === TokenKind.String) {
+    this.advance();
+    return {
+      type: "StringLiteral",
+      value: token.value,
+    };
+  }
 
-    parsePrimary() {
-        const token = this.peek();
-        if (token.kind === TokenKind.String) {
-            this.advance();
-            return {
-                type: "StringLiteral",
-                value: token.value
-            };
-        }
-        if (token.kind === TokenKind.Identifier) {
-            this.advance();
-            return {
-                type: "Identifier",
-                name: token.value
-            };
-        }
+  if (token.kind === TokenKind.Identifier) {
+    this.advance();
+    return {
+      type: "Identifier",
+      name: token.value,
+    };
+  }
 
-        if (token.kind === TokenKind.Number) {
-            this.advance();
-            return { type: "NumberLiteral", value: Number(token.value) };
-        }
-        if (token.kind === TokenKind.Keyword && (token.value === "true" || token.value === "false")) {
-            this.advance();
-            return { type: "BooleanLiteral", value: token.value === "true" };
-        }
-        throw new Error("Expected a string or identifier");
-    }
+  if (token.kind === TokenKind.Number) {
+    this.advance();
+    return {
+      type: "NumberLiteral",
+      value: Number(token.value),
+    };
+  }
 
-    peek(): Token {
-        const token = this.tokens[this.pos];
-        if (!token) {
-            throw new Error("Unexpected end of file");
-        }
-        return token;
-    }
+  if (
+    token.kind === TokenKind.Keyword &&
+    (token.value === "true" || token.value === "false")
+  ) {
+    this.advance();
+    return {
+      type: "BooleanLiteral",
+      value: token.value === "true",
+    };
+  }
 
-    advance() {
-        return this.tokens[this.pos++];
-    }
+  throw new Error("Expected a string, number, boolean, or identifier");
+}
 
-    checkKeyword(word: string) {
-        const token = this.peek();
-        return token.kind === TokenKind.Keyword && token.value === word;
-    }
+peek(): Token {
+  const token = this.tokens[this.pos];
+  if (!token) {
+    throw new Error("Unexpected end of file");
+  }
+  return token;
+}
 
-    expectKeyword(word: string) {
-        if (!this.checkKeyword(word)) {
-            throw new Error(`Expected '${word}'`);
-        }
-        this.advance();
-    }
+advance() {
+  return this.tokens[this.pos++];
+}
 
-    expect(value: string) {
-        const token = this.peek();
-        if (token.value !== value) {
-            throw new Error(`Expected '${value}'`);
-        }
-        this.advance();
-    }
+checkKeyword(word: string) {
+  const token = this.peek();
+  return token.kind === TokenKind.Keyword && token.value === word;
+}
+
+expectKeyword(word: string) {
+  if (!this.checkKeyword(word)) {
+    throw new Error(`Expected '${word}'`);
+  }
+  this.advance();
+}
+
+expect(value: string) {
+  const token = this.peek();
+  if (token.value !== value) {
+    throw new Error(`Expected '${value}'`);
+  }
+  this.advance();
+}
 }

@@ -7,7 +7,8 @@ export interface Program {
 
 export type Statement =
     | PrintStatement
-    | VariableDeclaration;
+    | VariableDeclaration
+    | ConstantDeclaration;
 
 export interface PrintStatement {
     type: "PrintStatement";
@@ -19,6 +20,12 @@ export interface VariableDeclaration {
     name: string;
     value: Expression;
     typeAnnotation?: TypeAnnotation;
+}
+export interface ConstantDeclaration {
+    type: "ConstantDeclaration";
+    name: string;
+    value: Expression;
+    typeAnnotation?: TypeAnnotation; 
 }
 
 export interface BooleanLiteral {   

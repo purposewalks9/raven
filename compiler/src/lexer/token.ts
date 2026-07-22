@@ -8,7 +8,7 @@ export enum TokenKind {
 }
 
 export const KEYWORDS = new Set([
-  "print", "val", "true", "false"
+  "print", "val",,"rave", "true", "false"
 ]);
 
 export interface Token {
