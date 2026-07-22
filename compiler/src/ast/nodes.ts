@@ -3,6 +3,8 @@ export interface Program {
     body: Statement[];
 }
 
+
+
 export type Statement =
     | PrintStatement
     | VariableDeclaration;
@@ -23,12 +25,12 @@ export interface BooleanLiteral {
     type: "BooleanLiteral";
     value: boolean;
 }
-
 export type Expression =
     | StringLiteral
-    | BooleanLiteral
     | NumberLiteral
-    | Identifier;
+    | BooleanLiteral
+    | Identifier
+    | BinaryExpression;
 
 export interface StringLiteral {
     type: "StringLiteral";
@@ -42,6 +44,13 @@ export interface NumberLiteral {
 export interface Identifier {
     type: "Identifier";
     name: string;
+}
+
+export interface BinaryExpression {
+    type: "BinaryExpression";
+    operator: "+" | "-" | "*" | "/" | "==" | "<" | ">";
+    left: Expression;
+    right: Expression;
 }
 
 export type TypeAnnotation =

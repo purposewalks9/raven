@@ -8,7 +8,7 @@ export enum TokenKind {
 }
 
 export const KEYWORDS = new Set([
-  "print", "val" , "true", "false"
+  "print", "val", "true", "false"
 ]);
 
 export interface Token {
@@ -23,25 +23,57 @@ export function tokenize(source: string): Token[] {
   while (pos < source.length) {
     const c = source[pos];
 
-    // Skip spaces
+
     if (c === " " || c === "\n" || c === "\t") {
       pos++;
       continue;
     }
-
+    if (c === "=" && source[pos + 1] === "=") {
+      tokens.push({ kind: TokenKind.Punctuation, value: "==" });
+      pos += 2;
+      continue;
+    }
     if (c === "=") {
       tokens.push({ kind: TokenKind.Punctuation, value: "=" });
       pos++;
       continue;
     }
 
-
-    if (c === ":") {                                        // NEW
+    if (c === ":") {
       tokens.push({ kind: TokenKind.Punctuation, value: ":" });
       pos++;
       continue;
     }
-    // ( and )
+    if (c === "+") {
+      tokens.push({ kind: TokenKind.Punctuation, value: "+" });
+      pos++;
+      continue;
+    }
+    if (c === "-") {
+      tokens.push({ kind: TokenKind.Punctuation, value: "-" });
+      pos++;
+      continue;
+    }
+    if (c === "*") {
+      tokens.push({ kind: TokenKind.Punctuation, value: "*" });
+      pos++;
+      continue;
+    }
+    if (c === "/") {
+      tokens.push({ kind: TokenKind.Punctuation, value: "/" });
+      pos++;
+      continue;
+    }
+    if (c === "<") {
+      tokens.push({ kind: TokenKind.Punctuation, value: "<" });
+      pos++;
+      continue;
+    }
+    if (c === ">") {
+      tokens.push({ kind: TokenKind.Punctuation, value: ">" });
+      pos++;
+      continue;
+    }
     if (c === "(") {
       tokens.push({ kind: TokenKind.Punctuation, value: "(" });
       pos++;
@@ -53,7 +85,7 @@ export function tokenize(source: string): Token[] {
       continue;
     }
 
-    // "Hello" (strings)
+
     if (c === '"') {
       pos++;
       let value = "";
@@ -61,7 +93,7 @@ export function tokenize(source: string): Token[] {
         value += source[pos];
         pos++;
       }
-      pos++; // skip closing quote
+      pos++;
       tokens.push({ kind: TokenKind.String, value });
       continue;
     }
@@ -93,7 +125,7 @@ export function tokenize(source: string): Token[] {
       });
       continue;
     }
-  
+
 
     throw new Error("Unknown character: " + c);
   }
