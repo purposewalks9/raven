@@ -90,6 +90,11 @@ export class Parser {
                 name: token.value
             };
         }
+
+         if (token.kind === TokenKind.Number) {          // NEW
+        this.advance();
+        return { type: "NumberLiteral", value: Number(token.value) };
+    }
         throw new Error("Expected a string or identifier");
     }
 

@@ -1,8 +1,8 @@
-// lexer/token.ts
 export enum TokenKind {
   Keyword = "Keyword",
   Identifier = "Identifier",
   String = "String",
+  Number = "Number",
   Punctuation = "Punctuation",
   EOF = "EOF",
 }
@@ -28,18 +28,19 @@ export function tokenize(source: string): Token[] {
       pos++;
       continue;
     }
-    
-    if (c === "=") {
-  tokens.push({ kind: TokenKind.Punctuation, value: "=" });
-  pos++;
-  continue;
-}
 
-if (c === ":") {                                        // NEW
-  tokens.push({ kind: TokenKind.Punctuation, value: ":" });
-  pos++;
-  continue;
-}
+    if (c === "=") {
+      tokens.push({ kind: TokenKind.Punctuation, value: "=" });
+      pos++;
+      continue;
+    }
+
+
+    if (c === ":") {                                        // NEW
+      tokens.push({ kind: TokenKind.Punctuation, value: ":" });
+      pos++;
+      continue;
+    }
     // ( and )
     if (c === "(") {
       tokens.push({ kind: TokenKind.Punctuation, value: "(" });
@@ -71,8 +72,15 @@ if (c === ":") {                                        // NEW
       continue;
     }
 
-    // === ADD THIS BLOCK ===
-    // Keywords / identifiers
+    if (/[0-9]/.test(c)) {
+      let value = "";
+      while (pos < source.length && /[0-9]/.test(source[pos])) {
+        value += source[pos];
+        pos++;
+      }
+      tokens.push({ kind: TokenKind.Number, value });
+      continue;
+    }
     if (/[a-zA-Z_]/.test(c)) {
       let value = "";
       while (pos < source.length && /[a-zA-Z0-9_]/.test(source[pos])) {
@@ -85,7 +93,7 @@ if (c === ":") {                                        // NEW
       });
       continue;
     }
-    // ======================
+  
 
     throw new Error("Unknown character: " + c);
   }

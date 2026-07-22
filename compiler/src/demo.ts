@@ -1,4 +1,3 @@
-// src/demo.ts
 import { tokenize } from "./lexer/token.js";
 import { Parser } from "./parser/parser.js";
 import { TypeChecker } from "./typechecker/checker.js";
@@ -7,7 +6,7 @@ import { writeFileSync } from "node:fs";
 import { execSync } from "node:child_process";
 
 const source = `
-val name: string = "World"
+val name: number = 6393939
 print(name)
 `;
 
@@ -27,7 +26,7 @@ const errors = new TypeChecker().check(ast);
 if (errors.length > 0) {
   console.log("Found type errors:");
   errors.forEach(e => console.log("  - " + e));
-  process.exit(1); // stop here, don't emit broken code
+  process.exit(1);
 }
 console.log("No type errors ✔");
 

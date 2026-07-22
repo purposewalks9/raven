@@ -43,6 +43,8 @@ export class TypeChecker {
         switch (node.type) {
             case "StringLiteral":
                 return "string";
+            case "NumberLiteral":
+                return "number";
             case "Identifier": {
                 const type = this.symbolTable.lookup(node.name);
                 if (!type) {

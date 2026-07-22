@@ -16,16 +16,21 @@ export interface VariableDeclaration {
     type: "VariableDeclaration";
     name: string;
     value: Expression;
-    typeAnnotation?: TypeAnnotation;   // NEW — optional, since `val x = "hi"` has none
+    typeAnnotation?: TypeAnnotation;
 }
 
 export type Expression =
     | StringLiteral
+    | NumberLiteral
     | Identifier;
 
 export interface StringLiteral {
     type: "StringLiteral";
     value: string;
+}
+export interface NumberLiteral {
+    type: "NumberLiteral";
+    value: number;
 }
 
 export interface Identifier {
@@ -34,4 +39,5 @@ export interface Identifier {
 }
 
 export type TypeAnnotation =
-    | "string";
+    | "string"
+    | "number";

@@ -1,5 +1,5 @@
 // emitter/emitter.ts
-import { Program, Statement, PrintStatement, VariableDeclaration, Expression, StringLiteral, Identifier } from "../ast/nodes.js";
+import { Program, Statement, PrintStatement, VariableDeclaration, Expression, StringLiteral, Identifier, NumberLiteral } from "../ast/nodes.js";
 
 export class Emitter {
     private indentLevel = 0;
@@ -52,6 +52,9 @@ export class Emitter {
             case "Identifier":
                 this.emitIdentifier(node);
                 break;
+            case "NumberLiteral":
+                this.emitNumberLiteral(node);
+                break;
             default:
                 throw new Error(`Unknown expression type: ${(node as any).type}`);
         }
@@ -70,8 +73,10 @@ export class Emitter {
     private emitIdentifier(node: Identifier): void {
         this.write(node.name);
     }
-
-    // --- Output helpers ---
+    
+    private emitNumberLiteral(node: NumberLiteral): void {
+    this.write(String(node.value));
+}
 
     private write(text: string): void {
         this.output.push(text);
