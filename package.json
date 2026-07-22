@@ -1,8 +1,8 @@
 {
-  "name": "nova",
+  "name": "Raven",
   "private": true,
   "version": "0.0.1",
-  "description": "Nova — a statically typed language for the JavaScript ecosystem that compiles to optimized JS.",
+  "description": "Raven — a statically typed language for the JavaScript ecosystem that compiles to optimized JS.",
   "license": "MIT",
   "packageManager": "pnpm@9.0.0",
   "scripts": {
