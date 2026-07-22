@@ -1,5 +1,5 @@
-let age = 
-32
+let name = 
+"World"
 ;
 
 
@@ -15,10 +15,5 @@ goat
 
 console.log(
 name
-);
-
-
-console.log(
-verified
 );
 

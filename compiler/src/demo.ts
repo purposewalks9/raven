@@ -10,7 +10,7 @@ val name: string = "World"
 rave goat: string = "Messi"
 print(goat)
 print(name)
-print(verified)
+
 `;
 
 console.log("=== RAVEN SOURCE ===");
