@@ -1,49 +1,218 @@
-# Nova
+# Raven
 
-Nova is a statically typed programming language for the JavaScript ecosystem
-that compiles to highly optimized JavaScript. It extends the web platform
-with language-level features for concurrency, state management, full-stack
-development, and developer productivity — while staying fully compatible
-with the existing JS/TS ecosystem.
+> A modern programming language for the web with built-in type inference, zero TypeScript, and seamless JavaScript interoperability.
 
-Unlike TypeScript, which layers a type system on top of JavaScript, Nova
-rethinks the language itself: structured concurrency, compiler-managed
-state, explicit server/client boundaries, modern error handling, and a
-simpler module system are first-class parts of the language, not framework
-conventions bolted on afterward.
+> **Status:** 🚧 Early Development (Compiler under active development)
 
-## Core innovations
+---
 
-- **Structured concurrency** — safe, coordinated async execution built into the language.
-- **Compiler-managed state** — the compiler tracks mutation and reactivity instead of a runtime library (Redux/Zustand/signals) doing it.
-- **First-class full-stack** — server code, client code, routes, APIs, and server actions are language constructs; the compiler generates the JS wiring.
-- **Simple module system** — no bundler config maze, no barrel-file gymnastics.
-- **Modern error handling** — explicit, type-safe failure paths instead of unchecked `throw`.
-- **Sound static types** — inference, generics, exhaustive pattern matching, null safety.
-- **Zero runtime overhead** — compiles to plain, efficient JS wherever possible.
-- **JS ecosystem compatible** — import existing npm/TS packages directly.
+## Why Raven?
 
-## Monorepo layout
+JavaScript changed the web, but as applications grew, developers needed additional tools like TypeScript, ESLint, Prettier, Babel, and various frameworks to improve safety and developer experience.
 
+Raven aims to provide a cleaner alternative by making these ideas part of the language itself.
+
+The goals are simple:
+
+* 🧠 Smart by default.
+* ✨ Easy to read.
+* 🔒 Safer than JavaScript.
+* ⚡ Fast compilation.
+* 🌍 Built for the modern web.
+* ♻️ 100% JavaScript interoperability.
+
+Write Raven.
+
+Compile to JavaScript.
+
+Run anywhere JavaScript runs.
+
+---
+
+# Example
+
+### Raven
+
+```raven
+let name = "Raven"
+let version = 1
+
+if version >= 1
+    print "Welcome to {name}"
+end
 ```
-nova/
-├── compiler/        # lexer → parser → ast → typechecker → optimizer → emitter, CLI
-├── language/         # spec, grammar, syntax & semantics docs
-├── framework/        # router, ui, server, auth, database, state, forms runtime
-├── packages/          @nova/* published packages
-├── vscode/            syntax highlighting + language server + extension
-├── docs/              user-facing documentation site content
-├── examples/          hello-world, todo, blog, ecommerce, social-app
-├── tests/             cross-package/integration tests
-└── website/           nova-lang.dev marketing site
+
+### Compiled JavaScript
+
+```javascript
+const name = "Raven";
+const version = 1;
+
+if (version >= 1) {
+    console.log(`Welcome to ${name}`);
+}
 ```
 
-## Getting started
+---
+
+# Philosophy
+
+Raven is built around a few principles:
+
+* Readability over clever syntax.
+* Strong type inference without requiring TypeScript.
+* Minimal punctuation.
+* Helpful compiler diagnostics.
+* Seamless access to the JavaScript ecosystem.
+* Great developer experience out of the box.
+
+---
+
+# Features
+
+### Language
+
+* Variables
+* Constants
+* Functions
+* Conditionals
+* Loops
+* Modules
+* Pattern Matching
+* Async/Await
+* Type Inference
+* Null Safety
+* Standard Library
+
+---
+
+### Compiler
+
+* Lexer
+* Parser
+* AST
+* Semantic Analysis
+* Type Checker
+* Optimizer
+* JavaScript Emitter
+
+---
+
+### CLI
 
 ```bash
-pnpm install
-pnpm build          # builds compiler + packages
-pnpm compile examples/hello-world/src/pages/login.nova
+raven new
+raven run
+raven build
+raven test
+raven format
+raven add
+raven publish
 ```
 
-See `language/roadmap.md` for where things stand and what's next.
+---
+
+### Tooling
+
+* Formatter
+* Linter
+* Language Server
+* VS Code Extension
+* Testing Framework
+* Package Manager
+
+---
+
+### Web
+
+Raven compiles directly to JavaScript, allowing applications to run in browsers, Node.js, Bun, Deno, and other JavaScript runtimes.
+
+Future plans include a dedicated UI framework built specifically for Raven.
+
+---
+
+# Project Structure
+
+```
+raven/
+│
+├── lexer/
+├── parser/
+├── ast/
+├── semantic/
+├── optimizer/
+├── emitter/
+├── cli/
+├── std/
+├── tests/
+└── docs/
+```
+
+---
+
+# Roadmap
+
+## Phase 1 — Compiler
+
+* [ ] Lexer
+* [ ] Parser
+* [ ] AST
+* [ ] JavaScript Emitter
+* [ ] Error Reporting
+
+## Phase 2 — Language
+
+* [ ] Variables
+* [ ] Functions
+* [ ] Modules
+* [ ] Loops
+* [ ] Pattern Matching
+* [ ] Type Inference
+
+## Phase 3 — Developer Experience
+
+* [ ] CLI
+* [ ] Formatter
+* [ ] Linter
+* [ ] Testing Framework
+* [ ] Standard Library
+
+## Phase 4 — Ecosystem
+
+* [ ] Package Manager
+* [ ] Documentation
+* [ ] VS Code Extension
+* [ ] Language Server
+* [ ] Playground
+
+## Phase 5 — UI
+
+* [ ] Raven UI Framework
+* [ ] Reactive Components
+* [ ] Hot Reloading
+* [ ] Server-Side Rendering
+* [ ] Static Site Generation
+
+---
+
+# Long-Term Vision
+
+Raven is not intended to replace JavaScript.
+
+Instead, it aims to become a better way to write applications that ultimately run on the JavaScript ecosystem.
+
+The vision is to combine the simplicity of modern languages with the reach of JavaScript, giving developers a safer, cleaner, and more productive experience without sacrificing compatibility.
+
+---
+
+# Contributing
+
+Raven is in its earliest stages of development.
+
+Contributions, ideas, bug reports, and discussions are welcome as the language evolves.
+
+---
+
+# License
+
+MIT License.
