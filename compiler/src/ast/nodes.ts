@@ -5,7 +5,8 @@ export interface Program {
 
 export type Statement =
     | PrintStatement
-    | VariableDeclaration;
+    | VariableDeclaration
+    | ConstantDeclaration;
 
 export interface PrintStatement {
     type: "PrintStatement";
@@ -17,6 +18,12 @@ export interface VariableDeclaration {
     name: string;
     value: Expression;
     typeAnnotation?: TypeAnnotation;   // NEW — optional, since `val x = "hi"` has none
+}
+export interface ConstantDeclaration {
+    type: "ConstantDeclaration";
+    name: string;
+    value: Expression;
+    typeAnnotation?: TypeAnnotation; 
 }
 
 export type Expression =

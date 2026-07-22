@@ -8,6 +8,8 @@ import { execSync } from "node:child_process";
 
 const source = `
 val name: string = "World"
+rave goat: string = "Messi"
+print(goat)
 print(name)
 `;
 

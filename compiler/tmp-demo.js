@@ -3,6 +3,16 @@ let name =
 ;
 
 
+const goat = 
+"Messi"
+;
+
+
+console.log(
+goat
+);
+
+
 console.log(
 name
 );
