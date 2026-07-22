@@ -8,6 +8,8 @@ import {
   Expression,
   StringLiteral,
   Identifier,
+  NumberLiteral,
+  BooleanLiteral,
 } from "../ast/nodes.js";
 
 export class Emitter {
@@ -31,10 +33,12 @@ export class Emitter {
       case "PrintStatement":
         this.emitPrintStatement(node);
         break;
+
       case "VariableDeclaration":
       case "ConstantDeclaration":
         this.emitVariableDeclaration(node);
         break;
+
       default:
         throw new Error(`Unknown statement type: ${(node as any).type}`);
     }
@@ -63,9 +67,19 @@ export class Emitter {
       case "StringLiteral":
         this.emitStringLiteral(node);
         break;
+
       case "Identifier":
         this.emitIdentifier(node);
         break;
+
+      case "NumberLiteral":
+        this.emitNumberLiteral(node);
+        break;
+
+      case "BooleanLiteral":
+        this.emitBooleanLiteral(node);
+        break;
+
       default:
         throw new Error(`Unknown expression type: ${(node as any).type}`);
     }
@@ -78,6 +92,7 @@ export class Emitter {
       .replace(/\n/g, "\\n")
       .replace(/\r/g, "\\r")
       .replace(/\t/g, "\\t");
+
     this.write(`"${escaped}"`);
   }
 
@@ -85,7 +100,13 @@ export class Emitter {
     this.write(node.name);
   }
 
-  // --- Output helpers ---
+  private emitNumberLiteral(node: NumberLiteral): void {
+    this.write(String(node.value));
+  }
+
+  private emitBooleanLiteral(node: BooleanLiteral): void {
+    this.write(String(node.value));
+  }
 
   private write(text: string): void {
     this.output.push(text);

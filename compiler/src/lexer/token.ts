@@ -1,14 +1,14 @@
-// lexer/token.ts
 export enum TokenKind {
   Keyword = "Keyword",
   Identifier = "Identifier",
   String = "String",
+  Number = "Number",
   Punctuation = "Punctuation",
   EOF = "EOF",
 }
 
 export const KEYWORDS = new Set([
-  "print", "val","rave"
+  "print", "val",,"rave", "true", "false"
 ]);
 
 export interface Token {
@@ -23,24 +23,57 @@ export function tokenize(source: string): Token[] {
   while (pos < source.length) {
     const c = source[pos];
 
-    // Skip spaces
+
     if (c === " " || c === "\n" || c === "\t") {
       pos++;
       continue;
     }
-    
+    if (c === "=" && source[pos + 1] === "=") {
+      tokens.push({ kind: TokenKind.Punctuation, value: "==" });
+      pos += 2;
+      continue;
+    }
     if (c === "=") {
-  tokens.push({ kind: TokenKind.Punctuation, value: "=" });
-  pos++;
-  continue;
-}
+      tokens.push({ kind: TokenKind.Punctuation, value: "=" });
+      pos++;
+      continue;
+    }
 
-if (c === ":") {                                        // NEW
-  tokens.push({ kind: TokenKind.Punctuation, value: ":" });
-  pos++;
-  continue;
-}
-    // ( and )
+    if (c === ":") {
+      tokens.push({ kind: TokenKind.Punctuation, value: ":" });
+      pos++;
+      continue;
+    }
+    if (c === "+") {
+      tokens.push({ kind: TokenKind.Punctuation, value: "+" });
+      pos++;
+      continue;
+    }
+    if (c === "-") {
+      tokens.push({ kind: TokenKind.Punctuation, value: "-" });
+      pos++;
+      continue;
+    }
+    if (c === "*") {
+      tokens.push({ kind: TokenKind.Punctuation, value: "*" });
+      pos++;
+      continue;
+    }
+    if (c === "/") {
+      tokens.push({ kind: TokenKind.Punctuation, value: "/" });
+      pos++;
+      continue;
+    }
+    if (c === "<") {
+      tokens.push({ kind: TokenKind.Punctuation, value: "<" });
+      pos++;
+      continue;
+    }
+    if (c === ">") {
+      tokens.push({ kind: TokenKind.Punctuation, value: ">" });
+      pos++;
+      continue;
+    }
     if (c === "(") {
       tokens.push({ kind: TokenKind.Punctuation, value: "(" });
       pos++;
@@ -52,7 +85,7 @@ if (c === ":") {                                        // NEW
       continue;
     }
 
-    // "Hello" (strings)
+
     if (c === '"') {
       pos++;
       let value = "";
@@ -60,7 +93,7 @@ if (c === ":") {                                        // NEW
         value += source[pos];
         pos++;
       }
-      pos++; // skip closing quote
+      pos++;
       tokens.push({ kind: TokenKind.String, value });
       continue;
     }
@@ -71,8 +104,15 @@ if (c === ":") {                                        // NEW
       continue;
     }
 
-    // === ADD THIS BLOCK ===
-    // Keywords / identifiers
+    if (/[0-9]/.test(c)) {
+      let value = "";
+      while (pos < source.length && /[0-9]/.test(source[pos])) {
+        value += source[pos];
+        pos++;
+      }
+      tokens.push({ kind: TokenKind.Number, value });
+      continue;
+    }
     if (/[a-zA-Z_]/.test(c)) {
       let value = "";
       while (pos < source.length && /[a-zA-Z0-9_]/.test(source[pos])) {
@@ -85,7 +125,7 @@ if (c === ":") {                                        // NEW
       });
       continue;
     }
-    // ======================
+
 
     throw new Error("Unknown character: " + c);
   }

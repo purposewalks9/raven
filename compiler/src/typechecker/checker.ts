@@ -65,6 +65,13 @@ export class TypeChecker {
     switch (node.type) {
       case "StringLiteral":
         return "string";
+
+      case "NumberLiteral":
+        return "number";
+
+      case "BooleanLiteral":
+        return "boolean";
+
       case "Identifier": {
         const symbol = this.symbolTable.lookup(node.name);
 
@@ -75,6 +82,7 @@ export class TypeChecker {
 
         return symbol.type;
       }
+
       default:
         throw new Error(`Cannot infer type for: ${(node as any).type}`);
     }

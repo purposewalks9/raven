@@ -14,17 +14,23 @@ describe("lexer", () => {
     ]);
   });
 
+  it("tokenizes math and comparison operators", () => {
+    const tokens = tokenize(`2 + 3 * 4 == 14`);
+    const values = tokens.map(t => t.value);
+    expect(values).toEqual(["2", "+", "3", "*", "4", "==", "14", ""]);
+  });
+
   it("tokenizes a val statement", () => {
-  const tokens = tokenize(`val x = "hi"`);
-  expect(tokens.map(t => t.kind)).toEqual([
-    TokenKind.Keyword,
-    TokenKind.Identifier,
-    TokenKind.Punctuation,
-    TokenKind.String,
-    TokenKind.EOF,
-  ]);
-});
-  
+    const tokens = tokenize(`val x = "hi"`);
+    expect(tokens.map(t => t.kind)).toEqual([
+      TokenKind.Keyword,
+      TokenKind.Identifier,
+      TokenKind.Punctuation,
+      TokenKind.String,
+      TokenKind.EOF,
+    ]);
+  });
+
   it("tokenizes identifiers separately from keywords", () => {
     const tokens = tokenize(`foo`);
     expect(tokens[0].kind).toBe(TokenKind.Identifier);
@@ -36,18 +42,29 @@ describe("lexer", () => {
     const str = tokens.find(t => t.kind === TokenKind.String);
     expect(str?.value).toBe("Hello, World!");
   });
+  it("tokenizes true and false as keywords", () => {
+    const tokens = tokenize(`val isReady = true`);
+    const boolToken = tokens.find(t => t.value === "true");
+    expect(boolToken?.kind).toBe(TokenKind.Keyword);
+  });
+  it("tokenizes a number literal", () => {
+    const tokens = tokenize(`val age = 5`);
+    const numberToken = tokens.find(t => t.kind === TokenKind.Number);
+    expect(numberToken?.value).toBe("5");
+  });
+
   it("tokenizes a typed val statement", () => {
-  const tokens = tokenize(`val x: string = "hi"`);
-  expect(tokens.map(t => t.kind)).toEqual([
-    TokenKind.Keyword,      // val
-    TokenKind.Identifier,   // x
-    TokenKind.Punctuation,  // :
-    TokenKind.Identifier,   // string
-    TokenKind.Punctuation,  // =
-    TokenKind.String,       // "hi"
-    TokenKind.EOF,
-  ]);
-});
+    const tokens = tokenize(`val x: string = "hi"`);
+    expect(tokens.map(t => t.kind)).toEqual([
+      TokenKind.Keyword,
+      TokenKind.Identifier,
+      TokenKind.Punctuation,
+      TokenKind.Identifier,
+      TokenKind.Punctuation,
+      TokenKind.String,
+      TokenKind.EOF,
+    ]);
+  });
 
   it("skips whitespace", () => {
     const tokens = tokenize(`  print  (  "hi"  )  `);

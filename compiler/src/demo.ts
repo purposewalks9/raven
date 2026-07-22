@@ -1,4 +1,3 @@
-// src/demo.ts
 import { tokenize } from "./lexer/token.js";
 import { Parser } from "./parser/parser.js";
 import { TypeChecker } from "./typechecker/checker.js";
@@ -11,6 +10,7 @@ val name: string = "World"
 rave goat: string = "Messi"
 print(goat)
 print(name)
+print(verified)
 `;
 
 console.log("=== RAVEN SOURCE ===");
@@ -27,9 +27,9 @@ console.log(JSON.stringify(ast, null, 2));
 console.log("=== TYPE CHECK ===");
 const errors = new TypeChecker().check(ast);
 if (errors.length > 0) {
-  console.log("Found type errors:");
-  errors.forEach(e => console.log("  - " + e));
-  process.exit(1); // stop here, don't emit broken code
+    console.log("Found type errors:");
+    errors.forEach(e => console.log("  - " + e));
+    process.exit(1);
 }
 console.log("No type errors ✔");
 

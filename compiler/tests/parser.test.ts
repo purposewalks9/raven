@@ -16,31 +16,48 @@ describe("parser", () => {
     expect(() => new Parser(tokenize(`print("hi"`)).parseProgram()).toThrow();
   });
   it("parses a val declaration", () => {
-  const ast = new Parser(tokenize(`val x = "hi"`)).parseProgram();
-  expect(ast.body[0]).toEqual({
-    type: "VariableDeclaration",
-    name: "x",
-    value: { type: "StringLiteral", value: "hi" },
+    const ast = new Parser(tokenize(`val x = "hi"`)).parseProgram();
+    expect(ast.body[0]).toEqual({
+      type: "VariableDeclaration",
+      name: "x",
+      value: { type: "StringLiteral", value: "hi" },
+    });
   });
-});
-it("parses a val declaration with a type annotation", () => {
-  const ast = new Parser(tokenize(`val x: string = "hi"`)).parseProgram();
-  expect(ast.body[0]).toEqual({
-    type: "VariableDeclaration",
-    name: "x",
-    value: { type: "StringLiteral", value: "hi" },
-    typeAnnotation: "string",
-  });
-});
 
-it("parses a val declaration without a type annotation", () => {
-  const ast = new Parser(tokenize(`val x = "hi"`)).parseProgram();
-  expect((ast.body[0] as any).typeAnnotation).toBeUndefined();
+  it("parses a val declaration with a boolean", () => {
+  const ast = new Parser(tokenize(`val isReady = true`)).parseProgram();
+  expect(ast.body[0]).toEqual({
+    type: "VariableDeclaration",
+    name: "isReady",
+    value: { type: "BooleanLiteral", value: true },
+  });
 });
-it("parses print with an identifier argument", () => {
-  const ast = new Parser(tokenize(`print(x)`)).parseProgram();
-  expect((ast.body[0] as any).argument).toEqual({ type: "Identifier", name: "x" });
-});
+  it("parses a val declaration with a type annotation", () => {
+    const ast = new Parser(tokenize(`val x: string = "hi"`)).parseProgram();
+    expect(ast.body[0]).toEqual({
+      type: "VariableDeclaration",
+      name: "x",
+      value: { type: "StringLiteral", value: "hi" },
+      typeAnnotation: "string",
+    });
+  });
+
+  it("parses a val declaration without a type annotation", () => {
+    const ast = new Parser(tokenize(`val x = "hi"`)).parseProgram();
+    expect((ast.body[0] as any).typeAnnotation).toBeUndefined();
+  });
+  it("parses print with an identifier argument", () => {
+    const ast = new Parser(tokenize(`print(x)`)).parseProgram();
+    expect((ast.body[0] as any).argument).toEqual({ type: "Identifier", name: "x" });
+  });
+  it("parses a val declaration with a number", () => {
+    const ast = new Parser(tokenize(`val age = 5`)).parseProgram();
+    expect(ast.body[0]).toEqual({
+      type: "VariableDeclaration",
+      name: "age",
+      value: { type: "NumberLiteral", value: 5 },
+    });
+  });
   it("throws on unknown statement", () => {
     expect(() => new Parser(tokenize(`foo`)).parseProgram()).toThrow();
   });

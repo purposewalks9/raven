@@ -44,6 +44,51 @@ describe("TypeChecker", () => {
     expect(errors[0]).toContain("ghost");
   });
 
+  it("infers boolean type correctly", () => {
+    const ast: Program = {
+      type: "Program",
+      body: [{
+        type: "VariableDeclaration",
+        name: "isReady",
+        value: { type: "BooleanLiteral", value: true },
+        typeAnnotation: "boolean",
+      }],
+    };
+    const errors = new TypeChecker().check(ast);
+    expect(errors).toEqual([]);
+  });
+
+  it("catches a boolean/string mismatch", () => {
+    const ast: Program = {
+      type: "Program",
+      body: [{
+        type: "VariableDeclaration",
+        name: "isReady",
+        value: { type: "StringLiteral", value: "yes" },
+        typeAnnotation: "boolean",
+      }],
+    };
+    const errors = new TypeChecker().check(ast);
+    expect(errors.length).toBe(1);
+  });
+
+  it("reports a type mismatch between annotation and value", () => {
+    const ast: Program = {
+      type: "Program",
+      body: [{
+        type: "VariableDeclaration",
+        name: "age",
+        value: { type: "StringLiteral", value: "oops" },
+        typeAnnotation: "number",
+      }],
+    };
+    const errors = new TypeChecker().check(ast);
+    expect(errors.length).toBe(1);
+    expect(errors[0]).toContain("age");
+    expect(errors[0]).toContain("number");
+    expect(errors[0]).toContain("string");
+  });
+
   it("allows a declared variable to be printed without error", () => {
     const ast: Program = {
       type: "Program",

@@ -3,6 +3,8 @@ export interface Program {
     body: Statement[];
 }
 
+
+
 export type Statement =
     | PrintStatement
     | VariableDeclaration
@@ -17,7 +19,7 @@ export interface VariableDeclaration {
     type: "VariableDeclaration";
     name: string;
     value: Expression;
-    typeAnnotation?: TypeAnnotation;   // NEW — optional, since `val x = "hi"` has none
+    typeAnnotation?: TypeAnnotation;
 }
 export interface ConstantDeclaration {
     type: "ConstantDeclaration";
@@ -26,13 +28,24 @@ export interface ConstantDeclaration {
     typeAnnotation?: TypeAnnotation; 
 }
 
+export interface BooleanLiteral {   
+    type: "BooleanLiteral";
+    value: boolean;
+}
 export type Expression =
     | StringLiteral
-    | Identifier;
+    | NumberLiteral
+    | BooleanLiteral
+    | Identifier
+    | BinaryExpression;
 
 export interface StringLiteral {
     type: "StringLiteral";
     value: string;
+}
+export interface NumberLiteral {
+    type: "NumberLiteral";
+    value: number;
 }
 
 export interface Identifier {
@@ -40,5 +53,14 @@ export interface Identifier {
     name: string;
 }
 
+export interface BinaryExpression {
+    type: "BinaryExpression";
+    operator: "+" | "-" | "*" | "/" | "==" | "<" | ">";
+    left: Expression;
+    right: Expression;
+}
+
 export type TypeAnnotation =
-    | "string";
+    | "string"
+    | "boolean"
+    | "number";
