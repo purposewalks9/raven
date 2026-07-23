@@ -55,7 +55,7 @@ it("emits a binary expression", () => {
     }],
   };
   const js = new Emitter().emit(ast);
-  expect(js.replace(/\s+/g, " ").trim()).toContain("(2 + 3)");
+  expect(js).toContain("(2 + 3)");
 });
   it("emits a variable declaration", () => {
   const ast: Program = {

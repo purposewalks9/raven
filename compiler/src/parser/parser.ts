@@ -4,7 +4,7 @@ import { Program, Statement, Expression } from "../ast/nodes.js";
 export class Parser {
     private pos = 0;
 
-    constructor(private tokens: Token[]) { }
+    constructor(private tokens: Token[]) {}
 
     parseProgram(): Program {
         const body: Statement[] = [];
@@ -26,6 +26,9 @@ export class Parser {
         if (this.checkKeyword("val")) {
             return this.parseVal();
         }
+        if (this.checkKeyword("rave")) {
+            return this.parseConst();
+        }
         throw new Error("Expected a statement");
     }
 
@@ -40,33 +43,61 @@ export class Parser {
         };
     }
 
-   parseVal(): Statement {
-    this.expectKeyword("val");
+    parseVal(): Statement {
+        this.expectKeyword("val");
 
-    const nameToken = this.peek();
-    if (nameToken.kind !== TokenKind.Identifier) {
-        throw new Error("Expected an identifier after 'val'");
-    }
-    this.advance();
-
-    let typeAnnotation: "string" | "number" | "boolean" | undefined;
-    if (this.peek().value === ":") {
-        this.advance();
-        const typeToken = this.peek();
-        if (typeToken.kind !== TokenKind.Identifier) {
-            throw new Error("Expected a type name after ':'");
+        const nameToken = this.peek();
+        if (nameToken.kind !== TokenKind.Identifier) {
+            throw new Error("Expected an identifier after 'val'");
         }
-        typeAnnotation = typeToken.value as "string" | "number" | "boolean";
         this.advance();
+
+        let typeAnnotation: "string" | "number" | "boolean" | undefined;
+        if (this.peek().value === ":") {
+            this.advance();
+            const typeToken = this.peek();
+            if (typeToken.kind !== TokenKind.Identifier) {
+                throw new Error("Expected a type name after ':'");
+            }
+            typeAnnotation = typeToken.value as "string" | "number" | "boolean";
+            this.advance();
+        }
+
+        this.expect("=");
+        const value = this.parseExpression();
+
+        return typeAnnotation === undefined
+            ? { type: "VariableDeclaration", name: nameToken.value, value }
+            : { type: "VariableDeclaration", name: nameToken.value, value, typeAnnotation };
     }
 
-    this.expect("=");
-    const value = this.parseExpression();
+    parseConst(): Statement {
+        this.expectKeyword("rave");
 
-    return typeAnnotation === undefined
-        ? { type: "VariableDeclaration", name: nameToken.value, value }
-        : { type: "VariableDeclaration", name: nameToken.value, value, typeAnnotation };
-}
+        const nameToken = this.peek();
+        if (nameToken.kind !== TokenKind.Identifier) {
+            throw new Error("Expected an identifier after 'rave'");
+        }
+        this.advance();
+
+        let typeAnnotation: "string" | "number" | "boolean" | undefined;
+        if (this.peek().value === ":") {
+            this.advance();
+            const typeToken = this.peek();
+            if (typeToken.kind !== TokenKind.Identifier) {
+                throw new Error("Expected a type name after ':'");
+            }
+            typeAnnotation = typeToken.value as "string" | "number" | "boolean";
+            this.advance();
+        }
+
+        this.expect("=");
+        const value = this.parseExpression();
+
+        return typeAnnotation === undefined
+            ? { type: "ConstantDeclaration", name: nameToken.value, value }
+            : { type: "ConstantDeclaration", name: nameToken.value, value, typeAnnotation };
+    }
 
     parseExpression(): Expression {
         return this.parseComparison();
@@ -130,7 +161,7 @@ export class Parser {
             this.advance();
             return { type: "BooleanLiteral", value: token.value === "true" };
         }
-        throw new Error("Expected a string or identifier");
+        throw new Error("Expected a string, number, boolean, or identifier");
     }
 
     peek(): Token {

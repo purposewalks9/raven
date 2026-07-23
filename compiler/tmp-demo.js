@@ -44,8 +44,3 @@ console.log(
 name
 );
 
-
-console.log(
-verified
-);
-
