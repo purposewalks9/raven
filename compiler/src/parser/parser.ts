@@ -294,6 +294,13 @@ export class Parser {
             return expression;
         }
 
+        if (this.peek().value === "(") {
+            this.advance();
+            const expression = this.parseExpression();
+            this.expect(")");
+            return expression;
+        }
+
         if (token.kind === TokenKind.Identifier && this.tokens[this.pos + 1]?.value === "(") {
             return this.parseCall();
         }

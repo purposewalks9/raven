@@ -13,6 +13,8 @@ export interface SourceLocation {
   column: number;
   start: number;
   end: number;
+  line: number;
+  column: number;
 }
 
 export interface Token {
@@ -50,6 +52,7 @@ const SINGLE_CHARACTER_PUNCTUATION = new Set([
 ]);
 
 export function tokenize(source: string, file = "<anonymous>"): Token[] {
+  
   const tokens: Token[] = [];
   let pos = 0;
   let line = 1;
