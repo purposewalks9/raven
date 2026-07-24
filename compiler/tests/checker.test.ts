@@ -16,7 +16,54 @@ describe("TypeChecker", () => {
     const errors = new TypeChecker().check(ast);
     expect(errors).toEqual([]);
   });
+  it("allows reassigning a val to a matching type", () => {
+  const ast: Program = {
+    type: "Program",
+    body: [
+      { type: "VariableDeclaration", name: "age", value: { type: "NumberLiteral", value: 5 } },
+      { type: "Assignment", name: "age", value: { type: "NumberLiteral", value: 6 } },
+    ],
+  };
+  const errors = new TypeChecker().check(ast);
+  expect(errors).toEqual([]);
+});
 
+it("rejects reassigning a rave constant", () => {
+  const ast: Program = {
+    type: "Program",
+    body: [
+      { type: "ConstantDeclaration", name: "pi", value: { type: "NumberLiteral", value: 3 } },
+      { type: "Assignment", name: "pi", value: { type: "NumberLiteral", value: 4 } },
+    ],
+  };
+  const errors = new TypeChecker().check(ast);
+  expect(errors.length).toBe(1);
+  expect(errors[0]).toContain("rave");
+});
+
+it("requires a boolean if-condition", () => {
+  const ast: Program = {
+    type: "Program",
+    body: [{
+      type: "IfStatement",
+      condition: { type: "NumberLiteral", value: 5 },
+      consequent: [],
+    }],
+  };
+  const errors = new TypeChecker().check(ast);
+  expect(errors.length).toBe(1);
+  expect(errors[0]).toContain("boolean");
+});
+
+
+it("rejects assigning to an undeclared variable", () => {
+  const ast: Program = {
+    type: "Program",
+    body: [{ type: "Assignment", name: "ghost", value: { type: "NumberLiteral", value: 1 } }],
+  };
+  const errors = new TypeChecker().check(ast);
+  expect(errors.length).toBe(1);
+});
   it("passes when there is no annotation (inferred)", () => {
     const ast: Program = {
       type: "Program",

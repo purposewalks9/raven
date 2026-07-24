@@ -8,7 +8,8 @@ export enum TokenKind {
 }
 
 export const KEYWORDS = new Set([
-  "print", "val",,"rave", "true", "false"
+  "print", "val", "rave", "true", "false",
+  "if", "then", "else", "end"
 ]);
 
 export interface Token {
@@ -55,6 +56,18 @@ export function tokenize(source: string): Token[] {
       pos++;
       continue;
     }
+
+    if (c === "{") {
+      tokens.push({ kind: TokenKind.Punctuation, value: "{" });
+      pos++;
+      continue;
+    }
+    if (c === "}") {
+      tokens.push({ kind: TokenKind.Punctuation, value: "}" });
+      pos++;
+      continue;
+    }
+
     if (c === "*") {
       tokens.push({ kind: TokenKind.Punctuation, value: "*" });
       pos++;
@@ -99,13 +112,7 @@ export function tokenize(source: string): Token[] {
       continue;
     }
 
-    if (c === "=") {
-      tokens.push({ kind: TokenKind.Punctuation, value: "=" });
-      pos++;
-      continue;
-    }
-
-       if (/[0-9]/.test(c)) {
+    if (/[0-9]/.test(c)) {
       let value = "";
       while (pos < source.length && /[0-9]/.test(source[pos] ?? "")) {   // ADD ?? ""
         value += source[pos];
@@ -115,7 +122,7 @@ export function tokenize(source: string): Token[] {
       continue;
     }
 
-    
+
     if (/[a-zA-Z_]/.test(c)) {
       let value = "";
       while (pos < source.length && /[a-zA-Z0-9_]/.test(source[pos] ?? "")) {   // ADD ?? ""

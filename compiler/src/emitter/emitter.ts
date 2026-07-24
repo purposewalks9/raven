@@ -9,7 +9,9 @@ import {
   Identifier,
   NumberLiteral,
   BooleanLiteral,
-  BinaryExpression,   // ADD THIS
+  BinaryExpression,
+  Assignment,
+  IfStatement,
 } from "../ast/nodes.js";
 export class Emitter {
   private indentLevel = 0;
@@ -37,7 +39,12 @@ export class Emitter {
       case "ConstantDeclaration":
         this.emitVariableDeclaration(node);
         break;
-
+      case "Assignment":
+        this.emitAssignment(node);
+        break;
+      case "IfStatement":                       // NEW
+        this.emitIfStatement(node);
+        break;
       default:
         throw new Error(`Unknown statement type: ${(node as any).type}`);
     }
@@ -61,7 +68,7 @@ export class Emitter {
     this.newline();
   }
 
- private emitExpression(node: Expression): void {
+  private emitExpression(node: Expression): void {
     switch (node.type) {
       case "StringLiteral":
         this.emitStringLiteral(node);
@@ -75,13 +82,13 @@ export class Emitter {
       case "BooleanLiteral":
         this.emitBooleanLiteral(node);
         break;
-      case "BinaryExpression":              // ADD THIS
+      case "BinaryExpression":
         this.emitBinaryExpression(node);
         break;
       default:
         throw new Error(`Unknown expression type: ${(node as any).type}`);
     }
-}
+  }
 
   private emitStringLiteral(node: StringLiteral): void {
     const escaped = node.value
@@ -93,11 +100,34 @@ export class Emitter {
 
     this.write(`"${escaped}"`);
   }
-
+ private emitIfStatement(node: IfStatement): void {
+    this.write("if (");
+    this.emitExpression(node.condition);
+    this.write(") {");
+    this.newline();
+    for (const stmt of node.consequent) {
+        this.emitStatement(stmt);
+    }
+    this.write("}");
+    if (node.alternate) {
+        this.write(" else {");
+        this.newline();
+        for (const stmt of node.alternate) {
+            this.emitStatement(stmt);
+        }
+        this.write("}");
+    }
+    this.newline();
+}
   private emitIdentifier(node: Identifier): void {
     this.write(node.name);
   }
-
+  private emitAssignment(node: Assignment): void {   // NEW
+    this.write(`${node.name} = `);
+    this.emitExpression(node.value);
+    this.write(";");
+    this.newline();
+  }
   private emitNumberLiteral(node: NumberLiteral): void {
     this.write(String(node.value));
   }
@@ -107,7 +137,7 @@ export class Emitter {
     this.write(` ${node.operator} `);
     this.emitExpression(node.right);
     this.write(")");
-}
+  }
 
   private emitBooleanLiteral(node: BooleanLiteral): void {
     this.write(String(node.value));

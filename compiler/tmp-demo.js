@@ -1,46 +1,40 @@
 let age = 
-32
+20
 ;
 
 
-let name = 
-"Ekwealor Purpose Uche"
-;
-
-
-let verified = 
-true
-;
-
-
-let total = 
+if (
 (
-2
- + 
-(
-(
-3
- * 
-4
+age
+ > 
+18
 )
- / 
-2
-)
-)
-;
+) {
 
 
 console.log(
-total
+"adult"
 );
+
+
+}
+ else {
+
+
+console.log(
+"minor"
+);
+
+
+}
+
+
+age = 
+25
+;
 
 
 console.log(
 age
-);
-
-
-console.log(
-name
 );
 

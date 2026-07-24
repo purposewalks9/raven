@@ -24,6 +24,27 @@ describe("parser", () => {
     });
   });
 
+  it("parses an if/then/end statement", () => {
+  const ast = new Parser(tokenize(`if 5 > 3 then print("yes") end`)).parseProgram();
+ expect(ast.body[0]!.type).toBe("IfStatement");
+  expect((ast.body[0] as any).consequent.length).toBe(1);
+  expect((ast.body[0] as any).alternate).toBeUndefined();
+});
+
+it("parses an if/then/else/end statement", () => {
+  const ast = new Parser(tokenize(`if 5 > 3 then print("yes") else print("no") end`)).parseProgram();
+  expect((ast.body[0] as any).alternate.length).toBe(1);
+});
+
+  it("parses a reassignment", () => {
+    const ast = new Parser(tokenize(`age = 6`)).parseProgram();
+    expect(ast.body[0]).toEqual({
+      type: "Assignment",
+      name: "age",
+      value: { type: "NumberLiteral", value: 6 },
+    });
+  });
+
   it("parses a val declaration with a boolean", () => {
     const ast = new Parser(tokenize(`val isReady = true`)).parseProgram();
     expect(ast.body[0]).toEqual({

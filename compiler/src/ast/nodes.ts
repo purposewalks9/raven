@@ -8,13 +8,27 @@ export interface Program {
 export type Statement =
     | PrintStatement
     | VariableDeclaration
-    | ConstantDeclaration;
+    | ConstantDeclaration
+    | Assignment
+    | IfStatement; 
+
+
+export interface IfStatement {
+    type: "IfStatement";
+    condition: Expression;
+    consequent: Statement[];
+    alternate?: Statement[];
+}
 
 export interface PrintStatement {
     type: "PrintStatement";
     argument: Expression;
 }
-
+export interface Assignment {
+    type: "Assignment";
+    name: string;
+    value: Expression;
+}
 export interface VariableDeclaration {
     type: "VariableDeclaration";
     name: string;

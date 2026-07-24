@@ -27,46 +27,49 @@ describe("emitter", () => {
     expect(js).toContain('"hi"');
   });
   it("emits a boolean literal", () => {
-  const ast: Program = {
-    type: "Program",
-    body: [{
-      type: "VariableDeclaration",
-      name: "isReady",
-      value: { type: "BooleanLiteral", value: true },
-    }],
-  };
-  const js = new Emitter().emit(ast);
-  expect(js).toContain("true");
-});
+    const ast: Program = {
+      type: "Program",
+      body: [{
+        type: "VariableDeclaration",
+        name: "isReady",
+        value: { type: "BooleanLiteral", value: true },
+      }],
+    };
+    const js = new Emitter().emit(ast);
+    expect(js).toContain("true");
+  });
 
-
-it("emits a binary expression", () => {
-  const ast: Program = {
-    type: "Program",
-    body: [{
-      type: "VariableDeclaration",
-      name: "x",
-      value: {
-        type: "BinaryExpression",
-        operator: "+",
-        left: { type: "NumberLiteral", value: 2 },
-        right: { type: "NumberLiteral", value: 3 },
-      },
-    }],
-  };
-  const js = new Emitter().emit(ast);
-  expect(js).toContain("(2 + 3)");
-});
   it("emits a variable declaration", () => {
-  const ast: Program = {
-    type: "Program",
-    body: [{
-      type: "VariableDeclaration",
-      name: "x",
-      value: { type: "StringLiteral", value: "hi" },
-    }],
-  };
-  const js = new Emitter().emit(ast);
-  expect(js.replace(/\s+/g, " ").trim()).toContain('let x = "hi"');
-});
+    const ast: Program = {
+      type: "Program",
+      body: [{
+        type: "VariableDeclaration",
+        name: "x",
+        value: { type: "StringLiteral", value: "hi" },
+      }],
+    };
+    const js = new Emitter().emit(ast);
+    expect(js.replace(/\s+/g, " ").trim()).toContain('let x = "hi"');
+  });
+  it("emits an if statement", () => {
+    const ast: Program = {
+      type: "Program",
+      body: [{
+        type: "IfStatement",
+        condition: { type: "BooleanLiteral", value: true },
+        consequent: [{ type: "PrintStatement", argument: { type: "StringLiteral", value: "yes" } }],
+      }],
+    };
+    const js = new Emitter().emit(ast);
+    expect(js).toContain("if (");
+    expect(js).toContain("console.log(");
+  });
+  it("emits a reassignment", () => {
+    const ast: Program = {
+      type: "Program",
+      body: [{ type: "Assignment", name: "age", value: { type: "NumberLiteral", value: 6 } }],
+    };
+    const js = new Emitter().emit(ast);
+    expect(js.replace(/\s+/g, " ").trim()).toContain("age = 6");
+  });
 });

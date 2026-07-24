@@ -31,6 +31,12 @@ describe("lexer", () => {
     ]);
   });
 
+  it("tokenizes if/then/else/end as keywords", () => {
+  const tokens = tokenize(`if age > 18 then print(age) end`);
+  const kinds = tokens.filter(t => ["if", "then", "end"].includes(t.value)).map(t => t.kind);
+  expect(kinds.every(k => k === TokenKind.Keyword)).toBe(true);
+});
+
   it("tokenizes identifiers separately from keywords", () => {
     const tokens = tokenize(`foo`);
     expect(tokens[0]!.kind).toBe(TokenKind.Identifier);

@@ -4,7 +4,7 @@ import { Program, Statement, Expression } from "../ast/nodes.js";
 export class Parser {
     private pos = 0;
 
-    constructor(private tokens: Token[]) {}
+    constructor(private tokens: Token[]) { }
 
     parseProgram(): Program {
         const body: Statement[] = [];
@@ -29,7 +29,45 @@ export class Parser {
         if (this.checkKeyword("rave")) {
             return this.parseConst();
         }
+        if (this.checkKeyword("if")) return this.parseIf();
+        if (this.peek().kind === TokenKind.Identifier && this.tokens[this.pos + 1]?.value === "=") {
+            return this.parseAssignment();
+        }
         throw new Error("Expected a statement");
+    }
+parseIf(): Statement {
+    this.expectKeyword("if");
+    const condition = this.parseExpression();
+    this.expectKeyword("then");
+
+    const consequent = this.parseBlockUntil(["else", "end"]);
+
+    let alternate: Statement[] | undefined;
+    if (this.checkKeyword("else")) {
+        this.advance();
+        alternate = this.parseBlockUntil(["end"]);
+    }
+
+    this.expectKeyword("end");
+
+    return alternate === undefined
+        ? { type: "IfStatement", condition, consequent }
+        : { type: "IfStatement", condition, consequent, alternate };
+}
+
+// Reads statements until hitting one of the given stop keywords.
+parseBlockUntil(stopKeywords: string[]): Statement[] {
+    const statements: Statement[] = [];
+    while (!stopKeywords.some(word => this.checkKeyword(word))) {
+        statements.push(this.parseStatement());
+    }
+    return statements;
+}
+    parseAssignment(): Statement {
+        const nameToken = this.advance(); // the identifier
+        this.expect("=");
+        const value = this.parseExpression();
+        return { type: "Assignment", name: nameToken.value, value };
     }
 
     parsePrint(): Statement {
