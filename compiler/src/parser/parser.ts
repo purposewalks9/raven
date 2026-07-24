@@ -18,14 +18,21 @@ export class Parser {
 
     parseStatement(): Statement {
         if (this.checkKeyword("print")) return this.parsePrint();
-        if (this.checkKeyword("val")) return this.parseVal();
-        if (this.checkKeyword("rave")) return this.parseConst();
+        if (this.checkKeyword("val") || this.checkKeyword("let")) return this.parseVal();
+        if (this.checkKeyword("rave") || this.checkKeyword("const")) return this.parseConst();
         if (this.checkKeyword("if")) return this.parseIf();
         if (this.checkKeyword("while")) return this.parseWhile();
         if (this.checkKeyword("fn")) return this.parseFunctionDeclaration();
         if (this.checkKeyword("return")) return this.parseReturn();
+        if (this.checkKeyword("break")) { this.advance(); return { type: "BreakStatement" }; }
+        if (this.checkKeyword("continue")) { this.advance(); return { type: "ContinueStatement" }; }
         if (this.peek().kind === TokenKind.Identifier && this.tokens[this.pos + 1]?.value === "=") {
             return this.parseAssignment();
+        }
+        if (this.peek().kind === TokenKind.Identifier && this.tokens[this.pos + 1]?.value === "(") {
+            const expression = this.parseExpression();
+            if (this.peek().value === ";") this.advance();
+            return { type: "ExpressionStatement", expression };
         }
         throw new Error("Expected a statement");
     }
@@ -39,11 +46,11 @@ export class Parser {
     }
 
     parseVal(): Statement {
-        this.expectKeyword("val");
+        const declarationKeyword = this.advance().value;
 
         const nameToken = this.peek();
         if (nameToken.kind !== TokenKind.Identifier) {
-            throw new Error("Expected an identifier after 'val'");
+            throw new Error("Expected an identifier after variable declaration");
         }
         this.advance();
 
@@ -67,11 +74,11 @@ export class Parser {
     }
 
     parseConst(): Statement {
-        this.expectKeyword("rave");
+        const declarationKeyword = this.advance().value;
 
         const nameToken = this.peek();
         if (nameToken.kind !== TokenKind.Identifier) {
-            throw new Error("Expected an identifier after 'rave'");
+            throw new Error("Expected an identifier after constant declaration");
         }
         this.advance();
 
@@ -217,11 +224,9 @@ export class Parser {
         let left: Expression = this.parseAdditive();
 
         while (
-            this.peek().value === "==" ||
-            this.peek().value === "<" ||
-            this.peek().value === ">"
+            ["==", "!=", "<", "<=", ">", ">="].includes(this.peek().value)
         ) {
-            const operator = this.advance().value as "==" | "<" | ">";
+            const operator = this.advance().value as "==" | "!=" | "<" | "<=" | ">" | ">=";
             const right = this.parseAdditive();
             left = { type: "BinaryExpression", operator, left, right };
         }
@@ -244,8 +249,8 @@ export class Parser {
     parseMultiplicative(): Expression {
         let left: Expression = this.parsePrimary();
 
-        while (this.peek().value === "*" || this.peek().value === "/") {
-            const operator = this.advance().value as "*" | "/";
+        while (this.peek().value === "*" || this.peek().value === "/" || this.peek().value === "%") {
+            const operator = this.advance().value as "*" | "/" | "%";
             const right = this.parsePrimary();
             left = { type: "BinaryExpression", operator, left, right };
         }
@@ -273,6 +278,13 @@ export class Parser {
         }
 
         const token = this.peek();
+
+        if (this.peek().value === "(") {
+            this.advance();
+            const expression = this.parseExpression();
+            this.expect(")");
+            return expression;
+        }
 
         if (token.kind === TokenKind.Identifier && this.tokens[this.pos + 1]?.value === "(") {
             return this.parseCall();

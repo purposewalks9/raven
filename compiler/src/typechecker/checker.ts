@@ -17,7 +17,13 @@ import { SymbolTable } from "./symbolTable.js";
 export class TypeChecker {
   private symbolTable = new SymbolTable();
   private errors: string[] = [];
-  private functionSignatures = new Map<string, { params: TypeAnnotation[]; returnType: TypeAnnotation }>();
+  private functionSignatures = new Map<string, { params: TypeAnnotation[]; returnType: TypeAnnotation }>([
+    ["len", { params: [{ kind: "array", elementType: "number" }], returnType: "number" }],
+    ["abs", { params: ["number"], returnType: "number" }],
+    ["sqrt", { params: ["number"], returnType: "number" }],
+    ["toString", { params: ["number"], returnType: "string" }],
+  ]);
+  private currentReturnType: TypeAnnotation | undefined;
 
   check(program: Program): string[] {
     this.errors = [];
@@ -48,8 +54,18 @@ export class TypeChecker {
       case "FunctionDeclaration":
         this.checkFunctionDeclaration(node);
         break;
-      case "ReturnStatement":
-        this.checkExpression(node.value);
+      case "ReturnStatement": {
+        const returnType = this.checkExpression(node.value);
+        if (this.currentReturnType && !this.sameType(returnType, this.currentReturnType)) {
+          this.errors.push(`Return type mismatch: expected '${this.formatType(this.currentReturnType)}', got '${this.formatType(returnType)}'`);
+        }
+        break;
+      }
+      case "ExpressionStatement":
+        this.checkExpression(node.expression);
+        break;
+      case "BreakStatement":
+      case "ContinueStatement":
         break;
       default:
         throw new Error(`Unknown statement type: ${(node as any).type}`);
@@ -59,9 +75,9 @@ export class TypeChecker {
   private checkDeclaration(node: VariableDeclaration | ConstantDeclaration): void {
     const actualType = this.inferType(node.value);
 
-    if (node.typeAnnotation && node.typeAnnotation !== actualType) {
+    if (node.typeAnnotation && !this.sameType(node.typeAnnotation, actualType)) {
       this.errors.push(
-        `Type mismatch: '${node.name}' declared as '${node.typeAnnotation}' but assigned a value of type '${actualType}'`
+        `Type mismatch: '${node.name}' declared as '${this.formatType(node.typeAnnotation)}' but assigned a value of type '${this.formatType(actualType)}'`
       );
     }
 
@@ -89,9 +105,9 @@ export class TypeChecker {
     }
 
     const valueType = this.inferType(node.value);
-    if (valueType !== symbol.type) {
+    if (!this.sameType(valueType, symbol.type)) {
       this.errors.push(
-        `Type mismatch: '${node.name}' is '${symbol.type}' but assigned a value of type '${valueType}'`
+        `Type mismatch: '${node.name}' is '${this.formatType(symbol.type)}' but assigned a value of type '${this.formatType(valueType)}'`
       );
     }
   }
@@ -131,19 +147,30 @@ export class TypeChecker {
   }
 
   private checkFunctionDeclaration(node: FunctionDeclaration): void {
+    if (this.functionSignatures.has(node.name)) {
+      this.errors.push(`Function '${node.name}' has already been declared.`);
+    }
     this.functionSignatures.set(node.name, {
       params: node.parameters.map(p => p.typeAnnotation),
       returnType: node.returnType,
     });
 
     this.symbolTable.enterScope();
+    const seenParameters = new Set<string>();
+    const previousReturnType = this.currentReturnType;
+    this.currentReturnType = node.returnType;
     for (const param of node.parameters) {
+      if (seenParameters.has(param.name)) {
+        this.errors.push(`Duplicate parameter: '${param.name}'`);
+      }
+      seenParameters.add(param.name);
       this.symbolTable.declare(param.name, { type: param.typeAnnotation, constant: false });
     }
     for (const stmt of node.body) {
       this.checkStatement(stmt);
     }
     this.symbolTable.exitScope();
+    this.currentReturnType = previousReturnType;
   }
 
   private checkExpression(node: Expression): TypeAnnotation {
@@ -192,9 +219,9 @@ export class TypeChecker {
         node.arguments.forEach((arg, i) => {
           const argType = this.inferType(arg);
           const expectedType = signature.params[i];
-          if (expectedType && argType !== expectedType) {
+          if (expectedType && !this.sameType(argType, expectedType)) {
             this.errors.push(
-              `Argument ${i + 1} of '${node.callee}': expected '${expectedType}', got '${argType}'`
+              `Argument ${i + 1} of '${node.callee}': expected '${this.formatType(expectedType)}', got '${this.formatType(argType)}'`
             );
           }
         });
@@ -206,7 +233,7 @@ export class TypeChecker {
         }
         const elementType = this.inferType(node.elements[0]!);
         for (const el of node.elements) {
-          if (this.inferType(el) !== elementType) {
+          if (!this.sameType(this.inferType(el), elementType)) {
             this.errors.push("Array elements must all be the same type");
           }
         }
@@ -234,8 +261,8 @@ export class TypeChecker {
         }
 
         if (node.operator === "==" || node.operator === "<" || node.operator === ">") {
-          if (leftType !== rightType) {
-            this.errors.push(`Cannot compare '${leftType}' with '${rightType}'`);
+          if (!this.sameType(leftType, rightType)) {
+            this.errors.push(`Cannot compare '${this.formatType(leftType)}' with '${this.formatType(rightType)}'`);
           }
           return "boolean";
         }
@@ -252,5 +279,15 @@ export class TypeChecker {
       default:
         throw new Error(`Cannot infer type for: ${(node as any).type}`);
     }
+  }
+
+  private sameType(left: TypeAnnotation, right: TypeAnnotation): boolean {
+    if (typeof left === "string" || typeof right === "string") return left === right;
+    return left.kind === right.kind && this.sameType(left.elementType, right.elementType);
+  }
+
+  private formatType(type: TypeAnnotation | undefined): string {
+    if (!type) return "unknown";
+    return typeof type === "string" ? type : `${this.formatType(type.elementType)}[]`;
   }
 }

@@ -61,6 +61,19 @@ export class Emitter {
       case "ReturnStatement":        
             this.emitReturnStatement(node);
             break;
+      case "ExpressionStatement":
+            this.emitExpression(node.expression);
+            this.write(";");
+            this.newline();
+            break;
+      case "BreakStatement":
+            this.write("break;");
+            this.newline();
+            break;
+      case "ContinueStatement":
+            this.write("continue;");
+            this.newline();
+            break;
       default:
         throw new Error(`Unknown statement type: ${(node as any).type}`);
     }
