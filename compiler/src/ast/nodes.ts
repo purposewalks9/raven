@@ -1,4 +1,13 @@
-export interface Program {
+export interface SourceLocation {
+    line: number;
+    column: number;
+}
+
+export interface Node {
+    location?: SourceLocation;
+}
+
+export interface Program extends Node {
     type: "Program";
     body: Statement[];
 }
@@ -13,14 +22,17 @@ export type Statement =
     | IfStatement
     | WhileStatement
     | FunctionDeclaration   
-    | ReturnStatement;      
+    | ReturnStatement
+    | ExpressionStatement
+    | BreakStatement
+    | ContinueStatement;      
 
 export interface Parameter {
     name: string;
     typeAnnotation: TypeAnnotation;
 }
 
-export interface FunctionDeclaration {
+export interface FunctionDeclaration extends Node {
     type: "FunctionDeclaration";
     name: string;
     parameters: Parameter[];
@@ -28,62 +40,75 @@ export interface FunctionDeclaration {
     body: Statement[];
 }
 
-export interface ReturnStatement {
+export interface ExpressionStatement extends Node {
+    type: "ExpressionStatement";
+    expression: Expression;
+}
+
+export interface BreakStatement extends Node {
+    type: "BreakStatement";
+}
+
+export interface ContinueStatement extends Node {
+    type: "ContinueStatement";
+}
+
+export interface ReturnStatement extends Node {
     type: "ReturnStatement";
     value: Expression;
 }
 
-export interface WhileStatement {
+export interface WhileStatement extends Node {
     type: "WhileStatement";
     condition: Expression;
     body: Statement[];
 }
-export interface CallExpression {
+export interface CallExpression extends Node {
     type: "CallExpression";
     callee: string;
     arguments: Expression[];
 }
-export interface ArrayLiteral {
+export interface ArrayLiteral extends Node {
     type: "ArrayLiteral";
     elements: Expression[];
 }
 
-export interface IndexExpression {
+export interface IndexExpression extends Node {
     type: "IndexExpression";
     array: Expression;
     index: Expression;
 }
 
-export interface IfStatement {
+export interface IfStatement extends Node {
     type: "IfStatement";
     condition: Expression;
     consequent: Statement[];
     alternate?: Statement[];
 }
 
-export interface PrintStatement {
+export interface PrintStatement extends Node {
     type: "PrintStatement";
     argument: Expression;
 }
-export interface Assignment {
+export interface Assignment extends Node {
     type: "Assignment";
     name: string;
     value: Expression;
 }
-export interface VariableDeclaration {
+export interface VariableDeclaration extends Node {
     type: "VariableDeclaration";
     name: string;
     value: Expression;
     typeAnnotation?: TypeAnnotation;
 }
-export interface ConstantDeclaration {
+export interface ConstantDeclaration extends Node {
     type: "ConstantDeclaration";
     name: string;
     value: Expression;
     typeAnnotation?: TypeAnnotation; 
 }
 
-export interface BooleanLiteral {   
+export interface BooleanLiteral extends Node {   
     type: "BooleanLiteral";
     value: boolean;
 }
@@ -98,28 +123,28 @@ export type Expression =
     | BinaryExpression
     | UnaryExpression; 
 
-export interface UnaryExpression {
+export interface UnaryExpression extends Node {
     type: "UnaryExpression";
     operator: "not";
     argument: Expression;
 }
-export interface StringLiteral {
+export interface StringLiteral extends Node {
     type: "StringLiteral";
     value: string;
 }
-export interface NumberLiteral {
+export interface NumberLiteral extends Node {
     type: "NumberLiteral";
     value: number;
 }
 
-export interface Identifier {
+export interface Identifier extends Node {
     type: "Identifier";
     name: string;
 }
 
-export interface BinaryExpression {
+export interface BinaryExpression extends Node {
     type: "BinaryExpression";
-    operator: "+" | "-" | "*" | "/" | "==" | "<" | ">" | "and" | "or";
+    operator: "+" | "-" | "*" | "/" | "%" | "==" | "!=" | "<" | "<=" | ">" | ">=" | "and" | "or";
     left: Expression;
     right: Expression;
 }
