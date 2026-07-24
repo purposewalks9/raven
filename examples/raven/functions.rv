@@ -1,0 +1,5 @@
+fn add(a: number, b: number): number do
+  return a + b
+end
+
+print(add(20, 22))

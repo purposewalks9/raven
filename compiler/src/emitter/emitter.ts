@@ -27,7 +27,7 @@ export class Emitter {
   emit(program: Program): string {
     this.output = [];
     this.emitProgram(program);
-    return this.output.join("\n");
+    return this.output.join("");
   }
 
   private emitProgram(node: Program): void {
@@ -60,6 +60,19 @@ export class Emitter {
             break;
       case "ReturnStatement":        
             this.emitReturnStatement(node);
+            break;
+      case "ExpressionStatement":
+            this.emitExpression(node.expression);
+            this.write(";");
+            this.newline();
+            break;
+      case "BreakStatement":
+            this.write("break;");
+            this.newline();
+            break;
+      case "ContinueStatement":
+            this.write("continue;");
+            this.newline();
             break;
       default:
         throw new Error(`Unknown statement type: ${(node as any).type}`);

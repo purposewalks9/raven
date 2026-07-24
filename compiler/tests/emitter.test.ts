@@ -12,7 +12,7 @@ describe("emitter", () => {
       }],
     };
     const js = new Emitter().emit(ast);
-    expect(js.replace(/\s+/g, " ").trim()).toBe('console.log( "hi" );');
+    expect(js.replace(/\s+/g, " ").trim()).toBe('console.log("hi");');
   });
   it("emits console.log for a print statement", () => {
     const ast: Program = {
