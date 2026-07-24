@@ -8,6 +8,11 @@ export enum TokenKind {
 }
 
 export interface SourceLocation {
+  file: string;
+  line: number;
+  column: number;
+  start: number;
+  end: number;
   line: number;
   column: number;
 }
@@ -46,13 +51,14 @@ const SINGLE_CHARACTER_PUNCTUATION = new Set([
   "+", "-", "*", "/", "%", "=", "<", ">", "!", ":", ",", ".", ";", "(", ")", "{", "}", "[", "]",
 ]);
 
-export function tokenize(source: string): Token[] {
+export function tokenize(source: string, file = "<anonymous>"): Token[] {
+  
   const tokens: Token[] = [];
   let pos = 0;
   let line = 1;
   let column = 1;
 
-  const location = (): SourceLocation => ({ line, column });
+  const location = (start = pos, end = pos): SourceLocation => ({ file, line, column, start, end });
   const advance = (): string => {
     const char = source[pos++] ?? "";
     if (char === "\n") {
@@ -63,8 +69,8 @@ export function tokenize(source: string): Token[] {
     }
     return char;
   };
-  const add = (kind: TokenKind, value: string, start = location()): void => {
-    tokens.push({ kind, value, location: start });
+  const add = (kind: TokenKind, value: string, start: SourceLocation, end = pos): void => {
+    tokens.push({ kind, value, location: { ...start, end } });
   };
 
   while (pos < source.length) {
@@ -81,7 +87,7 @@ export function tokenize(source: string): Token[] {
     }
 
     if (char === "/" && source[pos + 1] === "*") {
-      const start = location();
+      const start = location(pos, pos);
       advance();
       advance();
       while (pos < source.length && !(source[pos] === "*" && source[pos + 1] === "/")) advance();
@@ -91,7 +97,7 @@ export function tokenize(source: string): Token[] {
       continue;
     }
 
-    const start = location();
+    const start = location(pos, pos);
     const pair = source.slice(pos, pos + 2);
     if (TWO_CHARACTER_OPERATORS.has(pair)) {
       advance();
@@ -140,6 +146,6 @@ export function tokenize(source: string): Token[] {
     throw new Error(`${start.line}:${start.column} Unexpected character '${char}'`);
   }
 
-  tokens.push({ kind: TokenKind.EOF, value: "", location: location() });
+  tokens.push({ kind: TokenKind.EOF, value: "", location: location(pos, pos) });
   return tokens;
 }

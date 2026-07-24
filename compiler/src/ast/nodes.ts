@@ -1,6 +1,9 @@
 export interface SourceLocation {
+    file: string;
     line: number;
     column: number;
+    start: number;
+    end: number;
 }
 
 export interface Node {

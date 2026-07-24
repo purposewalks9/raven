@@ -260,14 +260,14 @@ export class TypeChecker {
           return "boolean";
         }
 
-        if (node.operator === "==" || node.operator === "<" || node.operator === ">") {
+        if (["==", "!=", "<", "<=", ">", ">="].includes(node.operator)) {
           if (!this.sameType(leftType, rightType)) {
             this.errors.push(`Cannot compare '${this.formatType(leftType)}' with '${this.formatType(rightType)}'`);
           }
           return "boolean";
         }
 
-        // +, -, *, /
+        // +, -, *, /, %
         if (leftType !== "number" || rightType !== "number") {
           this.errors.push(
             `Operator '${node.operator}' requires two numbers, got '${leftType}' and '${rightType}'`

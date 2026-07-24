@@ -27,7 +27,7 @@ export class Emitter {
   emit(program: Program): string {
     this.output = [];
     this.emitProgram(program);
-    return this.output.join("\n");
+    return this.output.join("");
   }
 
   private emitProgram(node: Program): void {

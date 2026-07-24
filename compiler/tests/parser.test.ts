@@ -2,6 +2,17 @@ import { describe, it, expect } from "vitest";
 import { tokenize } from "../src/lexer/token.js";
 import { Parser } from "../src/parser/parser.js";
 
+function stripLocations<T>(value: T): T {
+  if (Array.isArray(value)) return value.map(stripLocations) as T;
+  if (value && typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .filter(([key]) => key !== "location")
+      .map(([key, nested]) => [key, stripLocations(nested)]);
+    return Object.fromEntries(entries) as T;
+  }
+  return value;
+}
+
 describe("parser", () => {
   it("parses a print statement into correct AST shape", () => {
     const ast = new Parser(tokenize(`print("hi")`)).parseProgram();
@@ -17,7 +28,7 @@ describe("parser", () => {
   });
   it("parses a val declaration", () => {
     const ast = new Parser(tokenize(`val x = "hi"`)).parseProgram();
-    expect(ast.body[0]).toEqual({
+    expect(stripLocations(ast.body[0])).toEqual({
       type: "VariableDeclaration",
       name: "x",
       value: { type: "StringLiteral", value: "hi" },
@@ -44,7 +55,7 @@ it("parses a function declaration", () => {
 
 it("parses a function call", () => {
   const ast = new Parser(tokenize(`val x = add(2, 3)`)).parseProgram();
-  expect((ast.body[0] as any).value).toEqual({
+  expect(stripLocations((ast.body[0] as any).value)).toEqual({
     type: "CallExpression",
     callee: "add",
     arguments: [{ type: "NumberLiteral", value: 2 }, { type: "NumberLiteral", value: 3 }],
@@ -58,7 +69,7 @@ it("parses a while loop", () => {
 });
 it("parses a logical and expression", () => {
   const ast = new Parser(tokenize(`val x = true and false`)).parseProgram();
-  expect((ast.body[0] as any).value).toEqual({
+  expect(stripLocations((ast.body[0] as any).value)).toEqual({
     type: "BinaryExpression",
     operator: "and",
     left: { type: "BooleanLiteral", value: true },
@@ -68,7 +79,7 @@ it("parses a logical and expression", () => {
 
 it("parses a not expression", () => {
   const ast = new Parser(tokenize(`val x = not true`)).parseProgram();
-  expect((ast.body[0] as any).value).toEqual({
+  expect(stripLocations((ast.body[0] as any).value)).toEqual({
     type: "UnaryExpression",
     operator: "not",
     argument: { type: "BooleanLiteral", value: true },
@@ -82,7 +93,7 @@ it("parses an if/then/else/end statement", () => {
 
   it("parses a reassignment", () => {
     const ast = new Parser(tokenize(`age = 6`)).parseProgram();
-    expect(ast.body[0]).toEqual({
+    expect(stripLocations(ast.body[0])).toEqual({
       type: "Assignment",
       name: "age",
       value: { type: "NumberLiteral", value: 6 },
@@ -91,7 +102,7 @@ it("parses an if/then/else/end statement", () => {
 
   it("parses a val declaration with a boolean", () => {
     const ast = new Parser(tokenize(`val isReady = true`)).parseProgram();
-    expect(ast.body[0]).toEqual({
+    expect(stripLocations(ast.body[0])).toEqual({
       type: "VariableDeclaration",
       name: "isReady",
       value: { type: "BooleanLiteral", value: true },
@@ -99,7 +110,7 @@ it("parses an if/then/else/end statement", () => {
   });
   it("parses a val declaration with a type annotation", () => {
     const ast = new Parser(tokenize(`val x: string = "hi"`)).parseProgram();
-    expect(ast.body[0]).toEqual({
+    expect(stripLocations(ast.body[0])).toEqual({
       type: "VariableDeclaration",
       name: "x",
       value: { type: "StringLiteral", value: "hi" },
@@ -113,12 +124,12 @@ it("parses an if/then/else/end statement", () => {
   });
   it("parses print with an identifier argument", () => {
     const ast = new Parser(tokenize(`print(x)`)).parseProgram();
-    expect((ast.body[0] as any).argument).toEqual({ type: "Identifier", name: "x" });
+    expect(stripLocations((ast.body[0] as any).argument)).toEqual({ type: "Identifier", name: "x" });
   });
 
   it("parses simple addition", () => {
     const ast = new Parser(tokenize(`val x = 2 + 3`)).parseProgram();
-    expect((ast.body[0] as any).value).toEqual({
+    expect(stripLocations((ast.body[0] as any).value)).toEqual({
       type: "BinaryExpression",
       operator: "+",
       left: { type: "NumberLiteral", value: 2 },
@@ -130,8 +141,8 @@ it("parses an if/then/else/end statement", () => {
     const ast = new Parser(tokenize(`val x = 2 + 3 * 4`)).parseProgram();
     const value = (ast.body[0] as any).value;
     expect(value.operator).toBe("+");
-    expect(value.left).toEqual({ type: "NumberLiteral", value: 2 });
-    expect(value.right).toEqual({
+    expect(stripLocations(value.left)).toEqual({ type: "NumberLiteral", value: 2 });
+    expect(stripLocations(value.right)).toEqual({
       type: "BinaryExpression",
       operator: "*",
       left: { type: "NumberLiteral", value: 3 },
@@ -141,7 +152,7 @@ it("parses an if/then/else/end statement", () => {
 
   it("parses a comparison", () => {
     const ast = new Parser(tokenize(`val x = 5 > 3`)).parseProgram();
-    expect((ast.body[0] as any).value).toEqual({
+    expect(stripLocations((ast.body[0] as any).value)).toEqual({
       type: "BinaryExpression",
       operator: ">",
       left: { type: "NumberLiteral", value: 5 },
@@ -151,7 +162,7 @@ it("parses an if/then/else/end statement", () => {
 
   it("parses an array literal", () => {
   const ast = new Parser(tokenize(`val nums = [1, 2, 3]`)).parseProgram();
-  expect((ast.body[0] as any).value).toEqual({
+  expect(stripLocations((ast.body[0] as any).value)).toEqual({
     type: "ArrayLiteral",
     elements: [
       { type: "NumberLiteral", value: 1 },
@@ -163,7 +174,7 @@ it("parses an if/then/else/end statement", () => {
 
 it("parses array indexing", () => {
   const ast = new Parser(tokenize(`val x = nums[0]`)).parseProgram();
-  expect((ast.body[0] as any).value).toEqual({
+  expect(stripLocations((ast.body[0] as any).value)).toEqual({
     type: "IndexExpression",
     array: { type: "Identifier", name: "nums" },
     index: { type: "NumberLiteral", value: 0 },
@@ -171,7 +182,7 @@ it("parses array indexing", () => {
 });
   it("parses a val declaration with a number", () => {
     const ast = new Parser(tokenize(`val age = 5`)).parseProgram();
-    expect(ast.body[0]).toEqual({
+    expect(stripLocations(ast.body[0])).toEqual({
       type: "VariableDeclaration",
       name: "age",
       value: { type: "NumberLiteral", value: 5 },
