@@ -9,9 +9,11 @@ export enum TokenKind {
 
 export const KEYWORDS = new Set([
   "print", "val", "rave", "true", "false",
-  "if", "then", "else", "end"
-]);
-
+  "if", "then", "else", "end",
+  "and", "or", "not",
+  "while", "do",
+  "fn", "return"  
+])
 export interface Token {
   kind: TokenKind;
   value: string;
@@ -40,7 +42,16 @@ export function tokenize(source: string): Token[] {
       pos++;
       continue;
     }
-
+    if (c === "[") {
+  tokens.push({ kind: TokenKind.Punctuation, value: "[" });
+  pos++;
+  continue;
+}
+if (c === "]") {
+  tokens.push({ kind: TokenKind.Punctuation, value: "]" });
+  pos++;
+  continue;
+}
     if (c === ":") {
       tokens.push({ kind: TokenKind.Punctuation, value: ":" });
       pos++;
@@ -56,7 +67,11 @@ export function tokenize(source: string): Token[] {
       pos++;
       continue;
     }
-
+    if (c === ",") {
+  tokens.push({ kind: TokenKind.Punctuation, value: "," });
+  pos++;
+  continue;
+}
     if (c === "{") {
       tokens.push({ kind: TokenKind.Punctuation, value: "{" });
       pos++;

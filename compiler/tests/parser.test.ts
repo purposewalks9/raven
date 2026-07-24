@@ -31,6 +31,50 @@ describe("parser", () => {
   expect((ast.body[0] as any).alternate).toBeUndefined();
 });
 
+it("parses a function declaration", () => {
+  const source = `fn add(a: number, b: number): number do return a + b end`;
+  const ast = new Parser(tokenize(source)).parseProgram();
+  expect(ast.body[0]!.type).toBe("FunctionDeclaration");
+  expect((ast.body[0] as any).parameters).toEqual([
+    { name: "a", typeAnnotation: "number" },
+    { name: "b", typeAnnotation: "number" },
+  ]);
+  expect((ast.body[0] as any).returnType).toBe("number");
+});
+
+it("parses a function call", () => {
+  const ast = new Parser(tokenize(`val x = add(2, 3)`)).parseProgram();
+  expect((ast.body[0] as any).value).toEqual({
+    type: "CallExpression",
+    callee: "add",
+    arguments: [{ type: "NumberLiteral", value: 2 }, { type: "NumberLiteral", value: 3 }],
+  });
+});
+
+it("parses a while loop", () => {
+  const ast = new Parser(tokenize(`while x < 10 do print(x) end`)).parseProgram();
+  expect(ast.body[0]!.type).toBe("WhileStatement");
+  expect((ast.body[0] as any).body.length).toBe(1);
+});
+it("parses a logical and expression", () => {
+  const ast = new Parser(tokenize(`val x = true and false`)).parseProgram();
+  expect((ast.body[0] as any).value).toEqual({
+    type: "BinaryExpression",
+    operator: "and",
+    left: { type: "BooleanLiteral", value: true },
+    right: { type: "BooleanLiteral", value: false },
+  });
+});
+
+it("parses a not expression", () => {
+  const ast = new Parser(tokenize(`val x = not true`)).parseProgram();
+  expect((ast.body[0] as any).value).toEqual({
+    type: "UnaryExpression",
+    operator: "not",
+    argument: { type: "BooleanLiteral", value: true },
+  });
+}); 
+
 it("parses an if/then/else/end statement", () => {
   const ast = new Parser(tokenize(`if 5 > 3 then print("yes") else print("no") end`)).parseProgram();
   expect((ast.body[0] as any).alternate.length).toBe(1);
@@ -104,6 +148,27 @@ it("parses an if/then/else/end statement", () => {
       right: { type: "NumberLiteral", value: 3 },
     });
   });
+
+  it("parses an array literal", () => {
+  const ast = new Parser(tokenize(`val nums = [1, 2, 3]`)).parseProgram();
+  expect((ast.body[0] as any).value).toEqual({
+    type: "ArrayLiteral",
+    elements: [
+      { type: "NumberLiteral", value: 1 },
+      { type: "NumberLiteral", value: 2 },
+      { type: "NumberLiteral", value: 3 },
+    ],
+  });
+});
+
+it("parses array indexing", () => {
+  const ast = new Parser(tokenize(`val x = nums[0]`)).parseProgram();
+  expect((ast.body[0] as any).value).toEqual({
+    type: "IndexExpression",
+    array: { type: "Identifier", name: "nums" },
+    index: { type: "NumberLiteral", value: 0 },
+  });
+});
   it("parses a val declaration with a number", () => {
     const ast = new Parser(tokenize(`val age = 5`)).parseProgram();
     expect(ast.body[0]).toEqual({

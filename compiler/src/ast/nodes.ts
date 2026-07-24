@@ -10,8 +10,49 @@ export type Statement =
     | VariableDeclaration
     | ConstantDeclaration
     | Assignment
-    | IfStatement; 
+    | IfStatement
+    | WhileStatement
+    | FunctionDeclaration   
+    | ReturnStatement;      
 
+export interface Parameter {
+    name: string;
+    typeAnnotation: TypeAnnotation;
+}
+
+export interface FunctionDeclaration {
+    type: "FunctionDeclaration";
+    name: string;
+    parameters: Parameter[];
+    returnType: TypeAnnotation;
+    body: Statement[];
+}
+
+export interface ReturnStatement {
+    type: "ReturnStatement";
+    value: Expression;
+}
+
+export interface WhileStatement {
+    type: "WhileStatement";
+    condition: Expression;
+    body: Statement[];
+}
+export interface CallExpression {
+    type: "CallExpression";
+    callee: string;
+    arguments: Expression[];
+}
+export interface ArrayLiteral {
+    type: "ArrayLiteral";
+    elements: Expression[];
+}
+
+export interface IndexExpression {
+    type: "IndexExpression";
+    array: Expression;
+    index: Expression;
+}
 
 export interface IfStatement {
     type: "IfStatement";
@@ -50,9 +91,18 @@ export type Expression =
     | StringLiteral
     | NumberLiteral
     | BooleanLiteral
+    | CallExpression
     | Identifier
-    | BinaryExpression;
+    | ArrayLiteral      
+    | IndexExpression
+    | BinaryExpression
+    | UnaryExpression; 
 
+export interface UnaryExpression {
+    type: "UnaryExpression";
+    operator: "not";
+    argument: Expression;
+}
 export interface StringLiteral {
     type: "StringLiteral";
     value: string;
@@ -69,12 +119,13 @@ export interface Identifier {
 
 export interface BinaryExpression {
     type: "BinaryExpression";
-    operator: "+" | "-" | "*" | "/" | "==" | "<" | ">";
+    operator: "+" | "-" | "*" | "/" | "==" | "<" | ">" | "and" | "or";
     left: Expression;
     right: Expression;
 }
 
 export type TypeAnnotation =
     | "string"
+    | "number"
     | "boolean"
-    | "number";
+    | { kind: "array"; elementType: TypeAnnotation }; 
