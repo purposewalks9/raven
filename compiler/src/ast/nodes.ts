@@ -7,7 +7,7 @@ export interface SourceLocation {
 }
 
 export interface Node {
-    location?: SourceLocation;
+    location: SourceLocation;
 }
 
 export interface Program extends Node {
@@ -32,7 +32,7 @@ export type Statement =
 
 export interface Parameter {
     name: string;
-    typeAnnotation: TypeAnnotation;
+    typeAnnotation?: TypeAnnotation;
 }
 
 export interface FunctionDeclaration extends Node {
@@ -108,7 +108,7 @@ export interface ConstantDeclaration extends Node {
     type: "ConstantDeclaration";
     name: string;
     value: Expression;
-    typeAnnotation?: TypeAnnotation; 
+   typeAnnotation?: TypeAnnotation; 
 }
 
 export interface BooleanLiteral extends Node {   
@@ -156,4 +156,5 @@ export type TypeAnnotation =
     | "string"
     | "number"
     | "boolean"
+    | "any" 
     | { kind: "array"; elementType: TypeAnnotation }; 

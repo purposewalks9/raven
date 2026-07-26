@@ -13,24 +13,33 @@ import {
   FunctionDeclaration,
 } from "../ast/nodes.js";
 import { SymbolTable } from "./symbolTable.js";
+import { DiagnosticBag, Diagnostic } from "../diagnostics/index.js";
 
 export class TypeChecker {
   private symbolTable = new SymbolTable();
-  private errors: string[] = [];
+  // CHANGED: was `private errors: string[] = []`. DiagnosticBag carries
+  // severity + source location alongside the message, which is what lets
+  // formatDiagnostic() print the file:line:column + caret-pointer output
+  // instead of a bare string.
+  private diagnostics = new DiagnosticBag();
   private functionSignatures = new Map<string, { params: TypeAnnotation[]; returnType: TypeAnnotation }>([
-    ["len", { params: [{ kind: "array", elementType: "number" }], returnType: "number" }],
+    ["len", { params: [{ kind: "array", elementType: "any" }], returnType: "number" }],
     ["abs", { params: ["number"], returnType: "number" }],
     ["sqrt", { params: ["number"], returnType: "number" }],
-    ["toString", { params: ["number"], returnType: "string" }],
+    ["toString", { params: ["any"], returnType: "string" }],
   ]);
   private currentReturnType: TypeAnnotation | undefined;
 
-  check(program: Program): string[] {
-    this.errors = [];
+  // CHANGED: return type is now Diagnostic[] instead of string[].
+  // This is a breaking change for any caller (CLI pipeline.ts) that
+  // expects check() to return strings — that caller needs updating too,
+  // see the pipeline.ts patch below.
+  check(program: Program): Diagnostic[] {
+    this.diagnostics = new DiagnosticBag();
     for (const stmt of program.body) {
       this.checkStatement(stmt);
     }
-    return this.errors;
+    return this.diagnostics.all();
   }
 
   private checkStatement(node: Statement): void {
@@ -57,7 +66,10 @@ export class TypeChecker {
       case "ReturnStatement": {
         const returnType = this.checkExpression(node.value);
         if (this.currentReturnType && !this.sameType(returnType, this.currentReturnType)) {
-          this.errors.push(`Return type mismatch: expected '${this.formatType(this.currentReturnType)}', got '${this.formatType(returnType)}'`);
+          this.diagnostics.error(
+            `Return type mismatch: expected '${this.formatType(this.currentReturnType)}', got '${this.formatType(returnType)}'`,
+            node.location
+          );
         }
         break;
       }
@@ -76,8 +88,10 @@ export class TypeChecker {
     const actualType = this.inferType(node.value);
 
     if (node.typeAnnotation && !this.sameType(node.typeAnnotation, actualType)) {
-      this.errors.push(
-        `Type mismatch: '${node.name}' declared as '${this.formatType(node.typeAnnotation)}' but assigned a value of type '${this.formatType(actualType)}'`
+      this.diagnostics.error(
+        `Type mismatch in declaration of '${node.name}': expected '${this.formatType(node.typeAnnotation)}', but got '${this.formatType(actualType)}'`,
+        node.location,
+        `Either change the annotation to '${this.formatType(actualType)}' or change the value to match '${this.formatType(node.typeAnnotation)}'.`
       );
     }
 
@@ -87,7 +101,7 @@ export class TypeChecker {
     });
 
     if (!success) {
-      this.errors.push(`'${node.name}' has already been declared.`);
+      this.diagnostics.error(`'${node.name}' has already been declared.`, node.location);
     }
   }
 
@@ -95,27 +109,35 @@ export class TypeChecker {
     const symbol = this.symbolTable.lookup(node.name);
 
     if (!symbol) {
-      this.errors.push(`Cannot assign to undeclared variable: '${node.name}'`);
+      this.diagnostics.error(`Cannot assign to undeclared variable '${node.name}'`, node.location);
       return;
     }
 
     if (symbol.constant) {
-      this.errors.push(`Cannot reassign '${node.name}' — it was declared with 'rave' (constant)`);
+      this.diagnostics.error(
+        `Cannot reassign constant '${node.name}' (declared with 'const')`,
+        node.location,
+        `Use 'let' instead of 'const' if '${node.name}' needs to change later.`
+      );
       return;
     }
 
     const valueType = this.inferType(node.value);
     if (!this.sameType(valueType, symbol.type)) {
-      this.errors.push(
-        `Type mismatch: '${node.name}' is '${this.formatType(symbol.type)}' but assigned a value of type '${this.formatType(valueType)}'`
+      this.diagnostics.error(
+        `Type mismatch in assignment to '${node.name}': expected '${this.formatType(symbol.type)}', got '${this.formatType(valueType)}'`,
+        node.location
       );
     }
   }
 
   private checkIfStatement(node: IfStatement): void {
     const conditionType = this.inferType(node.condition);
-    if (conditionType !== "boolean") {
-      this.errors.push(`'if' condition must be a boolean, got '${conditionType}'`);
+    if (conditionType !== "boolean" && conditionType !== "any") {
+      this.diagnostics.error(
+        `If condition must be a boolean, got '${this.formatType(conditionType)}'`,
+        node.condition.location
+      );
     }
 
     this.symbolTable.enterScope();
@@ -135,8 +157,11 @@ export class TypeChecker {
 
   private checkWhileStatement(node: WhileStatement): void {
     const conditionType = this.inferType(node.condition);
-    if (conditionType !== "boolean") {
-      this.errors.push(`'while' condition must be a boolean, got '${conditionType}'`);
+    if (conditionType !== "boolean" && conditionType !== "any") {
+      this.diagnostics.error(
+        `While condition must be a boolean, got '${this.formatType(conditionType)}'`,
+        node.condition.location
+      );
     }
 
     this.symbolTable.enterScope();
@@ -148,10 +173,13 @@ export class TypeChecker {
 
   private checkFunctionDeclaration(node: FunctionDeclaration): void {
     if (this.functionSignatures.has(node.name)) {
-      this.errors.push(`Function '${node.name}' has already been declared.`);
+      this.diagnostics.error(`Function '${node.name}' has already been declared`, node.location);
     }
+
+    const paramTypes: TypeAnnotation[] = node.parameters.map(p => p.typeAnnotation ?? "any");
+
     this.functionSignatures.set(node.name, {
-      params: node.parameters.map(p => p.typeAnnotation),
+      params: paramTypes,
       returnType: node.returnType,
     });
 
@@ -159,16 +187,31 @@ export class TypeChecker {
     const seenParameters = new Set<string>();
     const previousReturnType = this.currentReturnType;
     this.currentReturnType = node.returnType;
+
     for (const param of node.parameters) {
       if (seenParameters.has(param.name)) {
-        this.errors.push(`Duplicate parameter: '${param.name}'`);
+        // NOTE: Parameter doesn't carry its own `location` in the current
+        // AST (only statements/expressions extend Node), so this still
+        // points at the whole function declaration rather than the exact
+        // parameter. Adding a `location` field to Parameter in ast/nodes.ts
+        // plus setting it in parseFunctionDeclaration would make this
+        // precise — small follow-up, not done here since it touches the
+        // parser too.
+        this.diagnostics.error(
+          `Duplicate parameter name '${param.name}' in function '${node.name}'`,
+          node.location
+        );
       }
       seenParameters.add(param.name);
-      this.symbolTable.declare(param.name, { type: param.typeAnnotation, constant: false });
+
+      const paramType = param.typeAnnotation ?? "any";
+      this.symbolTable.declare(param.name, { type: paramType, constant: false });
     }
+
     for (const stmt of node.body) {
       this.checkStatement(stmt);
     }
+
     this.symbolTable.exitScope();
     this.currentReturnType = previousReturnType;
   }
@@ -191,16 +234,19 @@ export class TypeChecker {
       case "Identifier": {
         const symbol = this.symbolTable.lookup(node.name);
         if (!symbol) {
-          this.errors.push(`Undeclared variable: '${node.name}'`);
-          return "string";
+          this.diagnostics.error(`Undeclared variable '${node.name}'`, node.location);
+          return "any";
         }
         return symbol.type;
       }
 
       case "UnaryExpression": {
         const argType = this.inferType(node.argument);
-        if (argType !== "boolean") {
-          this.errors.push(`Operator 'not' requires a boolean, got '${argType}'`);
+        if (argType !== "boolean" && argType !== "any") {
+          this.diagnostics.error(
+            `Operator 'not' requires a boolean operand, got '${this.formatType(argType)}'`,
+            node.location
+          );
         }
         return "boolean";
       }
@@ -208,86 +254,177 @@ export class TypeChecker {
       case "CallExpression": {
         const signature = this.functionSignatures.get(node.callee);
         if (!signature) {
-          this.errors.push(`Undeclared function: '${node.callee}'`);
-          return "string";
+          this.diagnostics.error(`Undeclared function '${node.callee}'`, node.location);
+          return "any";
         }
         if (node.arguments.length !== signature.params.length) {
-          this.errors.push(
-            `'${node.callee}' expects ${signature.params.length} argument(s), got ${node.arguments.length}`
+          this.diagnostics.error(
+            `Function '${node.callee}' expects ${signature.params.length} argument(s), but got ${node.arguments.length}`,
+            node.location
           );
         }
         node.arguments.forEach((arg, i) => {
           const argType = this.inferType(arg);
           const expectedType = signature.params[i];
-          if (expectedType && !this.sameType(argType, expectedType)) {
-            this.errors.push(
-              `Argument ${i + 1} of '${node.callee}': expected '${this.formatType(expectedType)}', got '${this.formatType(argType)}'`
+          if (expectedType && expectedType !== "any" && !this.sameType(argType, expectedType)) {
+            this.diagnostics.error(
+              `Argument ${i + 1} of '${node.callee}': expected '${this.formatType(expectedType)}', got '${this.formatType(argType)}'`,
+              arg.location
             );
           }
         });
         return signature.returnType;
       }
-      case "ArrayLiteral": {          // NEW
+
+      case "ArrayLiteral": {
         if (node.elements.length === 0) {
-          return { kind: "array", elementType: "number" }; // default assumption
+          return { kind: "array", elementType: "any" };
         }
         const elementType = this.inferType(node.elements[0]!);
         for (const el of node.elements) {
-          if (!this.sameType(this.inferType(el), elementType)) {
-            this.errors.push("Array elements must all be the same type");
+          const elType = this.inferType(el);
+          if (!this.sameType(elType, elementType) && elementType !== "any" && elType !== "any") {
+            this.diagnostics.error(
+              `Array elements must all have the same type. Found '${this.formatType(elementType)}' and '${this.formatType(elType)}'`,
+              el.location
+            );
           }
         }
         return { kind: "array", elementType };
       }
-      case "IndexExpression": {       // NEW
+
+      case "IndexExpression": {
         const arrayType = this.inferType(node.array);
+        const indexType = this.inferType(node.index);
+
+        if (indexType !== "number" && indexType !== "any") {
+          this.diagnostics.error(
+            `Array index must be a number, got '${this.formatType(indexType)}'`,
+            node.index.location
+          );
+        }
+
         if (typeof arrayType === "object" && arrayType.kind === "array") {
           return arrayType.elementType;
         }
-        this.errors.push("Cannot index a non-array value");
-        return "number";
+        if (arrayType === "any") {
+          return "any";
+        }
+        this.diagnostics.error(
+          `Cannot index a non-array value of type '${this.formatType(arrayType)}'`,
+          node.array.location
+        );
+        return "any";
       }
+
       case "BinaryExpression": {
         const leftType = this.inferType(node.left);
         const rightType = this.inferType(node.right);
 
+        if (leftType === "any") return rightType;
+        if (rightType === "any") return leftType;
+
+        // ---- Logical operators: and / or ----
         if (node.operator === "and" || node.operator === "or") {
           if (leftType !== "boolean" || rightType !== "boolean") {
-            this.errors.push(
-              `Operator '${node.operator}' requires two booleans, got '${leftType}' and '${rightType}'`
+            this.diagnostics.error(
+              `Operator '${node.operator}' requires two booleans. Got '${this.formatType(leftType)}' and '${this.formatType(rightType)}'`,
+              node.location
             );
           }
           return "boolean";
         }
 
+        // ---- Comparison operators: == != < <= > >= ----
         if (["==", "!=", "<", "<=", ">", ">="].includes(node.operator)) {
           if (!this.sameType(leftType, rightType)) {
-            this.errors.push(`Cannot compare '${this.formatType(leftType)}' with '${this.formatType(rightType)}'`);
+            this.diagnostics.error(
+              `Cannot compare '${this.formatType(leftType)}' with '${this.formatType(rightType)}'`,
+              node.location
+            );
           }
           return "boolean";
         }
 
-        // +, -, *, /, %
+        // ---- Additive: + (numbers, strings, arrays) ----
+        if (node.operator === "+") {
+          // Handle array operations FIRST so string-concat doesn't shadow it
+          if (typeof leftType === "object" && leftType.kind === "array") {
+            // Array + Array concatenation
+            if (typeof rightType === "object" && rightType.kind === "array") {
+              if (!this.sameType(leftType.elementType, rightType.elementType)) {
+                this.diagnostics.error(
+                  `Cannot concatenate arrays of different types: '${this.formatType(leftType.elementType)}[]' + '${this.formatType(rightType.elementType)}[]'`,
+                  node.location
+                );
+              }
+              return leftType;
+            }
+
+            // Array + element (append)
+            if (this.sameType(leftType.elementType, rightType)) {
+              return leftType;
+            }
+
+            this.diagnostics.error(
+              `Cannot append '${this.formatType(rightType)}' to array of '${this.formatType(leftType.elementType)}'`,
+              node.location
+            );
+            return leftType;
+          }
+
+          if (leftType === "string" || rightType === "string") {
+            return "string";
+          }
+
+          if (leftType !== "number" || rightType !== "number") {
+            this.diagnostics.error(
+              `Operator '+' requires numbers, strings, or arrays. Got '${this.formatType(leftType)}' and '${this.formatType(rightType)}'`,
+              node.location
+            );
+          }
+          return "number";
+        }
+
+        // ---- Remaining arithmetic: - * / % ----
         if (leftType !== "number" || rightType !== "number") {
-          this.errors.push(
-            `Operator '${node.operator}' requires two numbers, got '${leftType}' and '${rightType}'`
+          this.diagnostics.error(
+            `Operator '${node.operator}' requires two numbers. Got '${this.formatType(leftType)}' and '${this.formatType(rightType)}'`,
+            node.location
           );
         }
         return "number";
       }
 
       default:
-        throw new Error(`Cannot infer type for: ${(node as any).type}`);
+        throw new Error(`Cannot infer type for node type: ${(node as any).type}`);
     }
   }
 
   private sameType(left: TypeAnnotation, right: TypeAnnotation): boolean {
-    if (typeof left === "string" || typeof right === "string") return left === right;
-    return left.kind === right.kind && this.sameType(left.elementType, right.elementType);
+    if (left === "any" || right === "any") return true;
+
+    if (typeof left === "string" && typeof right === "string") {
+      return left === right;
+    }
+    if (typeof left === "string" || typeof right === "string") {
+      return false;
+    }
+    if (left.kind !== right.kind) {
+      return false;
+    }
+    return this.sameType(left.elementType, right.elementType);
   }
 
   private formatType(type: TypeAnnotation | undefined): string {
     if (!type) return "unknown";
-    return typeof type === "string" ? type : `${this.formatType(type.elementType)}[]`;
+    if (type === "any") return "any";
+    if (typeof type === "string") {
+      return type;
+    }
+    if (type.kind === "array") {
+      return `${this.formatType(type.elementType)}[]`;
+    }
+    return "unknown";
   }
 }

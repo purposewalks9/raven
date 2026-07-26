@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { tokenize } from "../src/lexer/token.js";
+import { tokenize, TokenKind } from "../src/lexer/token.js";
 import { Parser } from "../src/parser/parser.js";
 
 function stripLocations<T>(value: T): T {
@@ -26,8 +26,9 @@ describe("parser", () => {
   it("throws a clear error on missing closing paren", () => {
     expect(() => new Parser(tokenize(`print("hi"`)).parseProgram()).toThrow();
   });
-  it("parses a val declaration", () => {
-    const ast = new Parser(tokenize(`val x = "hi"`)).parseProgram();
+
+  it("parses a let declaration", () => {
+    const ast = new Parser(tokenize(`let x = "hi"`)).parseProgram();
     expect(stripLocations(ast.body[0])).toEqual({
       type: "VariableDeclaration",
       name: "x",
@@ -35,61 +36,132 @@ describe("parser", () => {
     });
   });
 
+  it("parses a const declaration", () => {
+    const ast = new Parser(tokenize(`const x = "hi"`)).parseProgram();
+    expect(stripLocations(ast.body[0])).toEqual({
+      type: "ConstantDeclaration",
+      name: "x",
+      value: { type: "StringLiteral", value: "hi" },
+    });
+  });
+
+  it("parses a let declaration with a type annotation", () => {
+    const ast = new Parser(tokenize(`let x: string = "hi"`)).parseProgram();
+    expect(stripLocations(ast.body[0])).toEqual({
+      type: "VariableDeclaration",
+      name: "x",
+      value: { type: "StringLiteral", value: "hi" },
+      typeAnnotation: "string",
+    });
+  });
+
+  it("parses a const declaration with a type annotation", () => {
+    const ast = new Parser(tokenize(`const x: string = "hi"`)).parseProgram();
+    expect(stripLocations(ast.body[0])).toEqual({
+      type: "ConstantDeclaration",
+      name: "x",
+      value: { type: "StringLiteral", value: "hi" },
+      typeAnnotation: "string",
+    });
+  });
+
+  it("parses a let declaration without a type annotation", () => {
+    const ast = new Parser(tokenize(`let x = "hi"`)).parseProgram();
+    expect((ast.body[0] as any).typeAnnotation).toBeUndefined();
+  });
+
+  it("parses a let declaration with a boolean", () => {
+    const ast = new Parser(tokenize(`let isReady = true`)).parseProgram();
+    expect(stripLocations(ast.body[0])).toEqual({
+      type: "VariableDeclaration",
+      name: "isReady",
+      value: { type: "BooleanLiteral", value: true },
+    });
+  });
+
+  it("parses a const declaration with a boolean", () => {
+    const ast = new Parser(tokenize(`const isReady = true`)).parseProgram();
+    expect(stripLocations(ast.body[0])).toEqual({
+      type: "ConstantDeclaration",
+      name: "isReady",
+      value: { type: "BooleanLiteral", value: true },
+    });
+  });
+
+  it("parses a let declaration with a number", () => {
+    const ast = new Parser(tokenize(`let age = 5`)).parseProgram();
+    expect(stripLocations(ast.body[0])).toEqual({
+      type: "VariableDeclaration",
+      name: "age",
+      value: { type: "NumberLiteral", value: 5 },
+    });
+  });
+
+  it("parses a const declaration with a number", () => {
+    const ast = new Parser(tokenize(`const age = 5`)).parseProgram();
+    expect(stripLocations(ast.body[0])).toEqual({
+      type: "ConstantDeclaration",
+      name: "age",
+      value: { type: "NumberLiteral", value: 5 },
+    });
+  });
+
   it("parses an if/then/end statement", () => {
-  const ast = new Parser(tokenize(`if 5 > 3 then print("yes") end`)).parseProgram();
- expect(ast.body[0]!.type).toBe("IfStatement");
-  expect((ast.body[0] as any).consequent.length).toBe(1);
-  expect((ast.body[0] as any).alternate).toBeUndefined();
-});
-
-it("parses a function declaration", () => {
-  const source = `fn add(a: number, b: number): number do return a + b end`;
-  const ast = new Parser(tokenize(source)).parseProgram();
-  expect(ast.body[0]!.type).toBe("FunctionDeclaration");
-  expect((ast.body[0] as any).parameters).toEqual([
-    { name: "a", typeAnnotation: "number" },
-    { name: "b", typeAnnotation: "number" },
-  ]);
-  expect((ast.body[0] as any).returnType).toBe("number");
-});
-
-it("parses a function call", () => {
-  const ast = new Parser(tokenize(`val x = add(2, 3)`)).parseProgram();
-  expect(stripLocations((ast.body[0] as any).value)).toEqual({
-    type: "CallExpression",
-    callee: "add",
-    arguments: [{ type: "NumberLiteral", value: 2 }, { type: "NumberLiteral", value: 3 }],
+    const ast = new Parser(tokenize(`if 5 > 3 then print("yes") end`)).parseProgram();
+    expect(ast.body[0]!.type).toBe("IfStatement");
+    expect((ast.body[0] as any).consequent.length).toBe(1);
+    expect((ast.body[0] as any).alternate).toBeUndefined();
   });
-});
 
-it("parses a while loop", () => {
-  const ast = new Parser(tokenize(`while x < 10 do print(x) end`)).parseProgram();
-  expect(ast.body[0]!.type).toBe("WhileStatement");
-  expect((ast.body[0] as any).body.length).toBe(1);
-});
-it("parses a logical and expression", () => {
-  const ast = new Parser(tokenize(`val x = true and false`)).parseProgram();
-  expect(stripLocations((ast.body[0] as any).value)).toEqual({
-    type: "BinaryExpression",
-    operator: "and",
-    left: { type: "BooleanLiteral", value: true },
-    right: { type: "BooleanLiteral", value: false },
+  it("parses an if/then/else/end statement", () => {
+    const ast = new Parser(tokenize(`if 5 > 3 then print("yes") else print("no") end`)).parseProgram();
+    expect((ast.body[0] as any).alternate.length).toBe(1);
   });
-});
 
-it("parses a not expression", () => {
-  const ast = new Parser(tokenize(`val x = not true`)).parseProgram();
-  expect(stripLocations((ast.body[0] as any).value)).toEqual({
-    type: "UnaryExpression",
-    operator: "not",
-    argument: { type: "BooleanLiteral", value: true },
+  it("parses a function declaration", () => {
+    const source = `fn add(a: number, b: number): number return a + b end`;
+    const ast = new Parser(tokenize(source)).parseProgram();
+    expect(ast.body[0]!.type).toBe("FunctionDeclaration");
+    expect((ast.body[0] as any).parameters).toEqual([
+      { name: "a", typeAnnotation: "number" },
+      { name: "b", typeAnnotation: "number" },
+    ]);
+    expect((ast.body[0] as any).returnType).toBe("number");
   });
-}); 
 
-it("parses an if/then/else/end statement", () => {
-  const ast = new Parser(tokenize(`if 5 > 3 then print("yes") else print("no") end`)).parseProgram();
-  expect((ast.body[0] as any).alternate.length).toBe(1);
-});
+  it("parses a function call", () => {
+    const ast = new Parser(tokenize(`let x = add(2, 3)`)).parseProgram();
+    expect(stripLocations((ast.body[0] as any).value)).toEqual({
+      type: "CallExpression",
+      callee: "add",
+      arguments: [{ type: "NumberLiteral", value: 2 }, { type: "NumberLiteral", value: 3 }],
+    });
+  });
+
+  it("parses a while loop", () => {
+    const ast = new Parser(tokenize(`while x < 10 do print(x) end`)).parseProgram();
+    expect(ast.body[0]!.type).toBe("WhileStatement");
+    expect((ast.body[0] as any).body.length).toBe(1);
+  });
+
+  it("parses a logical and expression", () => {
+    const ast = new Parser(tokenize(`let x = true and false`)).parseProgram();
+    expect(stripLocations((ast.body[0] as any).value)).toEqual({
+      type: "BinaryExpression",
+      operator: "and",
+      left: { type: "BooleanLiteral", value: true },
+      right: { type: "BooleanLiteral", value: false },
+    });
+  });
+
+  it("parses a not expression", () => {
+    const ast = new Parser(tokenize(`let x = not true`)).parseProgram();
+    expect(stripLocations((ast.body[0] as any).value)).toEqual({
+      type: "UnaryExpression",
+      operator: "not",
+      argument: { type: "BooleanLiteral", value: true },
+    });
+  });
 
   it("parses a reassignment", () => {
     const ast = new Parser(tokenize(`age = 6`)).parseProgram();
@@ -100,35 +172,13 @@ it("parses an if/then/else/end statement", () => {
     });
   });
 
-  it("parses a val declaration with a boolean", () => {
-    const ast = new Parser(tokenize(`val isReady = true`)).parseProgram();
-    expect(stripLocations(ast.body[0])).toEqual({
-      type: "VariableDeclaration",
-      name: "isReady",
-      value: { type: "BooleanLiteral", value: true },
-    });
-  });
-  it("parses a val declaration with a type annotation", () => {
-    const ast = new Parser(tokenize(`val x: string = "hi"`)).parseProgram();
-    expect(stripLocations(ast.body[0])).toEqual({
-      type: "VariableDeclaration",
-      name: "x",
-      value: { type: "StringLiteral", value: "hi" },
-      typeAnnotation: "string",
-    });
-  });
-
-  it("parses a val declaration without a type annotation", () => {
-    const ast = new Parser(tokenize(`val x = "hi"`)).parseProgram();
-    expect((ast.body[0] as any).typeAnnotation).toBeUndefined();
-  });
   it("parses print with an identifier argument", () => {
     const ast = new Parser(tokenize(`print(x)`)).parseProgram();
     expect(stripLocations((ast.body[0] as any).argument)).toEqual({ type: "Identifier", name: "x" });
   });
 
   it("parses simple addition", () => {
-    const ast = new Parser(tokenize(`val x = 2 + 3`)).parseProgram();
+    const ast = new Parser(tokenize(`let x = 2 + 3`)).parseProgram();
     expect(stripLocations((ast.body[0] as any).value)).toEqual({
       type: "BinaryExpression",
       operator: "+",
@@ -138,7 +188,7 @@ it("parses an if/then/else/end statement", () => {
   });
 
   it("respects operator precedence (* before +)", () => {
-    const ast = new Parser(tokenize(`val x = 2 + 3 * 4`)).parseProgram();
+    const ast = new Parser(tokenize(`let x = 2 + 3 * 4`)).parseProgram();
     const value = (ast.body[0] as any).value;
     expect(value.operator).toBe("+");
     expect(stripLocations(value.left)).toEqual({ type: "NumberLiteral", value: 2 });
@@ -151,7 +201,7 @@ it("parses an if/then/else/end statement", () => {
   });
 
   it("parses a comparison", () => {
-    const ast = new Parser(tokenize(`val x = 5 > 3`)).parseProgram();
+    const ast = new Parser(tokenize(`let x = 5 > 3`)).parseProgram();
     expect(stripLocations((ast.body[0] as any).value)).toEqual({
       type: "BinaryExpression",
       operator: ">",
@@ -161,34 +211,80 @@ it("parses an if/then/else/end statement", () => {
   });
 
   it("parses an array literal", () => {
-  const ast = new Parser(tokenize(`val nums = [1, 2, 3]`)).parseProgram();
-  expect(stripLocations((ast.body[0] as any).value)).toEqual({
-    type: "ArrayLiteral",
-    elements: [
-      { type: "NumberLiteral", value: 1 },
-      { type: "NumberLiteral", value: 2 },
-      { type: "NumberLiteral", value: 3 },
-    ],
+    const ast = new Parser(tokenize(`let nums = [1, 2, 3]`)).parseProgram();
+    expect(stripLocations((ast.body[0] as any).value)).toEqual({
+      type: "ArrayLiteral",
+      elements: [
+        { type: "NumberLiteral", value: 1 },
+        { type: "NumberLiteral", value: 2 },
+        { type: "NumberLiteral", value: 3 },
+      ],
+    });
+  });
+
+  it("parses array indexing", () => {
+    const ast = new Parser(tokenize(`let x = nums[0]`)).parseProgram();
+    expect(stripLocations((ast.body[0] as any).value)).toEqual({
+      type: "IndexExpression",
+      array: { type: "Identifier", name: "nums" },
+      index: { type: "NumberLiteral", value: 0 },
+    });
+  });
+
+  it("throws on unknown statement", () => {
+    expect(() => new Parser(tokenize(`foo`)).parseProgram()).toThrow();
   });
 });
 
-it("parses array indexing", () => {
-  const ast = new Parser(tokenize(`val x = nums[0]`)).parseProgram();
-  expect(stripLocations((ast.body[0] as any).value)).toEqual({
-    type: "IndexExpression",
-    array: { type: "Identifier", name: "nums" },
-    index: { type: "NumberLiteral", value: 0 },
+// Lexer tests for let and const
+describe("lexer - let and const", () => {
+  it("tokenizes a let statement", () => {
+    const tokens = tokenize(`let x = "hi"`);
+    expect(tokens.map(t => t.kind)).toEqual([
+      TokenKind.Keyword,  // let
+      TokenKind.Identifier,
+      TokenKind.Punctuation,
+      TokenKind.String,
+      TokenKind.EOF,
+    ]);
+    expect(tokens[0]!.value).toBe("let");
   });
-});
-  it("parses a val declaration with a number", () => {
-    const ast = new Parser(tokenize(`val age = 5`)).parseProgram();
-    expect(stripLocations(ast.body[0])).toEqual({
-      type: "VariableDeclaration",
-      name: "age",
-      value: { type: "NumberLiteral", value: 5 },
-    });
+
+  it("tokenizes a const statement", () => {
+    const tokens = tokenize(`const x = "hi"`);
+    expect(tokens.map(t => t.kind)).toEqual([
+      TokenKind.Keyword,  // const
+      TokenKind.Identifier,
+      TokenKind.Punctuation,
+      TokenKind.String,
+      TokenKind.EOF,
+    ]);
+    expect(tokens[0]!.value).toBe("const");
   });
-  it("throws on unknown statement", () => {
-    expect(() => new Parser(tokenize(`foo`)).parseProgram()).toThrow();
+
+  it("tokenizes a let statement with type annotation", () => {
+    const tokens = tokenize(`let x: string = "hi"`);
+    expect(tokens.map(t => t.kind)).toEqual([
+      TokenKind.Keyword,
+      TokenKind.Identifier,
+      TokenKind.Punctuation,
+      TokenKind.Identifier,
+      TokenKind.Punctuation,
+      TokenKind.String,
+      TokenKind.EOF,
+    ]);
+  });
+
+  it("tokenizes a const statement with type annotation", () => {
+    const tokens = tokenize(`const x: string = "hi"`);
+    expect(tokens.map(t => t.kind)).toEqual([
+      TokenKind.Keyword,
+      TokenKind.Identifier,
+      TokenKind.Punctuation,
+      TokenKind.Identifier,
+      TokenKind.Punctuation,
+      TokenKind.String,
+      TokenKind.EOF,
+    ]);
   });
 });

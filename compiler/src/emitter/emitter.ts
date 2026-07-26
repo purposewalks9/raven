@@ -20,18 +20,27 @@ import {
   IndexExpression,
   CallExpression,
 } from "../ast/nodes.js";
+
 export class Emitter {
   private indentLevel = 0;
   private output: string[] = [];
+  private atLineStart = true;
 
   emit(program: Program): string {
     this.output = [];
+    this.indentLevel = 0;
+    this.atLineStart = true;
     this.emitProgram(program);
     return this.output.join("");
   }
 
   private emitProgram(node: Program): void {
-    for (const stmt of node.body) {
+    this.emitStatementList(node.body);
+  }
+
+  private emitStatementList(statements: Statement[]): void {
+    for (const stmt of statements) {
+      this.indent();
       this.emitStatement(stmt);
     }
   }
@@ -49,31 +58,31 @@ export class Emitter {
       case "Assignment":
         this.emitAssignment(node);
         break;
-      case "IfStatement":                      
+      case "IfStatement":
         this.emitIfStatement(node);
         break;
-      case "WhileStatement":         
-            this.emitWhileStatement(node);
-            break;
-      case "FunctionDeclaration":      
-            this.emitFunctionDeclaration(node);
-            break;
-      case "ReturnStatement":        
-            this.emitReturnStatement(node);
-            break;
+      case "WhileStatement":
+        this.emitWhileStatement(node);
+        break;
+      case "FunctionDeclaration":
+        this.emitFunctionDeclaration(node);
+        break;
+      case "ReturnStatement":
+        this.emitReturnStatement(node);
+        break;
       case "ExpressionStatement":
-            this.emitExpression(node.expression);
-            this.write(";");
-            this.newline();
-            break;
+        this.emitExpression(node.expression);
+        this.write(";");
+        this.newline();
+        break;
       case "BreakStatement":
-            this.write("break;");
-            this.newline();
-            break;
+        this.write("break;");
+        this.newline();
+        break;
       case "ContinueStatement":
-            this.write("continue;");
-            this.newline();
-            break;
+        this.write("continue;");
+        this.newline();
+        break;
       default:
         throw new Error(`Unknown statement type: ${(node as any).type}`);
     }
@@ -85,23 +94,26 @@ export class Emitter {
     this.write(");");
     this.newline();
   }
-private emitFunctionDeclaration(node: FunctionDeclaration): void {
+
+  private emitFunctionDeclaration(node: FunctionDeclaration): void {
     const params = node.parameters.map(p => p.name).join(", ");
     this.write(`function ${node.name}(${params}) {`);
     this.newline();
-    for (const stmt of node.body) {
-        this.emitStatement(stmt);
-    }
+    this.indentLevel++;
+    this.emitStatementList(node.body);
+    this.indentLevel--;
+    this.indent();
     this.write("}");
     this.newline();
-}
+  }
 
-private emitReturnStatement(node: ReturnStatement): void {
+  private emitReturnStatement(node: ReturnStatement): void {
     this.write("return ");
     this.emitExpression(node.value);
     this.write(";");
     this.newline();
-}
+  }
+
   private emitVariableDeclaration(
     node: VariableDeclaration | ConstantDeclaration,
   ): void {
@@ -118,12 +130,14 @@ private emitReturnStatement(node: ReturnStatement): void {
     this.emitExpression(node.condition);
     this.write(") {");
     this.newline();
-    for (const stmt of node.body) {
-        this.emitStatement(stmt);
-    }
+    this.indentLevel++;
+    this.emitStatementList(node.body);
+    this.indentLevel--;
+    this.indent();
     this.write("}");
     this.newline();
-}
+  }
+
   private emitExpression(node: Expression): void {
     switch (node.type) {
       case "StringLiteral":
@@ -141,18 +155,18 @@ private emitReturnStatement(node: ReturnStatement): void {
       case "BinaryExpression":
         this.emitBinaryExpression(node);
         break;
-      case "CallExpression":            
-            this.emitCallExpression(node);
-            break;
-      case "UnaryExpression":        
-            this.emitUnaryExpression(node);
-            break
-      case "ArrayLiteral":           
-            this.emitArrayLiteral(node);
-            break;
-      case "IndexExpression":        
-            this.emitIndexExpression(node);
-            break;
+      case "CallExpression":
+        this.emitCallExpression(node);
+        break;
+      case "UnaryExpression":
+        this.emitUnaryExpression(node);
+        break;
+      case "ArrayLiteral":
+        this.emitArrayLiteral(node);
+        break;
+      case "IndexExpression":
+        this.emitIndexExpression(node);
+        break;
       default:
         throw new Error(`Unknown expression type: ${(node as any).type}`);
     }
@@ -168,30 +182,34 @@ private emitReturnStatement(node: ReturnStatement): void {
 
     this.write(`"${escaped}"`);
   }
- private emitIfStatement(node: IfStatement): void {
+
+  private emitIfStatement(node: IfStatement): void {
     this.write("if (");
     this.emitExpression(node.condition);
     this.write(") {");
     this.newline();
-    for (const stmt of node.consequent) {
-        this.emitStatement(stmt);
-    }
+    this.indentLevel++;
+    this.emitStatementList(node.consequent);
+    this.indentLevel--;
+    this.indent();
     this.write("}");
     if (node.alternate) {
-        this.write(" else {");
-        this.newline();
-        for (const stmt of node.alternate) {
-            this.emitStatement(stmt);
-        }
-        this.write("}");
+      this.write(" else {");
+      this.newline();
+      this.indentLevel++;
+      this.emitStatementList(node.alternate);
+      this.indentLevel--;
+      this.indent();
+      this.write("}");
     }
     this.newline();
-}
+  }
 
   private emitIdentifier(node: Identifier): void {
     this.write(node.name);
   }
-  private emitAssignment(node: Assignment): void {   // NEW
+
+  private emitAssignment(node: Assignment): void {
     this.write(`${node.name} = `);
     this.emitExpression(node.value);
     this.write(";");
@@ -199,59 +217,81 @@ private emitReturnStatement(node: ReturnStatement): void {
   }
 
 
+private static readonly BUILTIN_CALL_MAP: Record<string, string> = {
+  abs: "Math.abs",
+  sqrt: "Math.sqrt",
+  toString: "String",
+};
+
 private emitCallExpression(node: CallExpression): void {
-    this.write(`${node.callee}(`);
-    node.arguments.forEach((arg, i) => {
-        if (i > 0) this.write(", ");
-        this.emitExpression(arg);
-    });
-    this.write(")");
+  if (node.callee === "len" && node.arguments.length === 1) {
+    this.write("(");
+    this.emitExpression(node.arguments[0]!);
+    this.write(").length");
+    return;
+  }
+
+  const jsName = Emitter.BUILTIN_CALL_MAP[node.callee] ?? node.callee;
+  this.write(`${jsName}(`);
+  node.arguments.forEach((arg, i) => {
+    if (i > 0) this.write(", ");
+    this.emitExpression(arg);
+  });
+  this.write(")");
 }
-private emitUnaryExpression(node: UnaryExpression): void {
+  private emitUnaryExpression(node: UnaryExpression): void {
     this.write("(!");
     this.emitExpression(node.argument);
     this.write(")");
-}
+  }
+
   private emitNumberLiteral(node: NumberLiteral): void {
     this.write(String(node.value));
   }
-private emitBinaryExpression(node: BinaryExpression): void {
+
+  private emitBinaryExpression(node: BinaryExpression): void {
     const jsOperator = node.operator === "and" ? "&&" : node.operator === "or" ? "||" : node.operator;
     this.write("(");
     this.emitExpression(node.left);
     this.write(` ${jsOperator} `);
     this.emitExpression(node.right);
     this.write(")");
-}
+  }
 
   private emitBooleanLiteral(node: BooleanLiteral): void {
     this.write(String(node.value));
   }
+
   private emitArrayLiteral(node: ArrayLiteral): void {
     this.write("[");
     node.elements.forEach((el, i) => {
-        if (i > 0) this.write(", ");
-        this.emitExpression(el);
+      if (i > 0) this.write(", ");
+      this.emitExpression(el);
     });
     this.write("]");
-}
+  }
 
-private emitIndexExpression(node: IndexExpression): void {
+  private emitIndexExpression(node: IndexExpression): void {
     this.emitExpression(node.array);
     this.write("[");
     this.emitExpression(node.index);
     this.write("]");
-}
+  }
 
   private write(text: string): void {
     this.output.push(text);
+    this.atLineStart = text.endsWith("\n");
   }
 
   private newline(): void {
     this.output.push("\n");
+    this.atLineStart = true;
   }
 
   private indent(): void {
-    this.output.push("  ".repeat(this.indentLevel));
+    if (this.atLineStart) {
+      this.output.push("  ".repeat(this.indentLevel));
+      this.atLineStart = false;
+    }
   }
 }

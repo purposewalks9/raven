@@ -1,10 +1,10 @@
 {
-  "name": "@nova/compiler",
+  "name": "@raven/compiler",
   "version": "0.0.1",
   "private": true,
   "type": "module",
   "bin": {
-    "nova": "./dist/cli/index.js"
+    "raven": "./dist/cli/index.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -20,5 +20,8 @@
     "tsup": "^8.2.4",
     "typescript": "^5.5.4",
     "vitest": "^2.0.5"
+  },
+  "dependencies": {
+    "@raven/compiler": "link:"
   }
 }

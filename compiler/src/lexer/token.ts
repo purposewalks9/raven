@@ -9,8 +9,6 @@ export enum TokenKind {
 
 export interface SourceLocation {
   file: string;
-  line: number;
-  column: number;
   start: number;
   end: number;
   line: number;
@@ -25,8 +23,6 @@ export interface Token {
 
 export const KEYWORDS = new Set([
   "print",
-  "val",
-  "rave",
   "let",
   "const",
   "true",
