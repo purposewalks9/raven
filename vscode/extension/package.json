@@ -17,7 +17,7 @@
   "keywords": ["raven", "language", "static typing"],
   "activationEvents": ["onLanguage:raven"],
   "main": "./dist/extension.js",
-  "icon": "images/icon.png",
+  "icon": "images/icon.svg",
   "contributes": {
     "languages": [
       {
@@ -26,12 +26,32 @@
         "extensions": [".rv"],
         "configuration": "./language-configuration.json"
       }
+    ],
+    "grammars": [
+      {
+        "language": "raven",
+        "scopeName": "source.raven",
+        "path": "./syntaxes/raven.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "raven",
+        "path": "./snippets/raven.json"
+      }
+    ],
+    "iconThemes": [
+      {
+        "id": "raven-icons",
+        "label": "Raven Icons",
+        "path": "./fileIcons.json"
+      }
     ]
   },
   "scripts": {
-    "build": "tsup src/extension.ts --format cjs --external:vscode --clean && npm run copy:server",
-    "copy:server": "mkdir -p server && cp ../language-server/dist/server.js server/server.cjs",
-    "dev": "tsup src/extension.ts --format cjs --external:vscode --watch",
+    "build": "tsup src/extension.ts --format cjs --external vscode --clean && npm run copy:server",
+    "copy:server": "mkdir -p server && cp ../language-server/dist/server.js server/server.cjs || true",
+    "dev": "tsup src/extension.ts --format cjs --external vscode --watch",
     "lint": "eslint src --ext .ts",
     "clean": "rm -rf dist server *.tsbuildinfo",
     "package": "vsce package --no-git-tag-version",
