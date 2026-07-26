@@ -6,13 +6,15 @@
   "license": "MIT",
   "packageManager": "pnpm@9.0.0",
   "scripts": {
-    "build": "pnpm -r --filter=./compiler --filter=./packages/* run build",
+    "build": "pnpm run build:compiler && pnpm run build:language-server && pnpm run build:extension",
+    "build:compiler": "pnpm --filter @raven/compiler run build",
+    "build:language-server": "pnpm --filter @raven/language-server run build",
+    "build:extension": "pnpm --filter raven-language run build",
     "dev": "pnpm --filter @raven/compiler run dev",
     "test": "pnpm -r run test",
     "lint": "pnpm -r run lint",
     "clean": "pnpm -r run clean",
-    "compile": "pnpm --filter @nova/compiler run cli --",
-    "changeset": "changeset"
+    "package": "pnpm run build && pnpm --filter raven-language run package"
   },
   "devDependencies": {
     "typescript": "^5.5.4",
