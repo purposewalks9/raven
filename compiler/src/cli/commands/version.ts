@@ -6,3 +6,7 @@ export function versionCommand(): void {
   // readFileSync + JSON.parse fallback on older Node.)
   console.log("0.0.1");
 }
+
+
+// cd ~/raven && raven run examples/raven/demo.rv
+// cd ~/raven/compiler && pnpm build
