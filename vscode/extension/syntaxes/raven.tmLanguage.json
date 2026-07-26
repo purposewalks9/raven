@@ -1,11 +1,17 @@
 {
   "displayName": "Raven",
   "name": "raven",
+  "scopeName": "source.raven",
+  "fileTypes": ["rv"],
   "patterns": [
     { "include": "#comments" },
-    { "include": "#keywords" },
     { "include": "#strings" },
-    { "include": "#numbers" }
+    { "include": "#numbers" },
+    { "include": "#keywords" },
+    { "include": "#types" },
+    { "include": "#functions" },
+    { "include": "#operators" },
+    { "include": "#punctuation" }
   ],
   "repository": {
     "comments": {
@@ -13,20 +19,18 @@
         {
           "name": "comment.line.double-slash.raven",
           "begin": "//",
-          "end": "$"
+          "end": "$",
+          "captures": {
+            "0": { "name": "punctuation.definition.comment.raven" }
+          }
         },
         {
           "name": "comment.block.raven",
           "begin": "/\\*",
-          "end": "\\*/"
-        }
-      ]
-    },
-    "keywords": {
-      "patterns": [
-        {
-          "name": "keyword.control.raven",
-          "match": "\\b(if|else|while|for|return|function|const|let|var|type|interface|class)\\b"
+          "end": "\\*/",
+          "captures": {
+            "0": { "name": "punctuation.definition.comment.raven" }
+          }
         }
       ]
     },
@@ -36,8 +40,36 @@
           "name": "string.quoted.double.raven",
           "begin": "\"",
           "end": "\"",
-          "escapes": {
-            "match": "\\\\."
+          "captures": {
+            "0": { "name": "punctuation.definition.string.raven" }
+          },
+          "patterns": [
+            {
+              "name": "constant.character.escape.raven",
+              "match": "\\\\[\\\\\"nrt]"
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.raven",
+          "begin": "'",
+          "end": "'",
+          "captures": {
+            "0": { "name": "punctuation.definition.string.raven" }
+          },
+          "patterns": [
+            {
+              "name": "constant.character.escape.raven",
+              "match": "\\\\[\\\\\"nrt]"
+            }
+          ]
+        },
+        {
+          "name": "string.template.raven",
+          "begin": "`",
+          "end": "`",
+          "captures": {
+            "0": { "name": "punctuation.definition.string.raven" }
           }
         }
       ]
@@ -45,11 +77,70 @@
     "numbers": {
       "patterns": [
         {
-          "name": "constant.numeric.raven",
-          "match": "\\b([0-9]+)\\b"
+          "name": "constant.numeric.hex.raven",
+          "match": "0[xX][0-9a-fA-F]+"
+        },
+        {
+          "name": "constant.numeric.float.raven",
+          "match": "\\b[0-9]+\\.[0-9]+([eE][+-]?[0-9]+)?\\b"
+        },
+        {
+          "name": "constant.numeric.integer.raven",
+          "match": "\\b[0-9]+\\b"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.raven",
+          "match": "\\b(if|else|while|for|do|break|continue|return|switch|case|default|try|catch|finally|throw)\\b"
+        },
+        {
+          "name": "keyword.declaration.raven",
+          "match": "\\b(fn|const|let|var|type|interface|class|struct|enum|trait|impl|pub|private|protected)\\b"
+        },
+        {
+          "name": "keyword.other.raven",
+          "match": "\\b(async|await|yield|as|is|in|of|this|super|new|delete|typeof|instanceof|void)\\b"
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "support.type.primitive.raven",
+          "match": "\\b(i8|i16|i32|i64|u8|u16|u32|u64|f32|f64|bool|string|void|any|never|null|undefined)\\b"
+        },
+        {
+          "name": "entity.name.type.raven",
+          "match": "\\b[A-Z][a-zA-Z0-9]*\\b"
+        }
+      ]
+    },
+    "functions": {
+      "patterns": [
+        {
+          "name": "entity.name.function.raven",
+          "match": "[a-z_][a-zA-Z0-9_]*(?=\\s*\\()"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.raven",
+          "match": "(\\+|-|\\*|/|%|=|==|!=|<|>|<=|>=|&&|\\|\\||!|&|\\||\\^|~|<<|>>|=>)"
+        }
+      ]
+    },
+    "punctuation": {
+      "patterns": [
+        {
+          "name": "punctuation.raven",
+          "match": "[{}\\(\\)\\[\\];:,.]"
         }
       ]
     }
-  },
-  "scopeName": "source.raven"
+  }
 }
