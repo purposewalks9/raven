@@ -166,7 +166,7 @@ export class Parser {
             this.expect(":");
             const typeAnnotation = this.parseTypeAnnotation();
 
-            parameters.push({ name: paramName.value, typeAnnotation });
+            parameters.push({ name: paramName.value, typeAnnotation, location: paramName.location });
 
             if (this.peek().value === ",") {
                 this.advance();

@@ -1,8 +1,10 @@
 import { TypeAnnotation } from "../ast/nodes.js";
+import { SymbolBinding } from "./binder.js";
 
 export interface SymbolInfo {
   type: TypeAnnotation;
   constant: boolean;
+  binding?: SymbolBinding;
 }
 
 export class SymbolTable {

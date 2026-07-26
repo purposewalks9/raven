@@ -7,7 +7,7 @@
   "packageManager": "pnpm@9.0.0",
   "scripts": {
     "build": "pnpm -r --filter=./compiler --filter=./packages/* run build",
-    "dev": "pnpm --filter @nova/compiler run dev",
+    "dev": "pnpm --filter @raven/compiler run dev",
     "test": "pnpm -r run test",
     "lint": "pnpm -r run lint",
     "clean": "pnpm -r run clean",

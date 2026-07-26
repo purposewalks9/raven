@@ -2,17 +2,30 @@ import { readFileSync } from "node:fs";
 import { tokenize } from "../lexer/token.js";
 import { Parser } from "../parser/parser.js";
 import { TypeChecker } from "../typechecker/checker.js";
+import { Binder } from "../typechecker/binder.js";
+import { Program } from "../ast/nodes.js";
 import { optimize } from "../optimizer/index.js";
 import { Emitter } from "../emitter/emitter.js";
 import { Diagnostic, formatDiagnostic } from "../diagnostics/index.js";
 
 export interface CompileResult {
   source: string;
-  // CHANGED: was `errors: string[]`. Now carries full Diagnostic objects
-  // (severity + message + source location) so printErrors can render the
-  // file:line:column + caret-pointer format instead of a bare message.
   diagnostics: Diagnostic[];
   js: string | null;
+}
+
+export interface CheckResult {
+  source: string;
+  ast: Program;
+  diagnostics: Diagnostic[];
+  binder: Binder;
+}
+
+export function checkSource(source: string, fileName = "<memory>"): CheckResult {
+  const ast = new Parser(tokenize(source, fileName)).parseProgram();
+  const checker = new TypeChecker();
+  const diagnostics = checker.check(ast);
+  return { source, ast, diagnostics, binder: checker.getBinder() };
 }
 
 export function compileFile(file: string, shouldOptimize = true): CompileResult {
@@ -23,8 +36,7 @@ export function compileFile(file: string, shouldOptimize = true): CompileResult 
     throw new Error(`Could not read file: ${file}`);
   }
 
-  const ast = new Parser(tokenize(source, file)).parseProgram();
-  const diagnostics = new TypeChecker().check(ast);
+  const { ast, diagnostics } = checkSource(source, file);
 
   if (diagnostics.some(d => d.severity === "error")) {
     return { source, diagnostics, js: null };

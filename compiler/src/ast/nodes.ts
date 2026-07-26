@@ -33,6 +33,7 @@ export type Statement =
 export interface Parameter {
     name: string;
     typeAnnotation?: TypeAnnotation;
+    location?: SourceLocation;
 }
 
 export interface FunctionDeclaration extends Node {

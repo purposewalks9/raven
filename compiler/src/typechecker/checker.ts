@@ -13,6 +13,7 @@ import {
   FunctionDeclaration,
 } from "../ast/nodes.js";
 import { SymbolTable } from "./symbolTable.js";
+import { Binder, SymbolBinding } from "./binder.js";
 import { DiagnosticBag, Diagnostic } from "../diagnostics/index.js";
 
 export class TypeChecker {
@@ -22,7 +23,11 @@ export class TypeChecker {
   // formatDiagnostic() print the file:line:column + caret-pointer output
   // instead of a bare string.
   private diagnostics = new DiagnosticBag();
-  private functionSignatures = new Map<string, { params: TypeAnnotation[]; returnType: TypeAnnotation }>([
+  // ADDED: persistent record of every declaration + reference seen during
+  // this check(). Unlike symbolTable, this is never popped, so it's still
+  // readable after check() returns via getBinder(). See binder.ts.
+  private binder = new Binder();
+  private functionSignatures = new Map<string, { params: TypeAnnotation[]; returnType: TypeAnnotation; binding?: SymbolBinding }>([
     ["len", { params: [{ kind: "array", elementType: "any" }], returnType: "number" }],
     ["abs", { params: ["number"], returnType: "number" }],
     ["sqrt", { params: ["number"], returnType: "number" }],
@@ -36,10 +41,18 @@ export class TypeChecker {
   // see the pipeline.ts patch below.
   check(program: Program): Diagnostic[] {
     this.diagnostics = new DiagnosticBag();
+    this.binder = new Binder();
     for (const stmt of program.body) {
       this.checkStatement(stmt);
     }
     return this.diagnostics.all();
+  }
+
+  // ADDED: exposes the persistent binder built during the last check()
+  // call. This is the API the language server calls for hover /
+  // go-to-definition / find-references / rename — see binder.ts.
+  getBinder(): Binder {
+    return this.binder;
   }
 
   private checkStatement(node: Statement): void {
@@ -95,10 +108,13 @@ export class TypeChecker {
       );
     }
 
-    const success = this.symbolTable.declare(node.name, {
-      type: node.typeAnnotation ?? actualType,
-      constant: node.type === "ConstantDeclaration",
-    });
+    const type = node.typeAnnotation ?? actualType;
+    const constant = node.type === "ConstantDeclaration";
+    // ADDED: record the declaration in the binder before/alongside the
+    // scoped symbolTable.declare() call, then thread the binding object
+    // through as part of SymbolInfo so later lookups get it for free.
+    const binding = this.binder.declare(node.name, constant ? "constant" : "variable", type, node.location);
+    const success = this.symbolTable.declare(node.name, { type, constant, binding });
 
     if (!success) {
       this.diagnostics.error(`'${node.name}' has already been declared.`, node.location);
@@ -112,6 +128,8 @@ export class TypeChecker {
       this.diagnostics.error(`Cannot assign to undeclared variable '${node.name}'`, node.location);
       return;
     }
+    // ADDED: record this use site against the declaration it resolved to.
+    this.binder.reference(symbol.binding, node.location);
 
     if (symbol.constant) {
       this.diagnostics.error(
@@ -178,9 +196,12 @@ export class TypeChecker {
 
     const paramTypes: TypeAnnotation[] = node.parameters.map(p => p.typeAnnotation ?? "any");
 
+    // ADDED: bind the function name itself at its declaration site.
+    const functionBinding = this.binder.declare(node.name, "function", node.returnType, node.location);
     this.functionSignatures.set(node.name, {
       params: paramTypes,
       returnType: node.returnType,
+      binding: functionBinding,
     });
 
     this.symbolTable.enterScope();
@@ -205,7 +226,11 @@ export class TypeChecker {
       seenParameters.add(param.name);
 
       const paramType = param.typeAnnotation ?? "any";
-      this.symbolTable.declare(param.name, { type: paramType, constant: false });
+      // ADDED: fall back to the function's location only if this
+      // particular Parameter object predates the parser change that now
+      // sets param.location (keeps this safe for any other AST producer).
+      const paramBinding = this.binder.declare(param.name, "parameter", paramType, param.location ?? node.location);
+      this.symbolTable.declare(param.name, { type: paramType, constant: false, binding: paramBinding });
     }
 
     for (const stmt of node.body) {
@@ -237,6 +262,8 @@ export class TypeChecker {
           this.diagnostics.error(`Undeclared variable '${node.name}'`, node.location);
           return "any";
         }
+        // ADDED: record this read site against its declaration.
+        this.binder.reference(symbol.binding, node.location);
         return symbol.type;
       }
 
@@ -257,6 +284,8 @@ export class TypeChecker {
           this.diagnostics.error(`Undeclared function '${node.callee}'`, node.location);
           return "any";
         }
+        // ADDED: record this call site against the function's declaration.
+        this.binder.reference(signature.binding, node.location);
         if (node.arguments.length !== signature.params.length) {
           this.diagnostics.error(
             `Function '${node.callee}' expects ${signature.params.length} argument(s), but got ${node.arguments.length}`,
@@ -386,7 +415,7 @@ export class TypeChecker {
           return "number";
         }
 
-        // ---- Remaining arithmetic: - * / % ----
+
         if (leftType !== "number" || rightType !== "number") {
           this.diagnostics.error(
             `Operator '${node.operator}' requires two numbers. Got '${this.formatType(leftType)}' and '${this.formatType(rightType)}'`,
