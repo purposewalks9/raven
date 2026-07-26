@@ -4,14 +4,20 @@
   "private": true,
   "type": "module",
   "main": "./dist/server.js",
+  "exports": {
+    ".": {
+      "import": "./dist/server.js"
+    }
+  },
   "scripts": {
     "build": "tsup src/server.ts --format cjs --clean",
     "dev": "tsup src/server.ts --format esm --watch",
     "test": "vitest run",
-    "lint": "eslint src --ext .ts"
+    "lint": "eslint src --ext .ts",
+    "clean": "rm -rf dist *.tsbuildinfo"
   },
   "dependencies": {
-    "@raven/compiler": "link:../../compiler",
+    "@raven/compiler": "workspace:*",
     "vscode-languageserver": "^9.0.1",
     "vscode-languageserver-textdocument": "^1.0.11"
   },
@@ -19,6 +25,7 @@
     "@types/node": "^20.19.43",
     "tsup": "^8.2.4",
     "typescript": "^5.5.4",
-    "vitest": "^2.0.5"
+    "vitest": "^2.0.5",
+    "eslint": "^9.8.0"
   }
 }
