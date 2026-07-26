@@ -5,12 +5,19 @@
   "version": "0.0.1",
   "private": true,
   "publisher": "raven-lang",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/purposewalks9/raven"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },
   "categories": ["Programming Languages"],
+  "keywords": ["raven", "language", "static typing"],
   "activationEvents": ["onLanguage:raven"],
   "main": "./dist/extension.js",
+  "icon": "images/icon.png",
   "contributes": {
     "languages": [
       {
@@ -21,17 +28,23 @@
       }
     ]
   },
-"scripts": {
-    "build": "tsup src/extension.ts --format cjs --external vscode --clean",
-    "dev": "tsup src/extension.ts --format cjs --external vscode --watch",
-    "package": "vsce package"
-},
+  "scripts": {
+    "build": "tsup src/extension.ts --format cjs --external:vscode --clean && npm run copy:server",
+    "copy:server": "mkdir -p server && cp ../language-server/dist/server.js server/server.cjs",
+    "dev": "tsup src/extension.ts --format cjs --external:vscode --watch",
+    "lint": "eslint src --ext .ts",
+    "clean": "rm -rf dist server *.tsbuildinfo",
+    "package": "vsce package --no-git-tag-version",
+    "test": "true"
+  },
   "dependencies": {
     "vscode-languageclient": "^9.0.1"
   },
   "devDependencies": {
     "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^2.29.0",
     "typescript": "^5.5.4",
-    "tsup": "^8.2.4"
+    "tsup": "^8.2.4",
+    "eslint": "^9.8.0"
   }
 }
