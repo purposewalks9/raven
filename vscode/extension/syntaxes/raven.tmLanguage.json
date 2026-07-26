@@ -1,0 +1,55 @@
+{
+  "displayName": "Raven",
+  "name": "raven",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#keywords" },
+    { "include": "#strings" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.raven",
+          "begin": "//",
+          "end": "$"
+        },
+        {
+          "name": "comment.block.raven",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.raven",
+          "match": "\\b(if|else|while|for|return|function|const|let|var|type|interface|class)\\b"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.raven",
+          "begin": "\"",
+          "end": "\"",
+          "escapes": {
+            "match": "\\\\."
+          }
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.raven",
+          "match": "\\b([0-9]+)\\b"
+        }
+      ]
+    }
+  },
+  "scopeName": "source.raven"
+}
