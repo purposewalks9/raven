@@ -1,0 +1,10 @@
+{
+  "version": "1.0.0",
+  "iconThemes": [
+    {
+      "id": "raven",
+      "label": "Raven",
+      "path": "./fileIconTheme.json"
+    }
+  ]
+}
