@@ -3,7 +3,6 @@
   "displayName": "Raven Language",
   "description": "Diagnostics, hover, go to definition, and find references for Raven.",
   "version": "0.0.1",
-  "private": true,
   "publisher": "raven-lang",
   "license": "MIT",
   "repository": {
@@ -17,7 +16,7 @@
   "keywords": ["raven", "language", "static typing"],
   "activationEvents": ["onLanguage:raven"],
   "main": "./dist/extension.js",
-  "icon": "images/icon.svg",
+  "icon": "images/icon.png",
   "contributes": {
     "languages": [
       {
@@ -50,11 +49,11 @@
   },
   "scripts": {
     "build": "tsup src/extension.ts --format cjs --external vscode --clean && npm run copy:server",
-    "copy:server": "mkdir -p server && cp ../language-server/dist/server.js server/server.cjs || true",
+    "copy:server": "mkdir -p server && cp ../language-server/dist/server.cjs server/server.cjs",
     "dev": "tsup src/extension.ts --format cjs --external vscode --watch",
     "lint": "eslint src --ext .ts",
     "clean": "rm -rf dist server *.tsbuildinfo",
-    "package": "vsce package --no-git-tag-version",
+     "package": "vsce package --no-dependencies --no-git-tag-version",
     "test": "true"
   },
   "dependencies": {

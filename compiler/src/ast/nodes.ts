@@ -124,8 +124,23 @@ export type Expression =
     | Identifier
     | ArrayLiteral      
     | IndexExpression
+    | ObjectLiteral  
+    | MemberExpression
     | BinaryExpression
     | UnaryExpression; 
+
+
+
+
+export interface ObjectProperty {
+    key: string;
+    value: Expression;
+}
+
+export interface ObjectLiteral extends Node {
+    type: "ObjectLiteral";
+    properties: ObjectProperty[];
+}
 
 export interface UnaryExpression extends Node {
     type: "UnaryExpression";
@@ -152,10 +167,16 @@ export interface BinaryExpression extends Node {
     left: Expression;
     right: Expression;
 }
+export interface MemberExpression extends Node {
+    type: "MemberExpression";
+    object: Expression;
+    property: string;
+}
 
 export type TypeAnnotation =
     | "string"
     | "number"
     | "boolean"
     | "any" 
-    | { kind: "array"; elementType: TypeAnnotation }; 
+    | { kind: "array"; elementType: TypeAnnotation }
+    | { kind: "record"; fields: Record<string, TypeAnnotation> }

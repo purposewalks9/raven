@@ -19,6 +19,8 @@ import {
   ArrayLiteral,
   IndexExpression,
   CallExpression,
+  ObjectLiteral,
+  MemberExpression,
 } from "../ast/nodes.js";
 
 export class Emitter {
@@ -158,6 +160,10 @@ export class Emitter {
       case "CallExpression":
         this.emitCallExpression(node);
         break;
+      case "ObjectLiteral":
+        this.emitObjectLiteral(node);
+        break;
+
       case "UnaryExpression":
         this.emitUnaryExpression(node);
         break;
@@ -172,6 +178,8 @@ export class Emitter {
     }
   }
 
+
+
   private emitStringLiteral(node: StringLiteral): void {
     const escaped = node.value
       .replace(/\\/g, "\\\\")
@@ -183,6 +191,21 @@ export class Emitter {
     this.write(`"${escaped}"`);
   }
 
+
+  private emitObjectLiteral(node: ObjectLiteral): void {
+    this.write("{ ");
+    node.properties.forEach((property, i) => {
+      if (i > 0) this.write(", ");
+      this.write(`${property.key}: `);
+      this.emitExpression(property.value);
+    });
+    this.write(" }");
+  }
+
+  private emitMemberExpression(node: MemberExpression): void {
+    this.emitExpression(node.object);
+    this.write(`.${node.property}`);
+  }
   private emitIfStatement(node: IfStatement): void {
     this.write("if (");
     this.emitExpression(node.condition);
@@ -217,28 +240,28 @@ export class Emitter {
   }
 
 
-private static readonly BUILTIN_CALL_MAP: Record<string, string> = {
-  abs: "Math.abs",
-  sqrt: "Math.sqrt",
-  toString: "String",
-};
+  private static readonly BUILTIN_CALL_MAP: Record<string, string> = {
+    abs: "Math.abs",
+    sqrt: "Math.sqrt",
+    toString: "String",
+  };
 
-private emitCallExpression(node: CallExpression): void {
-  if (node.callee === "len" && node.arguments.length === 1) {
-    this.write("(");
-    this.emitExpression(node.arguments[0]!);
-    this.write(").length");
-    return;
+  private emitCallExpression(node: CallExpression): void {
+    if (node.callee === "len" && node.arguments.length === 1) {
+      this.write("(");
+      this.emitExpression(node.arguments[0]!);
+      this.write(").length");
+      return;
+    }
+
+    const jsName = Emitter.BUILTIN_CALL_MAP[node.callee] ?? node.callee;
+    this.write(`${jsName}(`);
+    node.arguments.forEach((arg, i) => {
+      if (i > 0) this.write(", ");
+      this.emitExpression(arg);
+    });
+    this.write(")");
   }
-
-  const jsName = Emitter.BUILTIN_CALL_MAP[node.callee] ?? node.callee;
-  this.write(`${jsName}(`);
-  node.arguments.forEach((arg, i) => {
-    if (i > 0) this.write(", ");
-    this.emitExpression(arg);
-  });
-  this.write(")");
-}
   private emitUnaryExpression(node: UnaryExpression): void {
     this.write("(!");
     this.emitExpression(node.argument);

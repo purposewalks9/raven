@@ -6,7 +6,6 @@ import {
   type LanguageClientOptions,
   type ServerOptions,
 } from "vscode-languageclient/node";
-
 let client: LanguageClient | undefined;
 
 export function activate(context: ExtensionContext): void {

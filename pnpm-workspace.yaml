@@ -5,3 +5,4 @@ packages:
   - "vscode/extension"
   - "vscode/language-server"
   - "examples/*"
+  - "website/raven-site"

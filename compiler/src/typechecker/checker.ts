@@ -11,6 +11,7 @@ import {
   ArrayLiteral,
   IndexExpression,
   FunctionDeclaration,
+  MemberExpression,
 } from "../ast/nodes.js";
 import { SymbolTable } from "./symbolTable.js";
 import { Binder, SymbolBinding } from "./binder.js";
@@ -18,14 +19,7 @@ import { DiagnosticBag, Diagnostic } from "../diagnostics/index.js";
 
 export class TypeChecker {
   private symbolTable = new SymbolTable();
-  // CHANGED: was `private errors: string[] = []`. DiagnosticBag carries
-  // severity + source location alongside the message, which is what lets
-  // formatDiagnostic() print the file:line:column + caret-pointer output
-  // instead of a bare string.
   private diagnostics = new DiagnosticBag();
-  // ADDED: persistent record of every declaration + reference seen during
-  // this check(). Unlike symbolTable, this is never popped, so it's still
-  // readable after check() returns via getBinder(). See binder.ts.
   private binder = new Binder();
   private functionSignatures = new Map<string, { params: TypeAnnotation[]; returnType: TypeAnnotation; binding?: SymbolBinding }>([
     ["len", { params: [{ kind: "array", elementType: "any" }], returnType: "number" }],
@@ -34,11 +28,8 @@ export class TypeChecker {
     ["toString", { params: ["any"], returnType: "string" }],
   ]);
   private currentReturnType: TypeAnnotation | undefined;
+  private inferredReturnTypes: TypeAnnotation[] | undefined;
 
-  // CHANGED: return type is now Diagnostic[] instead of string[].
-  // This is a breaking change for any caller (CLI pipeline.ts) that
-  // expects check() to return strings — that caller needs updating too,
-  // see the pipeline.ts patch below.
   check(program: Program): Diagnostic[] {
     this.diagnostics = new DiagnosticBag();
     this.binder = new Binder();
@@ -48,9 +39,6 @@ export class TypeChecker {
     return this.diagnostics.all();
   }
 
-  // ADDED: exposes the persistent binder built during the last check()
-  // call. This is the API the language server calls for hover /
-  // go-to-definition / find-references / rename — see binder.ts.
   getBinder(): Binder {
     return this.binder;
   }
@@ -78,7 +66,9 @@ export class TypeChecker {
         break;
       case "ReturnStatement": {
         const returnType = this.checkExpression(node.value);
-        if (this.currentReturnType && !this.sameType(returnType, this.currentReturnType)) {
+        if (this.inferredReturnTypes) {
+          this.inferredReturnTypes.push(returnType);
+        } else if (this.currentReturnType && !this.sameType(returnType, this.currentReturnType)) {
           this.diagnostics.error(
             `Return type mismatch: expected '${this.formatType(this.currentReturnType)}', got '${this.formatType(returnType)}'`,
             node.location
@@ -110,9 +100,6 @@ export class TypeChecker {
 
     const type = node.typeAnnotation ?? actualType;
     const constant = node.type === "ConstantDeclaration";
-    // ADDED: record the declaration in the binder before/alongside the
-    // scoped symbolTable.declare() call, then thread the binding object
-    // through as part of SymbolInfo so later lookups get it for free.
     const binding = this.binder.declare(node.name, constant ? "constant" : "variable", type, node.location);
     const success = this.symbolTable.declare(node.name, { type, constant, binding });
 
@@ -128,7 +115,6 @@ export class TypeChecker {
       this.diagnostics.error(`Cannot assign to undeclared variable '${node.name}'`, node.location);
       return;
     }
-    // ADDED: record this use site against the declaration it resolved to.
     this.binder.reference(symbol.binding, node.location);
 
     if (symbol.constant) {
@@ -195,29 +181,25 @@ export class TypeChecker {
     }
 
     const paramTypes: TypeAnnotation[] = node.parameters.map(p => p.typeAnnotation ?? "any");
+    const isReturnTypeInferred = node.returnType === undefined;
 
-    // ADDED: bind the function name itself at its declaration site.
-    const functionBinding = this.binder.declare(node.name, "function", node.returnType, node.location);
-    this.functionSignatures.set(node.name, {
+    const functionBinding = this.binder.declare(node.name, "function", node.returnType ?? "any", node.location);
+    const signature = {
       params: paramTypes,
-      returnType: node.returnType,
+      returnType: node.returnType ?? "any",
       binding: functionBinding,
-    });
+    };
+    this.functionSignatures.set(node.name, signature);
 
     this.symbolTable.enterScope();
     const seenParameters = new Set<string>();
     const previousReturnType = this.currentReturnType;
-    this.currentReturnType = node.returnType;
+    const previousInferredReturns = this.inferredReturnTypes;
+    this.currentReturnType = isReturnTypeInferred ? undefined : node.returnType;
+    this.inferredReturnTypes = isReturnTypeInferred ? [] : undefined;
 
     for (const param of node.parameters) {
       if (seenParameters.has(param.name)) {
-        // NOTE: Parameter doesn't carry its own `location` in the current
-        // AST (only statements/expressions extend Node), so this still
-        // points at the whole function declaration rather than the exact
-        // parameter. Adding a `location` field to Parameter in ast/nodes.ts
-        // plus setting it in parseFunctionDeclaration would make this
-        // precise — small follow-up, not done here since it touches the
-        // parser too.
         this.diagnostics.error(
           `Duplicate parameter name '${param.name}' in function '${node.name}'`,
           node.location
@@ -226,9 +208,6 @@ export class TypeChecker {
       seenParameters.add(param.name);
 
       const paramType = param.typeAnnotation ?? "any";
-      // ADDED: fall back to the function's location only if this
-      // particular Parameter object predates the parser change that now
-      // sets param.location (keeps this safe for any other AST producer).
       const paramBinding = this.binder.declare(param.name, "parameter", paramType, param.location ?? node.location);
       this.symbolTable.declare(param.name, { type: paramType, constant: false, binding: paramBinding });
     }
@@ -237,8 +216,26 @@ export class TypeChecker {
       this.checkStatement(stmt);
     }
 
+    if (isReturnTypeInferred) {
+      let inferred: TypeAnnotation = "any";
+      for (const returnType of this.inferredReturnTypes ?? []) {
+        if (inferred === "any") {
+          inferred = returnType;
+        } else if (!this.sameType(inferred, returnType)) {
+          this.diagnostics.error(
+            `Function '${node.name}' returns different types in different places: '${this.formatType(inferred)}' and '${this.formatType(returnType)}'`,
+            node.location,
+            `Add an explicit return type annotation (e.g. ': ${this.formatType(inferred)}') to resolve the ambiguity.`
+          );
+        }
+      }
+      signature.returnType = inferred;
+      functionBinding.type = inferred;
+    }
+
     this.symbolTable.exitScope();
     this.currentReturnType = previousReturnType;
+    this.inferredReturnTypes = previousInferredReturns;
   }
 
   private checkExpression(node: Expression): TypeAnnotation {
@@ -262,7 +259,6 @@ export class TypeChecker {
           this.diagnostics.error(`Undeclared variable '${node.name}'`, node.location);
           return "any";
         }
-        // ADDED: record this read site against its declaration.
         this.binder.reference(symbol.binding, node.location);
         return symbol.type;
       }
@@ -284,7 +280,6 @@ export class TypeChecker {
           this.diagnostics.error(`Undeclared function '${node.callee}'`, node.location);
           return "any";
         }
-        // ADDED: record this call site against the function's declaration.
         this.binder.reference(signature.binding, node.location);
         if (node.arguments.length !== signature.params.length) {
           this.diagnostics.error(
@@ -322,6 +317,40 @@ export class TypeChecker {
         return { kind: "array", elementType };
       }
 
+      case "ObjectLiteral": {
+        const fields: Record<string, TypeAnnotation> = {};
+        for (const property of node.properties) {
+          fields[property.key] = this.inferType(property.value);
+        }
+        return { kind: "record", fields };
+      }
+
+      case "MemberExpression": {
+        const objectType = this.inferType(node.object);
+
+        if (objectType === "any") {
+          return "any";
+        }
+
+        if (typeof objectType === "object" && objectType.kind === "record") {
+          const fieldType = objectType.fields[node.property];
+          if (fieldType === undefined) {
+            this.diagnostics.error(
+              `Property '${node.property}' does not exist on type '${this.formatType(objectType)}'`,
+              node.location
+            );
+            return "any";
+          }
+          return fieldType;
+        }
+
+        this.diagnostics.error(
+          `Cannot access property '${node.property}' on non-record type '${this.formatType(objectType)}'`,
+          node.location
+        );
+        return "any";
+      }
+
       case "IndexExpression": {
         const arrayType = this.inferType(node.array);
         const indexType = this.inferType(node.index);
@@ -353,7 +382,6 @@ export class TypeChecker {
         if (leftType === "any") return rightType;
         if (rightType === "any") return leftType;
 
-        // ---- Logical operators: and / or ----
         if (node.operator === "and" || node.operator === "or") {
           if (leftType !== "boolean" || rightType !== "boolean") {
             this.diagnostics.error(
@@ -364,7 +392,6 @@ export class TypeChecker {
           return "boolean";
         }
 
-        // ---- Comparison operators: == != < <= > >= ----
         if (["==", "!=", "<", "<=", ">", ">="].includes(node.operator)) {
           if (!this.sameType(leftType, rightType)) {
             this.diagnostics.error(
@@ -375,11 +402,8 @@ export class TypeChecker {
           return "boolean";
         }
 
-        // ---- Additive: + (numbers, strings, arrays) ----
         if (node.operator === "+") {
-          // Handle array operations FIRST so string-concat doesn't shadow it
           if (typeof leftType === "object" && leftType.kind === "array") {
-            // Array + Array concatenation
             if (typeof rightType === "object" && rightType.kind === "array") {
               if (!this.sameType(leftType.elementType, rightType.elementType)) {
                 this.diagnostics.error(
@@ -390,7 +414,6 @@ export class TypeChecker {
               return leftType;
             }
 
-            // Array + element (append)
             if (this.sameType(leftType.elementType, rightType)) {
               return leftType;
             }
@@ -414,7 +437,6 @@ export class TypeChecker {
           }
           return "number";
         }
-
 
         if (leftType !== "number" || rightType !== "number") {
           this.diagnostics.error(
@@ -442,7 +464,22 @@ export class TypeChecker {
     if (left.kind !== right.kind) {
       return false;
     }
-    return this.sameType(left.elementType, right.elementType);
+
+    if (left.kind === "array" && right.kind === "array") {
+      return this.sameType(left.elementType, right.elementType);
+    }
+
+    if (left.kind === "record" && right.kind === "record") {
+      const leftKeys = Object.keys(left.fields);
+      const rightKeys = Object.keys(right.fields);
+      if (leftKeys.length !== rightKeys.length) return false;
+      return leftKeys.every(key => {
+        const rightFieldType = right.fields[key];
+        return rightFieldType !== undefined && this.sameType(left.fields[key]!, rightFieldType);
+      });
+    }
+
+    return false;
   }
 
   private formatType(type: TypeAnnotation | undefined): string {
@@ -453,6 +490,12 @@ export class TypeChecker {
     }
     if (type.kind === "array") {
       return `${this.formatType(type.elementType)}[]`;
+    }
+    if (type.kind === "record") {
+      const fields = Object.entries(type.fields)
+        .map(([key, fieldType]) => `${key}: ${this.formatType(fieldType)}`)
+        .join(", ");
+      return `{ ${fields} }`;
     }
     return "unknown";
   }

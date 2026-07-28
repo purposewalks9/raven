@@ -1,9 +1,9 @@
 out
-dist
 build
-server
 node_modules
 *.vsix
 *.tsbuildinfo
 .DS_Store
 .turbo
+src/**
+.vscode/**

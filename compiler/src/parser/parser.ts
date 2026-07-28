@@ -4,7 +4,7 @@ import { Program, Statement, Expression, Parameter, TypeAnnotation } from "../as
 export class Parser {
     private pos = 0;
 
-    constructor(private tokens: Token[]) {}
+    constructor(private tokens: Token[]) { }
 
     parseProgram(): Program {
         const body: Statement[] = [];
@@ -17,31 +17,31 @@ export class Parser {
     }
 
     parseStatement(): Statement {
-    if (this.checkKeyword("print")) return this.parsePrint();
-    if (this.checkKeyword("let")) return this.parseLet();
-    if (this.checkKeyword("const")) return this.parseConst();
-    if (this.checkKeyword("if")) return this.parseIf();
-    if (this.checkKeyword("while")) return this.parseWhile();
-    if (this.checkKeyword("fn")) return this.parseFunctionDeclaration();
-    if (this.checkKeyword("return")) return this.parseReturn();
-    if (this.checkKeyword("break")) { 
-        const token = this.advance(); 
-        return this.withLocation({ type: "BreakStatement" }, token.location); 
-    }
-    if (this.checkKeyword("continue")) { 
-        const token = this.advance(); 
-        return this.withLocation({ type: "ContinueStatement" }, token.location); 
-    }
-    if (this.peek().kind === TokenKind.Identifier && this.tokens[this.pos + 1]?.value === "=") {
-        return this.parseAssignment();
-    }
-    if (this.peek().kind === TokenKind.Identifier && this.tokens[this.pos + 1]?.value === "(") {
-        const expression = this.parseExpression();
-        return this.withLocation({ type: "ExpressionStatement", expression }, expression.location);
-    }
+        if (this.checkKeyword("print")) return this.parsePrint();
+        if (this.checkKeyword("let")) return this.parseLet();
+        if (this.checkKeyword("const")) return this.parseConst();
+        if (this.checkKeyword("if")) return this.parseIf();
+        if (this.checkKeyword("while")) return this.parseWhile();
+        if (this.checkKeyword("fn")) return this.parseFunctionDeclaration();
+        if (this.checkKeyword("return")) return this.parseReturn();
+        if (this.checkKeyword("break")) {
+            const token = this.advance();
+            return this.withLocation({ type: "BreakStatement" }, token.location);
+        }
+        if (this.checkKeyword("continue")) {
+            const token = this.advance();
+            return this.withLocation({ type: "ContinueStatement" }, token.location);
+        }
+        if (this.peek().kind === TokenKind.Identifier && this.tokens[this.pos + 1]?.value === "=") {
+            return this.parseAssignment();
+        }
+        if (this.peek().kind === TokenKind.Identifier && this.tokens[this.pos + 1]?.value === "(") {
+            const expression = this.parseExpression();
+            return this.withLocation({ type: "ExpressionStatement", expression }, expression.location);
+        }
 
-    throw new Error(`Expected a statement, got: ${this.peek().value} (${this.peek().kind})`);
-}
+        throw new Error(`Expected a statement, got: ${this.peek().value} (${this.peek().kind})`);
+    }
     parsePrint(): Statement {
         const start = this.peek().location;
         this.expectKeyword("print");
@@ -54,7 +54,7 @@ export class Parser {
     parseLet(): Statement {
         const start = this.peek().location;
         this.expectKeyword("let");
-        
+
         const nameToken = this.peek();
         if (nameToken.kind !== TokenKind.Identifier) {
             throw new Error("Expected an identifier after 'let'");
@@ -79,31 +79,31 @@ export class Parser {
     }
 
     parseConst(): Statement {
-    const start = this.peek().location;
-    this.expectKeyword("const");
-    
-    const nameToken = this.peek();
-    if (nameToken.kind !== TokenKind.Identifier) {
-        throw new Error("Expected an identifier after 'const'");
-    }
-    this.advance();
+        const start = this.peek().location;
+        this.expectKeyword("const");
 
-    let typeAnnotation: TypeAnnotation | undefined;
-    if (this.peek().value === ":") {
+        const nameToken = this.peek();
+        if (nameToken.kind !== TokenKind.Identifier) {
+            throw new Error("Expected an identifier after 'const'");
+        }
         this.advance();
-        typeAnnotation = this.parseTypeAnnotation();
-    } 
 
-    this.expect("=");
-    const value = this.parseExpression();
+        let typeAnnotation: TypeAnnotation | undefined;
+        if (this.peek().value === ":") {
+            this.advance();
+            typeAnnotation = this.parseTypeAnnotation();
+        }
 
-    return this.withLocation({
-        type: "ConstantDeclaration",
-        name: nameToken.value,
-        value,
-        typeAnnotation 
-    }, start);
-}
+        this.expect("=");
+        const value = this.parseExpression();
+
+        return this.withLocation({
+            type: "ConstantDeclaration",
+            name: nameToken.value,
+            value,
+            typeAnnotation
+        }, start);
+    }
 
     parseAssignment(): Statement {
         const nameToken = this.advance();
@@ -257,17 +257,26 @@ export class Parser {
 
         return left;
     }
-
-    parsePrimary(): Expression {
-        let expr = this.parsePrimaryBase(); 
-        while (this.peek().value === "[") {
+parsePrimary(): Expression {
+    let expr = this.parsePrimaryBase(); 
+    while (this.peek().value === "[" || this.peek().value === ".") {
+        if (this.peek().value === "[") {
             this.advance();
             const index = this.parseExpression();
             this.expect("]");
             expr = this.withLocation({ type: "IndexExpression", array: expr, index }, expr.location);
+        } else {
+            this.advance();
+            const propertyToken = this.peek();
+            if (propertyToken.kind !== TokenKind.Identifier) {
+                throw new Error(`Expected a property name after '.', got: ${propertyToken.value} (${propertyToken.kind})`);
+            }
+            this.advance();
+            expr = this.withLocation({ type: "MemberExpression", object: expr, property: propertyToken.value }, expr.location);
         }
-        return expr;
     }
+    return expr;
+}
 
     private parsePrimaryBase(): Expression {
         const token = this.peek();
@@ -293,26 +302,29 @@ export class Parser {
             this.advance();
             return this.withLocation({ type: "StringLiteral", value: token.value }, token.location);
         }
-        
+
         if (token.kind === TokenKind.Identifier) {
             this.advance();
             return this.withLocation({ type: "Identifier", name: token.value }, token.location);
         }
-        
+
         if (token.kind === TokenKind.Number) {
             this.advance();
             return this.withLocation({ type: "NumberLiteral", value: Number(token.value) }, token.location);
         }
-        
+
         if (token.kind === TokenKind.Keyword && (token.value === "true" || token.value === "false")) {
             this.advance();
             return this.withLocation({ type: "BooleanLiteral", value: token.value === "true" }, token.location);
         }
-        
+
         if (this.peek().value === "[") {
             return this.parseArrayLiteral();
         }
-        
+        if (this.peek().value === "{") {
+            return this.parseObjectLiteral();
+        }
+
         throw new Error(`Expected a string, number, boolean, identifier, or function call, got: ${token.value} (${token.kind})`);
     }
 
@@ -344,6 +356,28 @@ export class Parser {
         return this.withLocation({ type: "ArrayLiteral", elements }, start);
     }
 
+
+    parseObjectLiteral(): Expression {
+        const start = this.peek().location;
+        this.expect("{");
+        const properties: { key: string; value: Expression }[] = [];
+        while (this.peek().value !== "}") {
+            const keyToken = this.peek();
+            if (keyToken.kind !== TokenKind.Identifier) {
+                throw new Error(`Expected a property name, got: ${keyToken.value} (${keyToken.kind})`);
+            }
+            this.advance();
+            this.expect(":");
+            const value = this.parseExpression();
+            properties.push({ key: keyToken.value, value });
+
+            if (this.peek().value === ",") {
+                this.advance();
+            }
+        }
+        this.expect("}");
+        return this.withLocation({ type: "ObjectLiteral", properties }, start);
+    }
     private parseTypeAnnotation(): TypeAnnotation {
         const token = this.peek();
         if (token.kind !== TokenKind.Identifier) {
