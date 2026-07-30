@@ -1,0 +1,56 @@
+# Raven
+
+> A programming language that compiles to JavaScript, where types are discovered—not declared.
+
+**Status:** 🚧 Early development (v0.0.1)
+
+---
+
+## The Journey
+
+JavaScript became one of the world's most popular languages because it lets developers move fast. You write code, refresh the browser, and see something happen almost immediately.
+
+But as applications grew, so did the need for structure.
+
+TypeScript solved a real problem by bringing static typing to JavaScript, making large applications easier to maintain. Yet over time, another kind of complexity appeared. Developers found themselves writing interfaces, exporting types, importing types, renaming types, and keeping those definitions synchronized with the code they were meant to describe.
+
+The compiler already knows the shape of your data.
+
+Why should you have to teach it twice?
+
+Raven started from that question.
+
+Instead of treating types as something developers must constantly write and manage, Raven treats them as knowledge the compiler should discover on its own.
+
+Write your data.
+
+Write your functions.
+
+Write your application.
+
+The compiler infers the rest.
+
+When a type needs to be shared across your project, you don't export or import it. You simply publish it once as a `model`, and Raven makes it available everywhere through the compiler's workspace registry.
+
+The result is a workflow that feels closer to writing JavaScript while still giving you the confidence of static typing.
+
+## A Different Philosophy
+
+Most statically typed languages ask developers to describe two things:
+
+1. The data.
+2. The type of the data.
+
+Raven believes these are usually the same piece of information.
+
+If the compiler can already determine the shape from your code, asking developers to write it again creates unnecessary work.
+
+That's why Raven is built around a simple idea:
+
+> **The programmer describes the program. The compiler describes the types.**
+
+Developers should decide what their software does.
+
+The compiler should decide what their software is.
+
+Everything else—type inference, validation, propagation, and project-wide consistency—is simply a consequence of that philosophy.

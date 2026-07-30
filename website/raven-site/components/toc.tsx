@@ -71,7 +71,7 @@ export function DocsTableOfContents({
   return (
     <div
       className={cn(
-        "flex flex-col gap-2 p-4 pt-0 text-sm",
+        "flex flex-col gap-2 p-4 pt-0 text-sm border-l min-h-screen",
         className,
       )}
     >

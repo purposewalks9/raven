@@ -55,7 +55,7 @@ export function HighlightedText({
       viewport={{ once }}
     >
       <motion.span
-        className="absolute inset-0 -left-[0.15em] -right-[0.18em] bg-black dark:bg-white z-0"
+        className="absolute inset-0 -left-[0.15em] -right-[0.18em] bg-[#B7D50B] z-0"
         variants={variants}
         transition={{
           type: "spring",
@@ -64,7 +64,7 @@ export function HighlightedText({
           delay,
         }}
       />
-      <span className="relative z-10 mix-blend-difference text-white pl-[0.15em] pr-[0.18em]">
+      <span className="relative z-10 mix-blend-difference  pl-[0.15em] pr-[0.18em]">
         {children}
       </span>
     </motion.span>
