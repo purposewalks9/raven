@@ -4,7 +4,7 @@
   "version": "0.0.1",
   "description": "Raven — a statically typed language for the JavaScript ecosystem that compiles to optimized JS.",
   "license": "MIT",
-  "packageManager": "pnpm@9.0.0",
+  "packageManager": "pnpm@10.5.2",
   "scripts": {
     "build": "pnpm run build:compiler && pnpm run build:language-server && pnpm run build:extension",
     "build:compiler": "pnpm --filter @raven/compiler run build",
