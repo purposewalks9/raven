@@ -1,56 +1,104 @@
-# Raven
+## What is Raven?
 
-> A programming language that compiles to JavaScript, where types are discovered—not declared.
+Raven is a language that compiles to JavaScript. It infers your types — you only name the ones you want to share.
 
-**Status:** 🚧 Early development (v0.0.1)
+Instead of writing a type declaration next to every piece of data you create, Raven's compiler looks at the data itself and works out the shape for you.
 
----
+## The problem it solves
 
-## The Journey
+Every language with static types eventually asks you to write the same shape twice: once as data, once as a type.
 
-JavaScript became one of the world's most popular languages because it lets developers move fast. You write code, refresh the browser, and see something happen almost immediately.
+```ts
+// Without inference
+type User = { id: number; name: string }
+const user: User = { id: 1, name: "Bro" }
+```
 
-But as applications grew, so did the need for structure.
+```raven
+// With Raven
+let user = { id: 1, name: "Bro" }
+```
 
-TypeScript solved a real problem by bringing static typing to JavaScript, making large applications easier to maintain. Yet over time, another kind of complexity appeared. Developers found themselves writing interfaces, exporting types, importing types, renaming types, and keeping those definitions synchronized with the code they were meant to describe.
+The compiler already knows `user` is `{ id: number, name: string }`. No annotation, no interface, no duplication — you wrote the data once, and that's the only place you had to write it.
 
-The compiler already knows the shape of your data.
+## How it works
 
-Why should you have to teach it twice?
+Raven has exactly two levels of scope for inferred types, and the whole language design sits on top of this one distinction.
 
-Raven started from that question.
+**`let` / `const`** — local. The shape is inferred and stays inside the file it's declared in.
 
-Instead of treating types as something developers must constantly write and manage, Raven treats them as knowledge the compiler should discover on its own.
+**`model`** — published. The shape is inferred (or bound to an external source) and becomes available to the *entire project*, no import required.
 
-Write your data.
+```raven
+// user.rv
+model user = { id: 1, name: "Bro" }
+```
 
-Write your functions.
+```raven
+// auth.rv
+fn login(user)
+    print(user.name)
+end
+```
 
-Write your application.
+`auth.rv` never imports a type. The compiler looks up `user` in the project's **workspace registry**, finds the shape published in `user.rv`, and type-checks against it directly.
 
-The compiler infers the rest.
+Imports still exist in Raven — they're just for *code*, not types:
 
-When a type needs to be shared across your project, you don't export or import it. You simply publish it once as a `model`, and Raven makes it available everywhere through the compiler's workspace registry.
+```raven
+import login from "./auth"
+```
 
-The result is a workflow that feels closer to writing JavaScript while still giving you the confidence of static typing.
+What Raven removes is the `import type { User } from "./types"` line, not imports in general.
 
-## A Different Philosophy
+## Concepts
 
-Most statically typed languages ask developers to describe two things:
+### Publishing a shape with `model`
 
-1. The data.
-2. The type of the data.
+Any file can publish a shape once, and every other file in the project can use it by name — no import, no re-declaration.
 
-Raven believes these are usually the same piece of information.
+### Binding external data
 
-If the compiler can already determine the shape from your code, asking developers to write it again creates unnecessary work.
+The same `model` keyword also binds a name to an external source — a database, an API, a JSON file — anywhere the compiler can't infer a shape from source alone:
 
-That's why Raven is built around a simple idea:
+```raven
+model User = database.users
+model User = api("/users")
+```
 
-> **The programmer describes the program. The compiler describes the types.**
+This is the one place Raven asks you to be explicit, because the data genuinely doesn't originate in your project.
 
-Developers should decide what their software does.
+### One shape per name
 
-The compiler should decide what their software is.
+If two files publish `model` under the same name with different shapes, that's a compile error — not a silent merge, not an override:
 
-Everything else—type inference, validation, propagation, and project-wide consistency—is simply a consequence of that philosophy.
+```
+Model 'user' is already published with a different shape.
+```
+
+One name, one canonical shape, project-wide. If you need a different shape, give it a different name.
+
+## Philosophy
+
+> The programmer describes the data. The compiler manages the types.
+
+Writing Raven only ever asks you to make two decisions:
+
+1. Should this shape stay local (`let`), or be shared project-wide (`model`)?
+2. Is this data coming from outside the project — and if so, what shape does it have?
+
+Inference, propagation, and validation are the compiler's job, not yours.
+
+## Installation
+
+```bash
+npm install -g raven-lang
+```
+
+## Next steps
+
+Head to [Installation](/) for the full setup, or jump straight to [Quick Start](/) to write your first program.
+
+## Community
+
+Raven is early. Compiler engineering, language design, and testing contributions are all welcome — open an issue or a discussion on [GitHub](https://github.com/purposewalks9/raven).
