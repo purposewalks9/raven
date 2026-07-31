@@ -11,7 +11,7 @@ examples in `examples/raven/`, not just described from source.
 
 ### Local bindings — `let` / `const`
 
-```raven
+```lua
 let user = { id: 1, name: "Bro" }
 const MAX_RETRIES: number = 3
 ```
@@ -22,7 +22,7 @@ want to lock a binding to a specific shape ahead of assignment.
 
 ### Functions — `fn ... end`
 
-```raven
+```lua
 fn add(a: number, b: number): number
   return a + b
 end
@@ -38,7 +38,7 @@ without running the full type checker first.
 
 ### Control flow
 
-```raven
+```lua
 if age >= 18 then
   print("adult")
 else
@@ -56,7 +56,7 @@ end
 
 ### Data
 
-```raven
+```lua
 const numbers: array<number> = [4, 8, 15, 16, 23, 42]
 let point = { x: 1, y: 2 }
 print(point.x)
@@ -79,12 +79,12 @@ same type, regardless of where they were written.
 This is the core feature the language is built around: a shape published
 with `model` is available **project-wide, with no import**.
 
-```raven
+```lua
 // user.rv
 model user = { id: 1, name: "Bro", plan: "free" }
 ```
 
-```raven
+```lua
 // auth.rv
 fn login(id: number): string
     print(user.name)   // no import — resolved via the workspace registry
@@ -109,7 +109,7 @@ a permanent worked example in `examples/raven/workspace-demo/`:
 
 `model` also binds a name to an external, non-inferable source:
 
-```raven
+```lua
 model User = database.users
 model User = api("/users")
 ```
