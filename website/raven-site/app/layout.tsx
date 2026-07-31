@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { constructMetadata } from "@/lib/utils";
-import Script from "next/script";
+import { RootProvider } from "fumadocs-ui/provider/next";
 import {
   DynaPuff,
   Geist,
@@ -40,11 +40,7 @@ export const metadata: Metadata = constructMetadata({
   title: "Raven",
 });
 
-export default async function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning data-scroll-behavior="smooth">
       <body
@@ -63,8 +59,9 @@ export default async function RootLayout({
             disableTransitionOnChange
           >
             <ScrollSpark />
-            {children}
-        
+            <RootProvider theme={{ enabled: false }}>
+              {children}
+            </RootProvider>
           </ThemeProvider>
         </JotaiProvider>
         <SpeedInsights />

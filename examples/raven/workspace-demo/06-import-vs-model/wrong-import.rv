@@ -1,0 +1,7 @@
+// THIS FILE IS INTENTIONALLY BROKEN.
+// `import` is for code (functions/values), never for types/models.
+// `user` doesn't need an import - just use it directly, like
+// 01-model-basics/auth.rv does.
+import user from "./user"
+
+print(user.name)

@@ -28,7 +28,29 @@ export type Statement =
     | ReturnStatement
     | ExpressionStatement
     | BreakStatement
-    | ContinueStatement;      
+    | ContinueStatement
+    | ModelDeclaration
+    | ImportDeclaration;
+
+// `model` publishes a shape project-wide — no import needed for other files
+// to use it. `external` is true when the value is bound to something outside
+// the project (e.g. `database.users`, `api("/users")`) rather than inferred
+// from a literal written in this file.
+export interface ModelDeclaration extends Node {
+    type: "ModelDeclaration";
+    name: string;
+    value: Expression;
+    typeAnnotation?: TypeAnnotation;
+    external: boolean;
+}
+
+// `import` is for code (functions/values), never for types — model shapes
+// resolve through the workspace registry instead.
+export interface ImportDeclaration extends Node {
+    type: "ImportDeclaration";
+    names: string[];
+    source: string;
+}
 
 export interface Parameter {
     name: string;

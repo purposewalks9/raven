@@ -64,4 +64,13 @@ export class SymbolTable {
     const current = this.scopes[this.scopes.length - 1];
     return current?.has(name) ?? false;
   }
+
+  /** Every name visible right now, from every open scope, for typo suggestions. */
+  allNames(): string[] {
+    const names = new Set<string>();
+    for (const scope of this.scopes) {
+      for (const name of scope.keys()) names.add(name);
+    }
+    return [...names];
+  }
 }

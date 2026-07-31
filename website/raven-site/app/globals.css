@@ -1,5 +1,8 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import 'fumadocs-ui/css/neutral.css';
+@import 'fumadocs-ui/css/preset.css';
+@source '../node_modules/fumadocs-ui/dist/**/*.js';
 @plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
@@ -53,6 +56,25 @@
     background-position: -200% 0;
     }
   }
+}
+
+@theme {
+  --color-fd-background: var(--background);
+  --color-fd-foreground: var(--foreground);
+  --color-fd-muted: var(--background);
+  --color-fd-muted-foreground: var(--foreground);
+  --color-fd-accent: var(--background);
+  --color-fd-accent-foreground: var(--foreground);
+  --color-fd-card: var(--background);
+  --color-fd-card-foreground: var(--foreground);
+  --color-fd-popover: var(--background);
+  --color-fd-popover-foreground: var(--foreground);
+  --color-fd-secondary: var(--background);
+  --color-fd-secondary-foreground: var(--foreground);
+  --color-fd-primary: var(--primary);
+  --color-fd-primary-foreground: var(--primary-foreground);
+  --color-fd-border: var(--border);
+  --color-fd-ring: var(--foreground);
 }
 
 :root {
@@ -125,7 +147,9 @@
   --sidebar-ring: oklch(0.556 0 0);
   --rotating-border-color: var(--muted);
 }
-
+.dark [data-active="true"] {
+  color: #B7D50B !important;
+}
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -144,8 +168,8 @@ html {
 }
 
 html, body {
-  scrollbar-width: none; /* firefox */
-  -ms-overflow-style: none; /* IE 10+ */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 details {
@@ -158,10 +182,7 @@ summary {
 
 ::-webkit-scrollbar {
   width: 0px;
-  display: none; /* Safari and Chrome */
   display: none;
-  -ms-overflow-style: none;
-  scrollbar-width: none;
 }
 
 .shiki,
@@ -173,7 +194,7 @@ summary {
 .dark .shiki,
 .dark .shiki span {
   color: var(--shiki-dark) !important;
-  background-color: #0f0f0f !important;
+  background-color: var(--background) !important;
 }
 
 .subheading-anchor {
@@ -196,3 +217,74 @@ summary {
   background-color: var(--color-primary);
   color: var(--color-background);
 }
+
+/* --- Kill @tailwindcss/typography's default blue/indigo palette --- */
+.prose {
+  --tw-prose-body: var(--foreground);
+  --tw-prose-headings: var(--foreground);
+  --tw-prose-lead: var(--foreground);
+  --tw-prose-links: var(--foreground);
+  --tw-prose-bold: var(--foreground);
+  --tw-prose-counters: var(--foreground);
+  --tw-prose-bullets: var(--foreground);
+  --tw-prose-hr: var(--border);
+  --tw-prose-quotes: var(--foreground);
+  --tw-prose-quote-borders: var(--border);
+  --tw-prose-captions: var(--muted-foreground);
+  --tw-prose-code: var(--foreground);
+  --tw-prose-pre-code: var(--foreground);
+  --tw-prose-pre-bg: var(--background);
+  --tw-prose-th-borders: var(--border);
+  --tw-prose-td-borders: var(--border);
+}
+
+.prose a {
+  color: var(--foreground);
+  text-decoration: underline;
+  text-decoration-color: var(--border);
+  text-underline-offset: 3px;
+}
+
+.prose a:hover {
+  text-decoration-color: var(--foreground);
+}
+
+/* stronger strokes around code blocks, callouts, tables — no soft grey fills */
+.prose pre,
+.prose table,
+.prose blockquote {
+  border: 1px solid var(--border);
+}
+
+.prose code:not(pre code) {
+  background-color: var(--background);
+  border: 1px solid var(--border);
+  color: var(--foreground);
+}
+
+#nd-sidebar,
+#nd-nav,
+#nd-subnav {
+  background-color: var(--background) !important;
+  border-color: var(--background) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+#nd-search-dialog,
+[cmdk-root] {
+  background-color: var(--background) !important;
+}
+
+.prose pre,
+.prose table,
+.prose blockquote {
+  border: none;
+}
+
+.prose code:not(pre code) {
+  background-color: var(--background);
+  border: none;
+  color: var(--foreground);
+}
+

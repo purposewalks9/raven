@@ -1,0 +1,103 @@
+---
+title: Roadmap
+description: What's partially built, what's still a placeholder, and known cleanup items — an honest status report, not a wishlist.
+---
+
+This page is split into three buckets: things that are **stubbed but
+designed for**, things that are **thin and need to grow**, and small
+**known issues** worth fixing before they're forgotten. See
+[Features](/docs/features) for what's already solid.
+
+## Nova — the framework layer
+
+`packages/@nova/*` is a set of workspace packages that don't do much yet,
+but exist to give the compiler somewhere to emit into once the language
+grows past scripts:
+
+| Package | Status |
+|---|---|
+| `@nova/core` | `Option<T>` / `Result<T, E>` — the only package with real code today |
+| `@nova/ui` | A registry of UI node names (`card`, `button`, `input`, ...) the type checker will validate against once Raven gains UI syntax |
+| `@nova/http` | `rpcCall<T>()` stub — the eventual target for emitted "server action" calls |
+| `@nova/router` | `push` / `replace` interface stub, no implementation yet |
+| `@nova/auth`, `@nova/db`, `@nova/runtime`, `@nova/testing` | Empty placeholders, reserved names only |
+
+The intent, based on the stub comments, is a full-stack framework built on
+Raven — UI nodes, server actions, routing, and state — with `@nova/*` as
+the runtime the compiler's emitter eventually targets. None of this is
+implemented against real language syntax yet.
+
+## Model system — next layer
+
+The `model` / Workspace Registry feature (see
+[Features](/docs/features#model-and-the-workspace-registry)) is solid for
+a single project directory. Two extensions are still open:
+
+- **External source binding** — `model User = database.users` and
+  `model User = api("/users")` parse and are marked `external`, but there's
+  no actual database or API integration behind them; the registry just
+  trusts whatever shape you write.
+- **Cross-file resolution beyond the two-pass registry** — works well for
+  flat/shallow projects today; hasn't been stress-tested against deep
+  import graphs or circular references.
+
+## Formatter
+
+`raven fmt` (`compiler/src/formatter/index.ts`) currently only re-indents
+based on `then`/`do`/`end`/`else` keywords — it doesn't normalize spacing,
+line length, string quoting, or trailing commas. A real pretty-printer
+(operating on the AST rather than raw lines) is the natural next step.
+
+## Optimizer
+
+Currently two passes: dead-branch elimination for `if` statements with a
+literal condition, and dropping code after a `return`. No constant
+folding, no inlining, no dead-store elimination yet.
+
+## Docs site content
+
+Only [What is Raven?](/docs), this features page, and this roadmap exist
+right now. `docs/README.md` suggests the intended next pages once there's
+more to document:
+
+- Getting started (install, `raven new`, hello world)
+- Full language tour (once `val`/multi-line `fn ... do` syntax below is
+  resolved, so examples don't silently break)
+- Full-stack guide (server actions, routing) — blocked on Nova above
+- API reference generated from `@nova/*` types
+
+## Known issues (small, worth fixing)
+
+Found while verifying the [Features](/docs/features) page against a real
+build — flagging rather than quietly patching, since these touch example
+files other docs may end up linking to:
+
+- **`val` isn't a real keyword.** `examples/raven/hello.rv` and
+  `control-flow.rv` use `val name: string = ...`, but `val` isn't in the
+  lexer's `KEYWORDS` set (only `let`/`const` are) or handled in
+  `parseStatement`. Running either file currently fails with
+  `Expected a statement, got: val (Identifier)`. Either add `val` as a
+  (presumably read-only) binding form, or fix the two examples to use
+  `let`/`const`.
+- **Trailing `do` on function declarations isn't supported.**
+  `examples/raven/functions.rv` writes
+  `fn add(a: number, b: number): number do`, but
+  `parseFunctionDeclaration` only accepts the return type followed
+  directly by the body — running this example fails with
+  `Expected a statement, got: do (Keyword)`.
+- **`raven version` is hardcoded** to `"0.0.1"` rather than reading
+  `compiler/package.json` — noted directly in a comment in
+  `cli/commands/version.ts`, with the import-attributes approach to fix it
+  already sketched out there.
+
+## From the original README checklist
+
+For reference, the top-level `README.md` roadmap checklist (partially
+stale — `model` and the Workspace Registry are now done):
+
+- [x] Lexer, Parser, Emitter
+- [x] Local type inference (`let`/`const`, functions, arrays, records)
+- [x] `model` keyword + Workspace Registry
+- [ ] Cross-file type resolution *(works for the common case — see above)*
+- [ ] External source binding (`database`, `api`) *(parses; not wired up)*
+- [x] Language Server / editor tooling *(hover, definition, references, diagnostics all implemented)*

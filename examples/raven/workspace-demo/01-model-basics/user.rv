@@ -1,0 +1,3 @@
+// This file PUBLISHES a shape called 'user' to the whole project.
+// No other file needs to import this to use it.
+model user = { id: 1, name: "Bro", plan: "free" }

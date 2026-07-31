@@ -49,10 +49,11 @@ export function compileFile(file: string, shouldOptimize = true): CompileResult 
 }
 
 export function printErrors(file: string, diagnostics: Diagnostic[], source?: string): void {
+  const useColor = process.stdout.isTTY === true;
   const errorCount = diagnostics.filter(d => d.severity === "error").length;
   console.error(`Found ${errorCount} error(s) in ${file}:\n`);
   for (const diagnostic of diagnostics) {
-    console.error(formatDiagnostic(diagnostic, source));
+    console.error(formatDiagnostic(diagnostic, source, useColor));
     console.error("");
   }
 }

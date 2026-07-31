@@ -1,0 +1,15 @@
+// THIS FILE IS INTENTIONALLY BROKEN.
+// 'usre' is a typo for 'user', and 'toStrng' is a typo for the
+// built-in 'toString'. The checker should suggest the correct name
+// for both.
+fn login(id: number): string
+    print(usre.name)
+    return usre.name
+end
+
+fn logout(id: number): string
+    return toStrng(id)
+end
+
+login(1)
+logout(1)

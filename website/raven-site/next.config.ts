@@ -1,9 +1,7 @@
-import createMDX from "@next/mdx";
+import { createMDX } from "fumadocs-mdx/next";
 import type { NextConfig } from "next";
 
-const withMDX = createMDX({
-  extension: /\.mdx?$/,
-});
+const withMDX = createMDX();
 
 const nextConfig: NextConfig = {
   pageExtensions: ["ts", "tsx", "md", "mdx"],

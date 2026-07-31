@@ -21,6 +21,8 @@ import {
   CallExpression,
   ObjectLiteral,
   MemberExpression,
+  ModelDeclaration,
+  ImportDeclaration,
 } from "../ast/nodes.js";
 
 export class Emitter {
@@ -56,6 +58,12 @@ export class Emitter {
       case "VariableDeclaration":
       case "ConstantDeclaration":
         this.emitVariableDeclaration(node);
+        break;
+      case "ModelDeclaration":
+        this.emitModelDeclaration(node);
+        break;
+      case "ImportDeclaration":
+        this.emitImportDeclaration(node);
         break;
       case "Assignment":
         this.emitAssignment(node);
@@ -127,6 +135,24 @@ export class Emitter {
     this.newline();
   }
 
+  private emitModelDeclaration(node: ModelDeclaration): void {
+    // A model is a published const — same runtime shape as `const`, the
+    // "public" part is a compile-time-only concept (the workspace registry).
+    this.write(`const ${node.name} = `);
+    this.emitExpression(node.value);
+    this.write(";");
+    this.newline();
+  }
+
+  private emitImportDeclaration(node: ImportDeclaration): void {
+    const names = node.names.join(", ");
+    const path = node.source.startsWith(".") && !node.source.endsWith(".js")
+      ? `${node.source}.js`
+      : node.source;
+    this.write(`import { ${names} } from "${path}";`);
+    this.newline();
+  }
+
   private emitWhileStatement(node: WhileStatement): void {
     this.write("while (");
     this.emitExpression(node.condition);
@@ -172,6 +198,9 @@ export class Emitter {
         break;
       case "IndexExpression":
         this.emitIndexExpression(node);
+        break;
+      case "MemberExpression":
+        this.emitMemberExpression(node);
         break;
       default:
         throw new Error(`Unknown expression type: ${(node as any).type}`);

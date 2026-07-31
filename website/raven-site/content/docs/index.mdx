@@ -1,8 +1,7 @@
-## What is Raven?
-
-Raven is a language that compiles to JavaScript. It infers your types — you only name the ones you want to share.
-
-Instead of writing a type declaration next to every piece of data you create, Raven's compiler looks at the data itself and works out the shape for you.
+---
+title: What is Raven?
+description: Raven is a language that compiles to JavaScript. It infers your types — you only name the ones you want to share. sInstead of writing a type declaration next to every piece of data you create, Raven's compiler looks at the data itself and works out the shape for you..
+---
 
 ## The problem it solves
 
@@ -14,7 +13,7 @@ type User = { id: number; name: string }
 const user: User = { id: 1, name: "Bro" }
 ```
 
-```raven
+```lua
 // With Raven
 let user = { id: 1, name: "Bro" }
 ```
@@ -29,12 +28,12 @@ Raven has exactly two levels of scope for inferred types, and the whole language
 
 **`model`** — published. The shape is inferred (or bound to an external source) and becomes available to the *entire project*, no import required.
 
-```raven
+```lua
 // user.rv
 model user = { id: 1, name: "Bro" }
 ```
 
-```raven
+```lua
 // auth.rv
 fn login(user)
     print(user.name)
@@ -61,7 +60,7 @@ Any file can publish a shape once, and every other file in the project can use i
 
 The same `model` keyword also binds a name to an external source — a database, an API, a JSON file — anywhere the compiler can't infer a shape from source alone:
 
-```raven
+```lua
 model User = database.users
 model User = api("/users")
 ```
@@ -71,10 +70,6 @@ This is the one place Raven asks you to be explicit, because the data genuinely 
 ### One shape per name
 
 If two files publish `model` under the same name with different shapes, that's a compile error — not a silent merge, not an override:
-
-```
-Model 'user' is already published with a different shape.
-```
 
 One name, one canonical shape, project-wide. If you need a different shape, give it a different name.
 

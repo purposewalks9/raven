@@ -30,7 +30,7 @@ Commands:
   raven new <name>
   raven run <file.rv>
   raven build <file.rv> [out.js]
-  raven check <file.rv>
+  raven check <file.rv | project-dir>
   raven fmt <file.rv>
   raven repl
   raven version`);

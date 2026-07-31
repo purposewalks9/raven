@@ -1,0 +1,10 @@
+// Notice: no `import user from "./user"` anywhere in this file.
+// The compiler still knows `user.name` and `user.plan` are valid,
+// because `user` was published as a `model` in user.rv.
+fn login(id: number): string
+    print(user.name)
+    print(user.plan)
+    return user.name
+end
+
+login(1)

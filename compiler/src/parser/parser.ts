@@ -20,6 +20,8 @@ export class Parser {
         if (this.checkKeyword("print")) return this.parsePrint();
         if (this.checkKeyword("let")) return this.parseLet();
         if (this.checkKeyword("const")) return this.parseConst();
+        if (this.checkKeyword("model")) return this.parseModel();
+        if (this.checkKeyword("import")) return this.parseImport();
         if (this.checkKeyword("if")) return this.parseIf();
         if (this.checkKeyword("while")) return this.parseWhile();
         if (this.checkKeyword("fn")) return this.parseFunctionDeclaration();
@@ -103,6 +105,89 @@ export class Parser {
             value,
             typeAnnotation
         }, start);
+    }
+
+    parseModel(): Statement {
+        const start = this.peek().location;
+        this.expectKeyword("model");
+
+        const nameToken = this.peek();
+        if (nameToken.kind !== TokenKind.Identifier) {
+            throw new Error("Expected an identifier after 'model'");
+        }
+        this.advance();
+
+        let typeAnnotation: TypeAnnotation | undefined;
+        if (this.peek().value === ":") {
+            this.advance();
+            typeAnnotation = this.parseTypeAnnotation();
+        }
+
+        this.expect("=");
+        const value = this.parseExpression();
+        const external = this.isExternalBinding(value);
+
+        return this.withLocation({
+            type: "ModelDeclaration",
+            name: nameToken.value,
+            value,
+            typeAnnotation,
+            external,
+        }, start);
+    }
+
+    // A model is "external" when it's bound to something outside the
+    // project's own source — `database.users`, `api("/users")` — rather
+    // than inferred from a literal written right here.
+    private isExternalBinding(expr: Expression): boolean {
+        if (expr.type === "CallExpression") {
+            return expr.callee === "api" || expr.callee === "database";
+        }
+        if (expr.type === "MemberExpression") {
+            let root: Expression = expr;
+            while (root.type === "MemberExpression") root = root.object;
+            return root.type === "Identifier" && (root.name === "database" || root.name === "api");
+        }
+        return false;
+    }
+
+    parseImport(): Statement {
+        const start = this.peek().location;
+        this.expectKeyword("import");
+
+        const names: string[] = [];
+        if (this.peek().value === "{") {
+            this.advance();
+            while (this.peek().value !== "}") {
+                const nameToken = this.peek();
+                if (nameToken.kind !== TokenKind.Identifier) {
+                    throw new Error("Expected an identifier in import list");
+                }
+                this.advance();
+                names.push(nameToken.value);
+                if (this.peek().value === ",") {
+                    this.advance();
+                }
+            }
+            this.expect("}");
+        } else {
+            const nameToken = this.peek();
+            if (nameToken.kind !== TokenKind.Identifier) {
+                throw new Error("Expected an identifier after 'import'");
+            }
+            this.advance();
+            names.push(nameToken.value);
+        }
+
+        this.expectKeyword("from");
+
+        const sourceToken = this.peek();
+        if (sourceToken.kind !== TokenKind.String) {
+            throw new Error("Expected a string module path after 'from'");
+        }
+        this.advance();
+
+        return this.withLocation({ type: "ImportDeclaration", names, source: sourceToken.value }, start);
     }
 
     parseAssignment(): Statement {

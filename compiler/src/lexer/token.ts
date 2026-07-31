@@ -40,6 +40,9 @@ export const KEYWORDS = new Set([
   "return",
   "break",
   "continue",
+  "model",
+  "import",
+  "from",
 ]);
 
 const TWO_CHARACTER_OPERATORS = new Set(["==", "!=", "<=", ">="]);

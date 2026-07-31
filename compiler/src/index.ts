@@ -15,3 +15,7 @@ export { Binder } from "./typechecker/binder.js";
 export type { SymbolBinding, SymbolKind } from "./typechecker/binder.js";
 export type { TypeAnnotation } from "./ast/nodes.js";
 export type { SourceLocation } from "./ast/nodes.js";
+export { buildProject } from "./project/project.js";
+export type { ProjectResult, ProjectFile, ProjectDiagnostic } from "./project/project.js";
+export { WorkspaceRegistry } from "./typechecker/registry.js";
+export type { PublishedModel } from "./typechecker/registry.js";

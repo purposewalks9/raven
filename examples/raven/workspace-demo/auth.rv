@@ -1,0 +1,6 @@
+fn login(id: number): string
+    print(user.name)
+    return user.name
+end
+
+login(1)

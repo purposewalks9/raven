@@ -1,0 +1,9 @@
+// THIS FILE IS INTENTIONALLY BROKEN.
+// Models are read-only outside the file that publishes them.
+// Reassigning `user` here (a model from user.rv) should be blocked.
+fn resetUser(): string
+    user = { id: 0, name: "Hacked" }
+    return user.name
+end
+
+resetUser()

@@ -1,0 +1,171 @@
+---
+title: Features
+description: What Raven can actually do today — language syntax, the model/workspace registry, diagnostics, the CLI, and editor tooling.
+---
+
+Everything on this page is implemented and working in the current compiler
+(`v0.0.1`) — verified by running `raven check`/`raven run` against the
+examples in `examples/raven/`, not just described from source.
+
+## Language basics
+
+### Local bindings — `let` / `const`
+
+```raven
+let user = { id: 1, name: "Bro" }
+const MAX_RETRIES: number = 3
+```
+
+The shape is inferred from the value. Type annotations (`: number`,
+`: string`, `: array<number>`, ...) are optional — write one only when you
+want to lock a binding to a specific shape ahead of assignment.
+
+### Functions — `fn ... end`
+
+```raven
+fn add(a: number, b: number): number
+  return a + b
+end
+```
+
+Parameters and the return type are always explicitly annotated — this is
+what lets the compiler resolve cross-file function imports (see below)
+without running the full type checker first.
+
+> **Note:** only the `fn name(...): type` ... `end` form is currently
+> supported. A trailing `do` before the body (`fn add(...): number do`) is
+> not — see [Roadmap](/docs/roadmap) for open cleanup items like this.
+
+### Control flow
+
+```raven
+if age >= 18 then
+  print("adult")
+else
+  print("minor")
+end
+
+while i < len(values) do
+  total = total + values[i]
+  i = i + 1
+end
+```
+
+`and`, `or`, and `not` are keywords, not symbols. Comparison operators are
+`==`, `!=`, `<`, `<=`, `>`, `>=`.
+
+### Data
+
+```raven
+const numbers: array<number> = [4, 8, 15, 16, 23, 42]
+let point = { x: 1, y: 2 }
+print(point.x)
+print(numbers[0])
+```
+
+Arrays, object/record literals, member access (`.field`), and indexing
+(`[i]`) are all supported, along with the built-ins `len`, `abs`, `sqrt`,
+and `toString`.
+
+### Types
+
+Raven currently understands `string`, `number`, `boolean`, `any`,
+`array<T>`, and inferred record shapes (`{ field: type, ... }`). Record
+shapes are structural — two records with the same fields and types are the
+same type, regardless of where they were written.
+
+## `model` and the Workspace Registry
+
+This is the core feature the language is built around: a shape published
+with `model` is available **project-wide, with no import**.
+
+```raven
+// user.rv
+model user = { id: 1, name: "Bro", plan: "free" }
+```
+
+```raven
+// auth.rv
+fn login(id: number): string
+    print(user.name)   // no import — resolved via the workspace registry
+    return user.name
+end
+```
+
+A `WorkspaceRegistry` instance is shared across every file in a project.
+`raven check <project-dir>` compiles the whole directory in two passes: the
+first populates the registry, the second runs real type-checking against
+the now-complete registry. Six behaviors are fully implemented and each has
+a permanent worked example in `examples/raven/workspace-demo/`:
+
+| Behavior | What happens | Demo folder |
+|---|---|---|
+| Cross-file resolution | Use a published model with zero imports | `01-model-basics` |
+| Conflict detection | Two files publish the same name with different shapes → compile error with a field-level `+`/`~` diff | `02-shape-conflict` |
+| "Did you mean?" | Typo'd identifiers and built-in calls get a suggested correction | `03-typo-suggestion` |
+| Scope isolation | `let`/`const` never touch the registry, even on a name collision | `04-local-scope` |
+| Immutability | A model can't be reassigned outside the file that publishes it | `05-model-immutability` |
+| Import vs. model | `import` is for functions/values only — importing a model name is a compile error | `06-import-vs-model` |
+
+`model` also binds a name to an external, non-inferable source:
+
+```raven
+model User = database.users
+model User = api("/users")
+```
+
+The parser marks these `external`, and the registry treats external
+bindings as opaque (it trusts the developer rather than diffing a shape it
+never inferred).
+
+## Diagnostics
+
+Every error carries a file, line, and column, a caret pointer at the
+offending source, and — where possible — a corrective hint:
+
+```
+error: Undeclared variable 'usre'
+ --> auth.rv:6:11
+6 |     print(usre.name)
+  |           ^^^^
+Hint: Did you mean 'user'?
+```
+
+Output is colorized in a TTY and plain otherwise, so it stays readable in
+CI logs.
+
+## CLI
+
+```
+raven new <name>              scaffold a new project (main.rv)
+raven run <file.rv>           compile + execute immediately
+raven build <file.rv> [out]   compile to a .js file
+raven check <file | dir>      type-check only (single file or whole project)
+raven fmt <file.rv>           reformat in place
+raven repl                    single-expression REPL
+raven version
+```
+
+`raven check` on a directory walks it recursively for `.rv` files and
+prints `ok (N file(s), M model(s) published)` on success, or every
+diagnostic across the whole project on failure.
+
+## Compiler pipeline
+
+Source goes through five stages, each its own module under `compiler/src/`:
+
+1. **Lexer** (`lexer/`) — hand-written, tracks line/column for every token.
+2. **Parser** (`parser/`) — recursive-descent, produces the AST in `ast/`.
+3. **Type checker** (`typechecker/`) — binder + symbol table per file, plus
+   the shared `WorkspaceRegistry` for `model`.
+4. **Optimizer** (`optimizer/`) — currently does dead-branch elimination
+   (`if true/false then ... end` collapses) and drops unreachable code
+   after a `return`.
+5. **Emitter** (`emitter/`) — walks the (optimized) AST to plain JavaScript.
+
+## Editor tooling
+
+`vscode/extension` + `vscode/language-server` are a working pair, not a
+placeholder: TextMate syntax highlighting, snippets, and a real LSP server
+(`vscode/language-server/src/server.ts`) providing live diagnostics, hover,
+go-to-definition, and find-references over stdio.

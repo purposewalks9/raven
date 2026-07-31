@@ -1,6 +1,6 @@
 import { SourceLocation, TypeAnnotation } from "../ast/nodes.js";
 
-export type SymbolKind = "variable" | "constant" | "parameter" | "function";
+export type SymbolKind = "variable" | "constant" | "parameter" | "function" | "model";
 
 export interface SymbolBinding {
   name: string;

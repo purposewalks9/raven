@@ -12,15 +12,33 @@ import {
   IndexExpression,
   FunctionDeclaration,
   MemberExpression,
+  ModelDeclaration,
+  ImportDeclaration,
 } from "../ast/nodes.js";
 import { SymbolTable } from "./symbolTable.js";
 import { Binder, SymbolBinding } from "./binder.js";
 import { DiagnosticBag, Diagnostic } from "../diagnostics/index.js";
+import { WorkspaceRegistry } from "./registry.js";
+import { sameType as sharedSameType, formatType as sharedFormatType, closestMatch } from "./types.js";
+
+export type FunctionSignature = { params: TypeAnnotation[]; returnType: TypeAnnotation };
+
+export interface TypeCheckerOptions {
+  /** Shared across every file in a project. Omit for standalone single-file checks. */
+  registry?: WorkspaceRegistry;
+  /** Which file this checker instance is checking — used for registry attribution. */
+  file?: string;
+  /** Function signatures resolved from this file's `import` statements. */
+  importedFunctions?: Map<string, FunctionSignature>;
+}
 
 export class TypeChecker {
   private symbolTable = new SymbolTable();
   private diagnostics = new DiagnosticBag();
   private binder = new Binder();
+  private registry?: WorkspaceRegistry;
+  private file: string;
+  private importedFunctions: Map<string, FunctionSignature>;
   private functionSignatures = new Map<string, { params: TypeAnnotation[]; returnType: TypeAnnotation; binding?: SymbolBinding }>([
     ["len", { params: [{ kind: "array", elementType: "any" }], returnType: "number" }],
     ["abs", { params: ["number"], returnType: "number" }],
@@ -29,6 +47,12 @@ export class TypeChecker {
   ]);
   private currentReturnType: TypeAnnotation | undefined;
   private inferredReturnTypes: TypeAnnotation[] | undefined;
+
+  constructor(options: TypeCheckerOptions = {}) {
+    this.registry = options.registry;
+    this.file = options.file ?? "<anonymous>";
+    this.importedFunctions = options.importedFunctions ?? new Map();
+  }
 
   check(program: Program): Diagnostic[] {
     this.diagnostics = new DiagnosticBag();
@@ -43,11 +67,28 @@ export class TypeChecker {
     return this.binder;
   }
 
+  /** Every top-level function this file makes available to `import`. */
+  getExportedFunctions(): Map<string, FunctionSignature> {
+    const result = new Map<string, FunctionSignature>();
+    for (const [name, sig] of this.functionSignatures) {
+      // Built-ins (len, abs, sqrt, toString) carry no binding — skip them,
+      // they're not something a file "exports".
+      if (sig.binding) result.set(name, { params: sig.params, returnType: sig.returnType });
+    }
+    return result;
+  }
+
   private checkStatement(node: Statement): void {
     switch (node.type) {
       case "VariableDeclaration":
       case "ConstantDeclaration":
         this.checkDeclaration(node);
+        break;
+      case "ModelDeclaration":
+        this.checkModelDeclaration(node);
+        break;
+      case "ImportDeclaration":
+        this.checkImportDeclaration(node);
         break;
       case "PrintStatement":
         this.checkExpression(node.argument);
@@ -108,10 +149,81 @@ export class TypeChecker {
     }
   }
 
+  private checkModelDeclaration(node: ModelDeclaration): void {
+    let type: TypeAnnotation;
+
+    if (node.external) {
+      // `database.users` / `api("/users")` — the data doesn't live in this
+      // project, so we can't infer a shape from it. Trust the annotation if
+      // one was given, otherwise it's opaque (`any`) until schema binding exists.
+      type = node.typeAnnotation ?? "any";
+    } else {
+      const actualType = this.inferType(node.value);
+      if (node.typeAnnotation && !this.sameType(node.typeAnnotation, actualType)) {
+        this.diagnostics.error(
+          `Type mismatch in model '${node.name}': expected '${this.formatType(node.typeAnnotation)}', but got '${this.formatType(actualType)}'`,
+          node.location
+        );
+      }
+      type = node.typeAnnotation ?? actualType;
+    }
+
+    const binding = this.binder.declare(node.name, "model", type, node.location);
+
+    // Visible immediately in the file that publishes it, same as a const.
+    const success = this.symbolTable.declare(node.name, { type, constant: true, binding });
+    if (!success) {
+      this.diagnostics.error(`'${node.name}' has already been declared.`, node.location);
+    }
+
+    if (this.registry) {
+      const result = this.registry.publish(node.name, type, node.external, this.file, node.location);
+      if (!result.ok) {
+        this.diagnostics.error(
+          result.message,
+          node.location,
+          `'${node.name}' was first published in ${result.existing.file}. Give this one a different name, or make both shapes match.`
+        );
+      }
+    }
+  }
+
+  private checkImportDeclaration(node: ImportDeclaration): void {
+    for (const name of node.names) {
+      const imported = this.importedFunctions.get(name);
+
+      if (imported) {
+        const binding = this.binder.declare(name, "function", imported.returnType, node.location);
+        this.functionSignatures.set(name, { ...imported, binding });
+        continue;
+      }
+
+      if (this.registry?.lookup(name)) {
+        this.diagnostics.error(
+          `'${name}' is a published model, not code — models don't need an import, just use the name directly.`,
+          node.location
+        );
+        continue;
+      }
+
+      this.diagnostics.error(
+        `Cannot resolve import '${name}' from '${node.source}'. Make sure it's declared as a top-level function there.`,
+        node.location
+      );
+    }
+  }
+
   private checkAssignment(node: Assignment): void {
     const symbol = this.symbolTable.lookup(node.name);
 
     if (!symbol) {
+      if (this.registry?.lookup(node.name)) {
+        this.diagnostics.error(
+          `Cannot reassign '${node.name}': it's a published model, which is read-only outside the file that declares it.`,
+          node.location
+        );
+        return;
+      }
       this.diagnostics.error(`Cannot assign to undeclared variable '${node.name}'`, node.location);
       return;
     }
@@ -255,12 +367,29 @@ export class TypeChecker {
 
       case "Identifier": {
         const symbol = this.symbolTable.lookup(node.name);
-        if (!symbol) {
-          this.diagnostics.error(`Undeclared variable '${node.name}'`, node.location);
-          return "any";
+        if (symbol) {
+          this.binder.reference(symbol.binding, node.location);
+          return symbol.type;
         }
-        this.binder.reference(symbol.binding, node.location);
-        return symbol.type;
+
+        // Not a local let/const/param — check if it's a model published
+        // by another file in the project. This is the whole point of
+        // `model`: no import needed to see its shape.
+        const published = this.registry?.lookup(node.name);
+        if (published) {
+          return published.type;
+        }
+
+        const suggestion = closestMatch(node.name, [
+          ...this.symbolTable.allNames(),
+          ...(this.registry?.names() ?? []),
+        ]);
+        this.diagnostics.error(
+          `Undeclared variable '${node.name}'`,
+          node.location,
+          suggestion ? `Did you mean '${suggestion}'?` : undefined
+        );
+        return "any";
       }
 
       case "UnaryExpression": {
@@ -277,7 +406,12 @@ export class TypeChecker {
       case "CallExpression": {
         const signature = this.functionSignatures.get(node.callee);
         if (!signature) {
-          this.diagnostics.error(`Undeclared function '${node.callee}'`, node.location);
+          const suggestion = closestMatch(node.callee, [...this.functionSignatures.keys()]);
+          this.diagnostics.error(
+            `Undeclared function '${node.callee}'`,
+            node.location,
+            suggestion ? `Did you mean '${suggestion}'?` : undefined
+          );
           return "any";
         }
         this.binder.reference(signature.binding, node.location);
@@ -453,50 +587,10 @@ export class TypeChecker {
   }
 
   private sameType(left: TypeAnnotation, right: TypeAnnotation): boolean {
-    if (left === "any" || right === "any") return true;
-
-    if (typeof left === "string" && typeof right === "string") {
-      return left === right;
-    }
-    if (typeof left === "string" || typeof right === "string") {
-      return false;
-    }
-    if (left.kind !== right.kind) {
-      return false;
-    }
-
-    if (left.kind === "array" && right.kind === "array") {
-      return this.sameType(left.elementType, right.elementType);
-    }
-
-    if (left.kind === "record" && right.kind === "record") {
-      const leftKeys = Object.keys(left.fields);
-      const rightKeys = Object.keys(right.fields);
-      if (leftKeys.length !== rightKeys.length) return false;
-      return leftKeys.every(key => {
-        const rightFieldType = right.fields[key];
-        return rightFieldType !== undefined && this.sameType(left.fields[key]!, rightFieldType);
-      });
-    }
-
-    return false;
+    return sharedSameType(left, right);
   }
 
   private formatType(type: TypeAnnotation | undefined): string {
-    if (!type) return "unknown";
-    if (type === "any") return "any";
-    if (typeof type === "string") {
-      return type;
-    }
-    if (type.kind === "array") {
-      return `${this.formatType(type.elementType)}[]`;
-    }
-    if (type.kind === "record") {
-      const fields = Object.entries(type.fields)
-        .map(([key, fieldType]) => `${key}: ${this.formatType(fieldType)}`)
-        .join(", ");
-      return `{ ${fields} }`;
-    }
-    return "unknown";
+    return sharedFormatType(type);
   }
 }

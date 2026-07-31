@@ -1,0 +1,15 @@
+// THIS FILE IS INTENTIONALLY BROKEN (2 errors expected).
+//
+// Important thing to notice: `session` below has a FIELD named `user`,
+// but that has nothing to do with the published `user` model in
+// user.rv. Local `let`/`const` shapes never touch the workspace
+// registry, even when a name collides like this.
+
+let session = { user: 1, expires: "2026-01-01" }
+
+// Error 1: MAX_RETRIES is annotated as a number but given a string.
+const MAX_RETRIES: number = "three"
+
+// Error 2: reassigning session with a shape that doesn't match the
+// original inferred shape (fields swapped types).
+session = { user: "bro", expires: 5 }
