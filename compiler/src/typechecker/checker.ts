@@ -47,6 +47,7 @@ export class TypeChecker {
   ]);
   private currentReturnType: TypeAnnotation | undefined;
   private inferredReturnTypes: TypeAnnotation[] | undefined;
+  private externalModelBindings = new Map<string, SymbolBinding>();
 
   constructor(options: TypeCheckerOptions = {}) {
     this.registry = options.registry;
@@ -54,17 +55,14 @@ export class TypeChecker {
     this.importedFunctions = options.importedFunctions ?? new Map();
   }
 
-  check(program: Program): Diagnostic[] {
+ check(program: Program): Diagnostic[] {
     this.diagnostics = new DiagnosticBag();
     this.binder = new Binder();
+    this.externalModelBindings = new Map();
     for (const stmt of program.body) {
       this.checkStatement(stmt);
     }
     return this.diagnostics.all();
-  }
-
-  getBinder(): Binder {
-    return this.binder;
   }
 
   /** Every top-level function this file makes available to `import`. */
@@ -76,6 +74,9 @@ export class TypeChecker {
       if (sig.binding) result.set(name, { params: sig.params, returnType: sig.returnType });
     }
     return result;
+  }
+     getBinder(): Binder {
+    return this.binder;
   }
 
   private checkStatement(node: Statement): void {
@@ -371,15 +372,18 @@ export class TypeChecker {
           this.binder.reference(symbol.binding, node.location);
           return symbol.type;
         }
-
-        // Not a local let/const/param — check if it's a model published
-        // by another file in the project. This is the whole point of
-        // `model`: no import needed to see its shape.
+  
         const published = this.registry?.lookup(node.name);
         if (published) {
+          let binding = this.externalModelBindings.get(node.name);
+          if (!binding) {
+            binding = this.binder.declare(node.name, "model", published.type, published.location);
+            this.externalModelBindings.set(node.name, binding);
+          }
+          this.binder.reference(binding, node.location);
           return published.type;
         }
-
+        
         const suggestion = closestMatch(node.name, [
           ...this.symbolTable.allNames(),
           ...(this.registry?.names() ?? []),

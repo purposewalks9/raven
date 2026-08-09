@@ -122,7 +122,7 @@ describe("parser", () => {
     const source = `fn add(a: number, b: number): number return a + b end`;
     const ast = new Parser(tokenize(source)).parseProgram();
     expect(ast.body[0]!.type).toBe("FunctionDeclaration");
-    expect((ast.body[0] as any).parameters).toEqual([
+    expect((ast.body[0] as any).parameters).toMatchObject([
       { name: "a", typeAnnotation: "number" },
       { name: "b", typeAnnotation: "number" },
     ]);

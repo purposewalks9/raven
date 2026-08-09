@@ -6,13 +6,14 @@ import { TypeChecker, FunctionSignature } from "../typechecker/checker.js";
 import { WorkspaceRegistry } from "../typechecker/registry.js";
 import { Diagnostic } from "../diagnostics/index.js";
 import { Program, FunctionDeclaration, ImportDeclaration } from "../ast/nodes.js";
+import { Binder } from "../index.js";
 
 export interface ProjectFile {
   path: string;
   source: string;
   ast: Program;
+  binder?: Binder;
 }
-
 export interface ProjectDiagnostic extends Diagnostic {
   file: string;
 }
@@ -135,7 +136,8 @@ export function buildProject(root: string): ProjectResult {
     checker.check(file.ast);
   }
 
-  // Round 2 — registry is complete; these diagnostics are the real answer.
+
+// Round 2 — registry is complete; these diagnostics are the real answer.
   for (const file of files) {
     const checker = new TypeChecker({
       registry,
@@ -143,11 +145,11 @@ export function buildProject(root: string): ProjectResult {
       importedFunctions: importedFunctionsByFile.get(file.path),
     });
     const fileDiagnostics = checker.check(file.ast);
+    file.binder = checker.getBinder();
     for (const diagnostic of fileDiagnostics) {
       diagnostics.push({ ...diagnostic, file: file.path });
     }
   }
-
   return {
     files,
     diagnostics,

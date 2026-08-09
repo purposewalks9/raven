@@ -1,28 +1,52 @@
-// This file is the bridge between "a document VS Code is showing me" and
-// "what @raven/compiler thinks about it." Every LSP feature (diagnostics,
-// hover, go-to-definition, references) starts by asking this module for
-// the last CheckResult for a document — never by calling checkSource()
-// itself. That keeps "when do we re-check" in exactly one place.
 import type { TextDocument } from "vscode-languageserver-textdocument";
-import { checkSource, type CheckResult } from "@raven/compiler";
+import { buildProject, type ProjectResult, type Diagnostic } from "@raven/compiler";
+import { fileURLToPath } from "node:url";
 
-const documentChecks = new Map<string, CheckResult>();
+export interface CheckResult {
+  source: string;
+  diagnostics: Diagnostic[];
+  binder: import("@raven/compiler").Binder;
+}
 
-/**
- * Re-runs the compiler against a document's current (possibly unsaved)
- * text and caches the result under its URI. Call this from didOpen and
- * didChange — i.e. whenever VS Code tells us the text changed.
- */
-export function refresh(document: TextDocument): CheckResult {
-  const result = checkSource(document.getText(), document.uri);
-  documentChecks.set(document.uri, result);
-  return result;
+let workspaceRoot: string | undefined;
+let lastResult: ProjectResult | undefined;
+
+export function setWorkspaceRoot(root: string): void {
+  workspaceRoot = root;
+}
+
+function toFsPath(uri: string): string {
+  return uri.startsWith("file://") ? fileURLToPath(uri) : uri;
+}
+
+export function refreshWorkspace(): ProjectResult | undefined {
+  if (!workspaceRoot) return undefined;
+  try {
+    lastResult = buildProject(workspaceRoot);
+  } catch (err) {
+    console.error("buildProject threw:", err);
+  }
+  return lastResult;
+}
+
+export function refresh(document: TextDocument): CheckResult | undefined {
+  refreshWorkspace();
+  return getCheckResult(document.uri);
 }
 
 export function getCheckResult(uri: string): CheckResult | undefined {
-  return documentChecks.get(uri);
+  if (!lastResult) return undefined;
+  const path = toFsPath(uri);
+  const file = lastResult.files.find(f => f.path === path);
+  if (!file || !file.binder) return undefined;
+  const diagnostics = lastResult.diagnostics.filter(d => d.file === path);
+  return { source: file.source, diagnostics, binder: file.binder };
 }
 
-export function forget(uri: string): void {
-  documentChecks.delete(uri);
+export function getLastResult(): ProjectResult | undefined {
+  return lastResult;
+}
+
+export function forget(_uri: string): void {
+  
 }

@@ -1,31 +1,43 @@
 {
-  "name": "raven-language",
-  "displayName": "Raven Language",
-  "description": "Diagnostics, hover, go to definition, and find references for Raven.",
-  "version": "0.0.1",
+  "name": "ravenlang-vscode",
+  "displayName": "RavenX",
+  "description": "Language support for Raven: diagnostics, hover, go to definition, and find references, powered by a language server.",
+  "version": "0.1.8",
   "publisher": "raven-lang",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/purposewalks9/raven"
   },
+  "bugs": {
+    "url": "https://github.com/purposewalks9/raven/issues"
+  },
+  "homepage": "https://github.com/purposewalks9/raven#readme",
+  "galleryBanner": {
+    "color": "#1e1e2e",
+    "theme": "dark"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },
   "categories": ["Programming Languages"],
-  "keywords": ["raven", "language", "static typing"],
+  "keywords": ["raven", "language", "static typing", "lsp", "vscode"],
   "activationEvents": ["onLanguage:raven"],
   "main": "./dist/extension.js",
   "icon": "images/icon.png",
   "contributes": {
     "languages": [
-      {
-        "id": "raven",
-        "aliases": ["Raven", "raven"],
-        "extensions": [".rv"],
-        "configuration": "./language-configuration.json"
-      }
-    ],
+  {
+    "id": "raven",
+    "aliases": ["Raven", "raven"],
+    "extensions": [".rv"],
+    "configuration": "./language-configuration.json",
+    "icon": {
+      "light": "./images/icon.svg",
+      "dark": "./images/icon.svg"
+    }
+  }
+],
     "grammars": [
       {
         "language": "raven",
@@ -39,23 +51,27 @@
         "path": "./snippets/raven.json"
       }
     ],
-    "iconThemes": [
+    "colors": [
       {
-        "id": "raven-icons",
-        "label": "Raven Icons",
-        "path": "./fileIcons.json"
+        "id": "raven.badgeColor",
+        "description": "Badge color for Raven (.rv) files in the Explorer",
+        "defaults": {
+          "dark": "#B7D50B",
+          "light": "#8FA800",
+          "highContrast": "#B7D50B"
+        }
       }
     ]
   },
-  "scripts": {
-    "build": "tsup src/extension.ts --format cjs --external vscode --clean && npm run copy:server",
-    "copy:server": "mkdir -p server && cp ../language-server/dist/server.cjs server/server.cjs",
-    "dev": "tsup src/extension.ts --format cjs --external vscode --watch",
-    "lint": "eslint src --ext .ts",
-    "clean": "rm -rf dist server *.tsbuildinfo",
-     "package": "vsce package --no-dependencies --no-git-tag-version",
-    "test": "true"
-  },
+"scripts": {
+  "build": "tsup && npm run copy:server",
+  "copy:server": "mkdir -p server && cp ../language-server/dist/server.cjs server/server.cjs",
+  "dev": "tsup --watch",
+  "lint": "eslint src --ext .ts",
+  "clean": "rm -rf dist server *.tsbuildinfo",
+  "package": "vsce package --no-dependencies --no-git-tag-version",
+  "test": "true"
+},
   "dependencies": {
     "vscode-languageclient": "^9.0.1"
   },

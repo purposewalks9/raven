@@ -1,6 +1,0 @@
-val age: number = 20
-if age >= 18 then
-  print("adult")
-else
-  print("minor")
-end

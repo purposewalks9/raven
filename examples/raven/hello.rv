@@ -1,3 +1,0 @@
-val name: string = "Raven"
-print("Hello from Raven")
-print(name)

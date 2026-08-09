@@ -59,9 +59,9 @@ describe("TypeChecker", () => {
       };
       const errors = new TypeChecker().check(ast);
       expect(errors.length).toBe(1);
-      expect(errors[0]).toContain("age");
-      expect(errors[0]).toContain("number");
-      expect(errors[0]).toContain("string");
+      expect(errors[0].message).toContain("age");
+      expect(errors[0].message).toContain("number");
+      expect(errors[0].message).toContain("string");
     });
 
     it("catches a boolean/string mismatch", () => {
@@ -76,9 +76,9 @@ describe("TypeChecker", () => {
       };
       const errors = new TypeChecker().check(ast);
       expect(errors.length).toBe(1);
-      expect(errors[0]).toContain("isReady");
-      expect(errors[0]).toContain("boolean");
-      expect(errors[0]).toContain("string");
+      expect(errors[0].message).toContain("isReady");
+      expect(errors[0].message).toContain("boolean");
+      expect(errors[0].message).toContain("string");
     });
 
     it("rejects duplicate variable declarations", () => {
@@ -99,7 +99,7 @@ describe("TypeChecker", () => {
       };
       const errors = new TypeChecker().check(ast);
       expect(errors.length).toBe(1);
-      expect(errors[0]).toContain("already been declared");
+      expect(errors[0].message).toContain("already been declared");
     });
   });
 
@@ -151,8 +151,8 @@ describe("TypeChecker", () => {
       };
       const errors = new TypeChecker().check(ast);
       expect(errors.length).toBe(1);
-      expect(errors[0]).toContain("Cannot reassign");
-      expect(errors[0]).toContain("const");
+      expect(errors[0].message).toContain("Cannot reassign");
+      expect(errors[0].message).toContain("const");
     });
 
     it("allows reassigning a let variable", () => {
@@ -193,8 +193,8 @@ describe("TypeChecker", () => {
       };
       const errors = new TypeChecker().check(ast);
       expect(errors.length).toBe(1);
-      expect(errors[0]).toContain("Type mismatch");
-      expect(errors[0]).toContain("age");
+      expect(errors[0].message).toContain("Type mismatch");
+      expect(errors[0].message).toContain("age");
     });
   });
 
@@ -212,7 +212,7 @@ describe("TypeChecker", () => {
       };
       const errors = new TypeChecker().check(ast);
       expect(errors.length).toBe(1);
-      expect(errors[0]).toContain("undeclared variable");
+      expect(errors[0].message).toContain("undeclared variable");
     });
 
     it("allows assigning a compatible type to a declared variable", () => {
@@ -250,7 +250,7 @@ describe("TypeChecker", () => {
       };
       const errors = new TypeChecker().check(ast);
       expect(errors.length).toBe(1);
-      expect(errors[0]).toContain("boolean");
+      expect(errors[0].message).toContain("boolean");
     });
 
     it("allows if with boolean condition", () => {
@@ -283,7 +283,7 @@ describe("TypeChecker", () => {
       };
       const errors = new TypeChecker().check(ast);
       expect(errors.length).toBe(1);
-      expect(errors[0]).toContain("boolean");
+      expect(errors[0].message).toContain("boolean");
     });
 
     it("allows while with boolean condition", () => {
@@ -423,7 +423,7 @@ describe("TypeChecker", () => {
       };
       const errors = new TypeChecker().check(ast);
       expect(errors.length).toBe(1);
-      expect(errors[0]).toContain("number");
+      expect(errors[0].message).toContain("number");
     });
 
     it("allows comparing two numbers", () => {
@@ -480,7 +480,7 @@ describe("TypeChecker", () => {
       };
       const errors = new TypeChecker().check(ast);
       expect(errors.length).toBe(1);
-      expect(errors[0]).toContain("Cannot compare");
+      expect(errors[0].message).toContain("Cannot compare");
     });
 
     it("allows logical AND with booleans", () => {
@@ -537,7 +537,7 @@ describe("TypeChecker", () => {
       };
       const errors = new TypeChecker().check(ast);
       expect(errors.length).toBe(1);
-      expect(errors[0]).toContain("requires two booleans");
+      expect(errors[0].message).toContain("requires two booleans");
     });
   });
 
@@ -577,7 +577,7 @@ describe("TypeChecker", () => {
       };
       const errors = new TypeChecker().check(ast);
       expect(errors.length).toBe(1);
-      expect(errors[0]).toContain("not");
+      expect(errors[0].message).toContain("not");
     });
   });
 
@@ -613,8 +613,8 @@ describe("TypeChecker", () => {
       };
       const errors = new TypeChecker().check(ast);
       expect(errors.length).toBe(1);
-      expect(errors[0]).toContain("Undeclared variable");
-      expect(errors[0]).toContain("ghost");
+      expect(errors[0].message).toContain("Undeclared variable");
+      expect(errors[0].message).toContain("ghost");
     });
 
     it("allows printing any type", () => {
@@ -728,7 +728,7 @@ describe("TypeChecker", () => {
       };
       const errors = new TypeChecker().check(ast);
       expect(errors.length).toBe(1);
-      expect(errors[0]).toContain("Undeclared function");
+      expect(errors[0].message).toContain("Undeclared function");
     });
 
     it("rejects function call with wrong argument count", () => {
@@ -765,8 +765,8 @@ describe("TypeChecker", () => {
       };
       const errors = new TypeChecker().check(ast);
       expect(errors.length).toBe(1);
-      expect(errors[0]).toContain("expects");
-      expect(errors[0]).toContain("argument");
+      expect(errors[0].message).toContain("expects");
+      expect(errors[0].message).toContain("argument");
     });
 
     it("rejects function call with wrong argument type", () => {
@@ -804,8 +804,8 @@ describe("TypeChecker", () => {
       };
       const errors = new TypeChecker().check(ast);
       expect(errors.length).toBe(1);
-      expect(errors[0]).toContain("Argument");
-      expect(errors[0]).toContain("expected");
+      expect(errors[0].message).toContain("Argument");
+      expect(errors[0].message).toContain("expected");
     });
 
     it("rejects duplicate function declarations", () => {
@@ -840,7 +840,7 @@ describe("TypeChecker", () => {
       };
       const errors = new TypeChecker().check(ast);
       expect(errors.length).toBe(1);
-      expect(errors[0]).toContain("already been declared");
+      expect(errors[0].message).toContain("already been declared");
     });
 
     it("handles return type mismatch", () => {
@@ -861,7 +861,7 @@ describe("TypeChecker", () => {
       };
       const errors = new TypeChecker().check(ast);
       expect(errors.length).toBe(1);
-      expect(errors[0]).toContain("Return type mismatch");
+      expect(errors[0].message).toContain("Return type mismatch");
     });
   });
 
@@ -922,7 +922,7 @@ describe("TypeChecker", () => {
       };
       const errors = new TypeChecker().check(ast);
       expect(errors.length).toBe(1);
-      expect(errors[0]).toContain("same type");
+      expect(errors[0].message).toContain("same type");
     });
 
     it("allows array indexing", () => {
@@ -970,7 +970,7 @@ describe("TypeChecker", () => {
       };
       const errors = new TypeChecker().check(ast);
       expect(errors.length).toBe(1);
-      expect(errors[0]).toContain("Cannot index");
+      expect(errors[0].message).toContain("Cannot index");
     });
 
     it("allows array concatenation with +", () => {
@@ -1036,7 +1036,7 @@ it("rejects appending wrong type to array", () => {
   };
   const errors = new TypeChecker().check(ast);
   expect(errors.length).toBe(1);
-  expect(errors[0]).toContain("Cannot append");
+  expect(errors[0].message).toContain("Cannot append");
 });
   });
 
@@ -1238,9 +1238,9 @@ it("rejects appending wrong type to array", () => {
         }],
       };
       const errors = new TypeChecker().check(ast);
-      expect(errors[0]).toContain("age");
-      expect(errors[0]).toContain("number");
-      expect(errors[0]).toContain("string");
+      expect(errors[0].message).toContain("age");
+      expect(errors[0].message).toContain("number");
+      expect(errors[0].message).toContain("string");
     });
 
     it("provides clear error message for undeclared variable", () => {
@@ -1252,8 +1252,8 @@ it("rejects appending wrong type to array", () => {
         }],
       };
       const errors = new TypeChecker().check(ast);
-      expect(errors[0]).toContain("Undeclared variable");
-      expect(errors[0]).toContain("ghost");
+      expect(errors[0].message).toContain("Undeclared variable");
+      expect(errors[0].message).toContain("ghost");
     });
 
     it("provides clear error message for const reassignment", () => {
@@ -1273,8 +1273,8 @@ it("rejects appending wrong type to array", () => {
         ],
       };
       const errors = new TypeChecker().check(ast);
-      expect(errors[0]).toContain("Cannot reassign");
-      expect(errors[0]).toContain("const");
+      expect(errors[0].message).toContain("Cannot reassign");
+      expect(errors[0].message).toContain("const");
     });
   });
 });

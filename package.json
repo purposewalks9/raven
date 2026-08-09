@@ -2,7 +2,7 @@
   "name": "Raven",
   "private": true,
   "version": "0.0.1",
-  "description": "Raven — a statically typed language for the JavaScript ecosystem that compiles to optimized JS.",
+  "description": "Raven \u2014 a statically typed language for the JavaScript ecosystem that compiles to optimized JS.",
   "license": "MIT",
   "packageManager": "pnpm@10.5.2",
   "scripts": {

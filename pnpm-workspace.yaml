@@ -6,3 +6,6 @@ packages:
   - "vscode/language-server"
   - "examples/*"
   - "website/raven-site"
+onlyBuiltDependencies:
+  - esbuild
+  - "@vscode/vsce-sign"

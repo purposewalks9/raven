@@ -1,6 +1,6 @@
 {
   "name": "@raven/language-server",
-  "version": "0.0.1",
+  "version": "0.1.3",
   "private": true,
   "type": "module",
   "main": "./dist/server.js",
@@ -10,8 +10,8 @@
     }
   },
   "scripts": {
-    "build": "tsup src/server.ts --format cjs --clean",
-    "dev": "tsup src/server.ts --format esm --watch",
+    "build": "tsup",
+    "dev": "tsup --watch",
     "test": "vitest run",
     "lint": "eslint src --ext .ts",
     "clean": "rm -rf dist *.tsbuildinfo"

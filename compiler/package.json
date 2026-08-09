@@ -1,8 +1,24 @@
 {
   "name": "@raven/compiler",
-  "version": "0.0.1",
-  "private": true,
+  "version": "0.1.0",
   "type": "module",
+  "description": "Raven — a statically typed language for the JavaScript ecosystem that compiles to optimized JS.",
+  "keywords": ["compiler", "language", "typescript", "programming-language", "raven"],
+  "homepage": "https://github.com/purposewalks9/raven",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/purposewalks9/raven.git",
+    "directory": "compiler"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "bin": {
     "raven": "./dist/cli/index.js"
   },

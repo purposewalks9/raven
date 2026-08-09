@@ -1,6 +1,1 @@
-// THIS FILE IS INTENTIONALLY BROKEN.
-// It publishes 'user' again, but with a different shape than user.rv:
-//   - missing `name`
-//   - `plan` is a number here instead of a string
-// Running `raven check` on this folder should show a field-level diff.
 model user = { id: 1, plan: 99 }

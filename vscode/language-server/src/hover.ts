@@ -4,14 +4,17 @@ import type { TextDocument } from "vscode-languageserver-textdocument";
 import type { TypeAnnotation } from "@raven/compiler";
 import { symbolAt } from "./symbolAt.js";
 
-// Small, local mirror of TypeChecker's private formatType(). Duplicated
-// rather than imported because it's private to the checker; if this
-// drifts from the checker's own formatting, promoting formatType() to a
-// shared exported utility in the compiler package is the right follow-up.
 function formatType(type: TypeAnnotation): string {
   if (type === "any") return "any";
   if (typeof type === "string") return type;
-  return `${formatType(type.elementType)}[]`;
+  if (type.kind === "array") return `${formatType(type.elementType)}[]`;
+  if (type.kind === "record") {
+    const fields = Object.entries(type.fields)
+      .map(([key, value]) => `${key}: ${formatType(value)}`)
+      .join("; ");
+    return `{ ${fields} }`;
+  }
+  return "unknown";
 }
 
 export function onHover(document: TextDocument, params: HoverParams): Hover | null {

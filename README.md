@@ -2,7 +2,7 @@
 
 > A language that compiles to JavaScript. It infers your types — you only name the ones you want to share.
 
-**Status:** 🚧 Early development (v0.0.1)
+**Status:** 🚧 Early development (v0.1.0)
 
 ---
 
@@ -78,12 +78,12 @@ Everything else — inference, propagation, validation — is the compiler's job
 
 ## Current status
 
-- [x] Lexer, Parser, Emitter
+- [x] Lexer, Parser, Emitter, Optimizer
 - [x] Local type inference (`let`/`const`, functions, arrays, records)
-- [ ] `model` keyword + Workspace Registry
-- [ ] Cross-file type resolution
-- [ ] External source binding (`database`, `api`)
-- [ ] Language Server / editor tooling
+- [x] `model` keyword + Workspace Registry
+- [x] Cross-file type resolution
+- [x] Language Server + VS Code extension (hover, definitions, references, diagnostics)
+- [ ] External source binding (`database`, `api`) — parsed today, not yet type-checked against a live schema
 
 ## Contributing
 

@@ -1,5 +1,3 @@
-// demo.rv — a tour of what Raven can do right now
-
 fn fibonacci(n: number): number
   if n < 2 then
     return n
@@ -19,18 +17,18 @@ end
 
 const numbers: array<number> = [4, 8, 15, 16, 23, 42]
 
-print("Fibonacci of 10 is:")
+print("Fibonacci of 10 is:")ssfss
 print(fibonacci(10))
 
 print("Sum of array is:")
 print(sumArray(numbers))
 
-let greeting = "Hello, " + "Raven!"
+le greeting = "Hello, " + "Raven!"
 print(greeting)
 
-let hasManyItems = len(numbers) > 3
+le hasManyItems = len(numbers) > 3
 if hasManyItems and (sumArray(numbers) > 100) then
   print("Big array, big sum.")
-else
+els
   print("Not that big.")
 end
