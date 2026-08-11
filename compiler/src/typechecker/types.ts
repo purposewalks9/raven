@@ -1,5 +1,26 @@
 import { TypeAnnotation } from "../ast/nodes.js";
 
+export function makeUnion(members: TypeAnnotation[]): TypeAnnotation {
+  const flattened: TypeAnnotation[] = [];
+  for (const member of members) {
+    if (typeof member === "object" && member.kind === "union") {
+      flattened.push(...member.types);
+    } else {
+      flattened.push(member);
+    }
+  }
+
+  const deduped: TypeAnnotation[] = [];
+  for (const candidate of flattened) {
+    if (!deduped.some(existing => sameType(existing, candidate))) {
+      deduped.push(candidate);
+    }
+  }
+
+  return deduped.length === 1 ? deduped[0]! : { kind: "union", types: deduped };
+}
+
+
 export function sameType(left: TypeAnnotation, right: TypeAnnotation): boolean {
   if (left === "any" || right === "any") return true;
 
@@ -27,6 +48,47 @@ export function sameType(left: TypeAnnotation, right: TypeAnnotation): boolean {
     });
   }
 
+  if (left.kind === "union" && right.kind === "union") {
+    if (left.types.length !== right.types.length) return false;
+    return left.types.every(l => right.types.some(r => sameType(l, r)));
+  }
+
+  return false;
+}
+
+export function isAssignableTo(from: TypeAnnotation, to: TypeAnnotation): boolean {
+  if (from === "any" || to === "any") return true;
+
+  
+  if (typeof from === "object" && from.kind === "union") {
+    return from.types.every(member => isAssignableTo(member, to));
+  }
+
+
+  if (typeof to === "object" && to.kind === "union") {
+    return to.types.some(member => isAssignableTo(from, member));
+  }
+
+  if (typeof from === "string" || typeof to === "string") {
+    return from === to;
+  }
+
+  if (from.kind !== to.kind) return false;
+
+  if (from.kind === "array" && to.kind === "array") {
+    return isAssignableTo(from.elementType, to.elementType);
+  }
+
+  if (from.kind === "record" && to.kind === "record") {
+    const fromKeys = Object.keys(from.fields);
+    const toKeys = Object.keys(to.fields);
+    if (fromKeys.length !== toKeys.length) return false;
+    return toKeys.every(key => {
+      const fromFieldType = from.fields[key];
+      return fromFieldType !== undefined && isAssignableTo(fromFieldType, to.fields[key]!);
+    });
+  }
+
   return false;
 }
 
@@ -44,6 +106,13 @@ export function formatType(type: TypeAnnotation | undefined): string {
       .map(([key, fieldType]) => `${key}: ${formatType(fieldType)}`)
       .join(", ");
     return `{ ${fields} }`;
+  }
+  if (type.kind === "union") {
+    if (type.types.length === 2 && type.types.includes("none")) {
+      const other = type.types.find(t => t !== "none")!;
+      return `${formatType(other)}?`;
+    }
+    return type.types.map(formatType).join(" | ");
   }
   return "unknown";
 }
@@ -70,11 +139,6 @@ function levenshtein(a: string, b: string): number {
   return grid[rows - 1]![cols - 1]!;
 }
 
-/**
- * Finds the closest name to `target` among `candidates`, for "did you mean"
- * hints. Only suggests when the typo is plausibly close — short random
- * unrelated names shouldn't get suggested just because nothing else matched.
- */
 export function closestMatch(target: string, candidates: string[]): string | undefined {
   let best: string | undefined;
   let bestDistance = Infinity;
@@ -97,11 +161,7 @@ export type ShapeDiffEntry =
   | { kind: "removed"; field: string; type: TypeAnnotation }
   | { kind: "changed"; field: string; from: TypeAnnotation; to: TypeAnnotation };
 
-/**
- * Field-by-field diff between two record shapes — used to explain *why*
- * two `model` declarations of the same name conflict, instead of just
- * saying "different shape" and leaving the reader to spot it themselves.
- */
+
 export function diffShapes(previous: TypeAnnotation, next: TypeAnnotation): ShapeDiffEntry[] {
   if (typeof previous === "string" || typeof next === "string") return [];
   if (previous.kind !== "record" || next.kind !== "record") return [];

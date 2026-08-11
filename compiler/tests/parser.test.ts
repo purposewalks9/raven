@@ -70,6 +70,51 @@ describe("parser", () => {
     expect((ast.body[0] as any).typeAnnotation).toBeUndefined();
   });
 
+  it("parses a union type annotation", () => {
+    const ast = new Parser(tokenize(`let x: string | number = "hi"`)).parseProgram();
+    expect((ast.body[0] as any).typeAnnotation).toEqual({
+      kind: "union",
+      types: ["string", "number"],
+    });
+  });
+
+  it("parses a three-member union type annotation", () => {
+    const ast = new Parser(tokenize(`let x: string | number | boolean = "hi"`)).parseProgram();
+    expect((ast.body[0] as any).typeAnnotation).toEqual({
+      kind: "union",
+      types: ["string", "number", "boolean"],
+    });
+  });
+
+  it("desugars `T?` to `T | none`", () => {
+    const ast = new Parser(tokenize(`let x: string? = "hi"`)).parseProgram();
+    expect((ast.body[0] as any).typeAnnotation).toEqual({
+      kind: "union",
+      types: ["string", "none"],
+    });
+  });
+
+  it("parses `none` as an expression", () => {
+    const ast = new Parser(tokenize(`let x = none`)).parseProgram();
+    expect((ast.body[0] as any).value.type).toBe("NoneLiteral");
+  });
+
+  it("parses an optional member inside a union", () => {
+    const ast = new Parser(tokenize(`let x: string? | number = "hi"`)).parseProgram();
+    expect((ast.body[0] as any).typeAnnotation).toEqual({
+      kind: "union",
+      types: ["string", "none", "number"],
+    });
+  });
+
+  it("parses array<T> with a union element type", () => {
+    const ast = new Parser(tokenize(`let x: array<string | number> = [1]`)).parseProgram();
+    expect((ast.body[0] as any).typeAnnotation).toEqual({
+      kind: "array",
+      elementType: { kind: "union", types: ["string", "number"] },
+    });
+  });
+
   it("parses a let declaration with a boolean", () => {
     const ast = new Parser(tokenize(`let isReady = true`)).parseProgram();
     expect(stripLocations(ast.body[0])).toEqual({

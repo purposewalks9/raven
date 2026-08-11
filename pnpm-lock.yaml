@@ -45,8 +45,6 @@ importers:
         specifier: ^2.0.5
         version: 2.1.9(@types/node@20.19.43)(lightningcss@1.32.0)
 
-  examples/hello-world: {}
-
   vscode/extension:
     dependencies:
       vscode-languageclient:

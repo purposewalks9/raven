@@ -138,10 +138,17 @@ export interface BooleanLiteral extends Node {
     type: "BooleanLiteral";
     value: boolean;
 }
+
+// The only value of type `none` — what a `T?` (i.e. `T | none`) variable
+// holds when it isn't a `T`. Exists so `?` has something to desugar to.
+export interface NoneLiteral extends Node {
+    type: "NoneLiteral";
+}
 export type Expression =
     | StringLiteral
     | NumberLiteral
     | BooleanLiteral
+    | NoneLiteral
     | CallExpression
     | Identifier
     | ArrayLiteral      
@@ -199,6 +206,12 @@ export type TypeAnnotation =
     | "string"
     | "number"
     | "boolean"
-    | "any" 
+    | "any"
+    | "none"
     | { kind: "array"; elementType: TypeAnnotation }
     | { kind: "record"; fields: Record<string, TypeAnnotation> }
+    // Layer 2 (docs/type-intelligence-roadmap.md §5): the one new piece of
+    // Category B representation this layer adds. `T?` in source is sugar for
+    // `T | none` (see Parser#parseTypeAnnotation) rather than its own kind —
+    // one representation backs both spellings instead of two.
+    | { kind: "union"; types: TypeAnnotation[] }

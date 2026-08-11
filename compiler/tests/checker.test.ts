@@ -904,7 +904,10 @@ describe("TypeChecker", () => {
       expect(errors).toEqual([]);
     });
 
-    it("rejects array with mixed types", () => {
+    it("infers a union element type for mixed-type arrays instead of rejecting them", () => {
+      // Layer 2 (docs/type-intelligence-roadmap.md §5): union types let the
+      // compiler describe `[1, "two", 3]` as `array<number | string>`
+      // instead of requiring every element to already be one exact type.
       const ast: Program = {
         type: "Program",
         body: [{
@@ -918,11 +921,11 @@ describe("TypeChecker", () => {
               { type: "NumberLiteral", value: 3 },
             ],
           },
+          typeAnnotation: { kind: "array", elementType: { kind: "union", types: ["number", "string"] } },
         }],
       };
       const errors = new TypeChecker().check(ast);
-      expect(errors.length).toBe(1);
-      expect(errors[0].message).toContain("same type");
+      expect(errors).toEqual([]);
     });
 
     it("allows array indexing", () => {
@@ -1017,7 +1020,10 @@ describe("TypeChecker", () => {
       const errors = new TypeChecker().check(ast);
       expect(errors).toEqual([]);
     });
-it("rejects appending wrong type to array", () => {
+it("widens the element type to a union instead of rejecting an append", () => {
+  // Same Layer 2 move as the mixed-array-literal case above, applied to
+  // `+`: appending a value of a new type widens `array<number>` to
+  // `array<number | string>` rather than erroring.
   const ast: Program = {
     type: "Program",
     body: [{
@@ -1032,11 +1038,11 @@ it("rejects appending wrong type to array", () => {
         },
         right: { type: "StringLiteral", value: "oops" },
       },
+      typeAnnotation: { kind: "array", elementType: { kind: "union", types: ["number", "string"] } },
     }],
   };
   const errors = new TypeChecker().check(ast);
-  expect(errors.length).toBe(1);
-  expect(errors[0].message).toContain("Cannot append");
+  expect(errors).toEqual([]);
 });
   });
 
@@ -1275,6 +1281,123 @@ it("rejects appending wrong type to array", () => {
       const errors = new TypeChecker().check(ast);
       expect(errors[0].message).toContain("Cannot reassign");
       expect(errors[0].message).toContain("const");
+    });
+  });
+
+  // Layer 2 (docs/type-intelligence-roadmap.md §5): union/optional types
+  // and the `isAssignableTo` check they need, distinct from the strict
+  // `sameType` used for exact-shape comparisons like model conflicts.
+  describe("Union & Optional Types", () => {
+    it("allows a value assignable to one member of a wider declared union", () => {
+      const ast: Program = {
+        type: "Program",
+        body: [{
+          type: "VariableDeclaration",
+          name: "id",
+          value: { type: "StringLiteral", value: "abc" },
+          typeAnnotation: { kind: "union", types: ["string", "number"] },
+        }],
+      };
+      const errors = new TypeChecker().check(ast);
+      expect(errors).toEqual([]);
+    });
+
+    it("rejects a value that isn't a member of the declared union", () => {
+      const ast: Program = {
+        type: "Program",
+        body: [{
+          type: "VariableDeclaration",
+          name: "id",
+          value: { type: "BooleanLiteral", value: true },
+          typeAnnotation: { kind: "union", types: ["string", "number"] },
+        }],
+      };
+      const errors = new TypeChecker().check(ast);
+      expect(errors.length).toBe(1);
+      expect(errors[0]!.message).toContain("Type mismatch");
+    });
+
+    it("allows `none` for an optional (`T?`) declaration", () => {
+      const ast: Program = {
+        type: "Program",
+        body: [{
+          type: "VariableDeclaration",
+          name: "middleName",
+          value: { type: "NoneLiteral" },
+          typeAnnotation: { kind: "union", types: ["string", "none"] },
+        }],
+      };
+      const errors = new TypeChecker().check(ast);
+      expect(errors).toEqual([]);
+    });
+
+    it("allows a plain value for an optional (`T?`) declaration", () => {
+      const ast: Program = {
+        type: "Program",
+        body: [{
+          type: "VariableDeclaration",
+          name: "middleName",
+          value: { type: "StringLiteral", value: "Rae" },
+          typeAnnotation: { kind: "union", types: ["string", "none"] },
+        }],
+      };
+      const errors = new TypeChecker().check(ast);
+      expect(errors).toEqual([]);
+    });
+
+    it("rejects assigning a wider union into a narrower declared variable", () => {
+      const ast: Program = {
+        type: "Program",
+        body: [
+          {
+            type: "VariableDeclaration",
+            name: "wide",
+            value: { type: "StringLiteral", value: "x" },
+            typeAnnotation: { kind: "union", types: ["string", "number"] },
+          },
+          {
+            type: "VariableDeclaration",
+            name: "narrow",
+            value: { type: "Identifier", name: "wide" },
+            typeAnnotation: "string",
+          },
+        ],
+      };
+      const errors = new TypeChecker().check(ast);
+      expect(errors.length).toBe(1);
+      expect(errors[0]!.message).toContain("Type mismatch");
+    });
+
+    it("allows a union-typed argument to be passed where the parameter accepts that union", () => {
+      const ast: Program = {
+        type: "Program",
+        body: [
+          {
+            type: "FunctionDeclaration",
+            name: "describe",
+            parameters: [{ name: "value", typeAnnotation: { kind: "union", types: ["string", "number"] } }],
+            returnType: "string",
+            body: [{ type: "ReturnStatement", value: { type: "StringLiteral", value: "ok" } }],
+          },
+          { type: "ExpressionStatement", expression: { type: "CallExpression", callee: "describe", arguments: [{ type: "NumberLiteral", value: 1 }] } },
+        ],
+      };
+      const errors = new TypeChecker().check(ast);
+      expect(errors).toEqual([]);
+    });
+
+    it("formats an optional union back as `T?`", () => {
+      const ast: Program = {
+        type: "Program",
+        body: [{
+          type: "VariableDeclaration",
+          name: "middleName",
+          value: { type: "BooleanLiteral", value: true },
+          typeAnnotation: { kind: "union", types: ["string", "none"] },
+        }],
+      };
+      const errors = new TypeChecker().check(ast);
+      expect(errors[0]!.message).toContain("string?");
     });
   });
 });
