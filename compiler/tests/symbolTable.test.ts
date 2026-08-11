@@ -37,4 +37,18 @@ describe("SymbolTable", () => {
     expect(success).toBe(true); // shadowing allowed
     table.exitScope();
   });
+
+  it("stores symbol origin metadata for compiler intelligence", () => {
+    const table = new SymbolTable();
+    table.declare("profile", {
+      type: { kind: "record", fields: { name: "string" } },
+      constant: true,
+      origin: "model",
+      source: "users.rav",
+    });
+
+    const symbol = table.lookup("profile");
+    expect(symbol?.origin).toBe("model");
+    expect(symbol?.source).toBe("users.rav");
+  });
 });

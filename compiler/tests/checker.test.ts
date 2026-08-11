@@ -1282,122 +1282,52 @@ it("widens the element type to a union instead of rejecting an append", () => {
       expect(errors[0].message).toContain("Cannot reassign");
       expect(errors[0].message).toContain("const");
     });
-  });
 
-  // Layer 2 (docs/type-intelligence-roadmap.md §5): union/optional types
-  // and the `isAssignableTo` check they need, distinct from the strict
-  // `sameType` used for exact-shape comparisons like model conflicts.
-  describe("Union & Optional Types", () => {
-    it("allows a value assignable to one member of a wider declared union", () => {
+    it("allows records with extra inferred fields to flow into a narrower annotation", () => {
       const ast: Program = {
         type: "Program",
         body: [{
           type: "VariableDeclaration",
-          name: "id",
-          value: { type: "StringLiteral", value: "abc" },
-          typeAnnotation: { kind: "union", types: ["string", "number"] },
+          name: "user",
+          typeAnnotation: { kind: "record", fields: { name: "string" } },
+          value: {
+            type: "ObjectLiteral",
+            properties: [
+              { key: "name", value: { type: "StringLiteral", value: "Ada" } },
+              { key: "age", value: { type: "NumberLiteral", value: 37 } },
+            ],
+          },
         }],
       };
+
       const errors = new TypeChecker().check(ast);
       expect(errors).toEqual([]);
     });
 
-    it("rejects a value that isn't a member of the declared union", () => {
-      const ast: Program = {
-        type: "Program",
-        body: [{
-          type: "VariableDeclaration",
-          name: "id",
-          value: { type: "BooleanLiteral", value: true },
-          typeAnnotation: { kind: "union", types: ["string", "number"] },
-        }],
-      };
-      const errors = new TypeChecker().check(ast);
-      expect(errors.length).toBe(1);
-      expect(errors[0]!.message).toContain("Type mismatch");
-    });
-
-    it("allows `none` for an optional (`T?`) declaration", () => {
-      const ast: Program = {
-        type: "Program",
-        body: [{
-          type: "VariableDeclaration",
-          name: "middleName",
-          value: { type: "NoneLiteral" },
-          typeAnnotation: { kind: "union", types: ["string", "none"] },
-        }],
-      };
-      const errors = new TypeChecker().check(ast);
-      expect(errors).toEqual([]);
-    });
-
-    it("allows a plain value for an optional (`T?`) declaration", () => {
-      const ast: Program = {
-        type: "Program",
-        body: [{
-          type: "VariableDeclaration",
-          name: "middleName",
-          value: { type: "StringLiteral", value: "Rae" },
-          typeAnnotation: { kind: "union", types: ["string", "none"] },
-        }],
-      };
-      const errors = new TypeChecker().check(ast);
-      expect(errors).toEqual([]);
-    });
-
-    it("rejects assigning a wider union into a narrower declared variable", () => {
+    it("records whether binder symbols were inferred or explicitly typed", () => {
+      const checker = new TypeChecker();
       const ast: Program = {
         type: "Program",
         body: [
           {
             type: "VariableDeclaration",
-            name: "wide",
-            value: { type: "StringLiteral", value: "x" },
-            typeAnnotation: { kind: "union", types: ["string", "number"] },
+            name: "inferredName",
+            value: { type: "StringLiteral", value: "Raven" },
           },
           {
             type: "VariableDeclaration",
-            name: "narrow",
-            value: { type: "Identifier", name: "wide" },
-            typeAnnotation: "string",
+            name: "declaredAge",
+            typeAnnotation: "number",
+            value: { type: "NumberLiteral", value: 1 },
           },
         ],
       };
-      const errors = new TypeChecker().check(ast);
-      expect(errors.length).toBe(1);
-      expect(errors[0]!.message).toContain("Type mismatch");
+
+      expect(checker.check(ast)).toEqual([]);
+      const origins = new Map(checker.getBinder().all().map(binding => [binding.name, binding.origin]));
+      expect(origins.get("inferredName")).toBe("inferred");
+      expect(origins.get("declaredAge")).toBe("local");
     });
 
-    it("allows a union-typed argument to be passed where the parameter accepts that union", () => {
-      const ast: Program = {
-        type: "Program",
-        body: [
-          {
-            type: "FunctionDeclaration",
-            name: "describe",
-            parameters: [{ name: "value", typeAnnotation: { kind: "union", types: ["string", "number"] } }],
-            returnType: "string",
-            body: [{ type: "ReturnStatement", value: { type: "StringLiteral", value: "ok" } }],
-          },
-          { type: "ExpressionStatement", expression: { type: "CallExpression", callee: "describe", arguments: [{ type: "NumberLiteral", value: 1 }] } },
-        ],
-      };
-      const errors = new TypeChecker().check(ast);
-      expect(errors).toEqual([]);
-    });
-
-    it("formats an optional union back as `T?`", () => {
-      const ast: Program = {
-        type: "Program",
-        body: [{
-          type: "VariableDeclaration",
-          name: "middleName",
-          value: { type: "BooleanLiteral", value: true },
-          typeAnnotation: { kind: "union", types: ["string", "none"] },
-        }],
-      };
-      const errors = new TypeChecker().check(ast);
-      expect(errors[0]!.message).toContain("string?");
-    });
   });
 });

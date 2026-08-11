@@ -148,8 +148,8 @@ export class TypeChecker {
 
     const type = node.typeAnnotation ?? actualType;
     const constant = node.type === "ConstantDeclaration";
-    const binding = this.binder.declare(node.name, constant ? "constant" : "variable", type, node.location);
-    const success = this.symbolTable.declare(node.name, { type, constant, binding });
+    const binding = this.binder.declare(node.name, constant ? "constant" : "variable", type, node.location, node.typeAnnotation ? "local" : "inferred");
+    const success = this.symbolTable.declare(node.name, { type, constant, binding, origin: binding.origin });
 
     if (!success) {
       this.diagnostics.error(`'${node.name}' has already been declared.`, node.location);
@@ -175,10 +175,10 @@ export class TypeChecker {
       type = node.typeAnnotation ?? actualType;
     }
 
-    const binding = this.binder.declare(node.name, "model", type, node.location);
+    const binding = this.binder.declare(node.name, "model", type, node.location, "model", node.external ? "external" : this.file);
 
     // Visible immediately in the file that publishes it, same as a const.
-    const success = this.symbolTable.declare(node.name, { type, constant: true, binding });
+    const success = this.symbolTable.declare(node.name, { type, constant: true, binding, origin: binding.origin, source: binding.source });
     if (!success) {
       this.diagnostics.error(`'${node.name}' has already been declared.`, node.location);
     }
@@ -200,7 +200,7 @@ export class TypeChecker {
       const imported = this.importedFunctions.get(name);
 
       if (imported) {
-        const binding = this.binder.declare(name, "function", imported.returnType, node.location);
+        const binding = this.binder.declare(name, "function", imported.returnType, node.location, "import", node.source);
         this.functionSignatures.set(name, { ...imported, binding });
         continue;
       }
@@ -302,7 +302,7 @@ export class TypeChecker {
     const paramTypes: TypeAnnotation[] = node.parameters.map(p => p.typeAnnotation ?? "any");
     const isReturnTypeInferred = node.returnType === undefined;
 
-    const functionBinding = this.binder.declare(node.name, "function", node.returnType ?? "any", node.location);
+    const functionBinding = this.binder.declare(node.name, "function", node.returnType ?? "any", node.location, "local", this.file);
     const signature = {
       params: paramTypes,
       returnType: node.returnType ?? "any",
@@ -327,8 +327,8 @@ export class TypeChecker {
       seenParameters.add(param.name);
 
       const paramType = param.typeAnnotation ?? "any";
-      const paramBinding = this.binder.declare(param.name, "parameter", paramType, param.location ?? node.location);
-      this.symbolTable.declare(param.name, { type: paramType, constant: false, binding: paramBinding });
+      const paramBinding = this.binder.declare(param.name, "parameter", paramType, param.location ?? node.location, param.typeAnnotation ? "local" : "inferred");
+      this.symbolTable.declare(param.name, { type: paramType, constant: false, binding: paramBinding, origin: paramBinding.origin });
     }
 
     for (const stmt of node.body) {
@@ -386,7 +386,7 @@ export class TypeChecker {
         if (published) {
           let binding = this.externalModelBindings.get(node.name);
           if (!binding) {
-            binding = this.binder.declare(node.name, "model", published.type, published.location);
+            binding = this.binder.declare(node.name, "model", published.type, published.location, "model", published.file);
             this.externalModelBindings.set(node.name, binding);
           }
           this.binder.reference(binding, node.location);
@@ -594,9 +594,8 @@ export class TypeChecker {
     return sharedSameType(left, right);
   }
 
-  /** "Is a value of type `from` acceptable where `to` is expected" — union-aware. */
-  private isAssignableTo(from: TypeAnnotation, to: TypeAnnotation): boolean {
-    return sharedIsAssignableTo(from, to);
+  private isAssignableTo(source: TypeAnnotation, target: TypeAnnotation): boolean {
+    return sharedIsAssignableTo(source, target);
   }
 
   private formatType(type: TypeAnnotation | undefined): string {

@@ -92,6 +92,41 @@ export function isAssignableTo(from: TypeAnnotation, to: TypeAnnotation): boolea
   return false;
 }
 
+/**
+ * Compatibility check used by the checker when a value flows into an expected
+ * type. This deliberately stays distinct from `sameType`: `sameType` answers
+ * "are these identical?", while assignability answers "can a value of the
+ * source type be used where the target type is expected?" Keeping that seam now
+ * gives Raven a place to grow optional fields, unions, and narrowing without
+ * adding TypeScript-like syntax before the compiler can reason about it.
+ */
+export function isAssignableTo(source: TypeAnnotation, target: TypeAnnotation): boolean {
+  if (source === "any" || target === "any") return true;
+
+  if (typeof source === "string" && typeof target === "string") {
+    return source === target;
+  }
+  if (typeof source === "string" || typeof target === "string") {
+    return false;
+  }
+  if (source.kind !== target.kind) {
+    return false;
+  }
+
+  if (source.kind === "array" && target.kind === "array") {
+    return isAssignableTo(source.elementType, target.elementType);
+  }
+
+  if (source.kind === "record" && target.kind === "record") {
+    return Object.entries(target.fields).every(([key, targetField]) => {
+      const sourceField = source.fields[key];
+      return sourceField !== undefined && isAssignableTo(sourceField, targetField);
+    });
+  }
+
+  return false;
+}
+
 export function formatType(type: TypeAnnotation | undefined): string {
   if (!type) return "unknown";
   if (type === "any") return "any";

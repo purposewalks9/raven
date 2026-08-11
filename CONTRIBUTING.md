@@ -34,6 +34,14 @@ pnpm build            # build the CLI + library
 
 - Branch off `main`: `feature/<short-description>` or `fix/<short-description>`.
 - Every change to `compiler/src/**` should come with a test in
+  `compiler/tests/` (see `compiler/tests/parser.test.ts` for the tokenize →
+  parse → assert pattern, or `compiler/tests/optimizer.test.ts` for the source
+  → optimize → emit → assert-on-JS pattern).
+- Run `npm test` and `npx tsc --noEmit` in `compiler/` before opening a PR.
+- If your change adds type-system surface area, answer the four questions in
+  §6 of `docs/type-intelligence-roadmap.md` in your PR description.
+- Update the relevant doc (`README.md`, `docs/`, or the roadmap doc) in the
+  same PR if you are changing grammar or semantics — the docs and the parser
   `compiler/tests/` (see `compiler/tests/parser.test.ts` for the pattern:
   tokenize → parse → assert on the AST shape, or `compiler/tests/optimizer.test.ts`
   for the source → optimize → emit → assert-on-JS pattern).
@@ -53,12 +61,14 @@ Conventional-ish, not strictly enforced yet:
 
 ## Versioning
 
-Uses [changesets](https://github.com/changesets/changesets). After a PR
-that changes published package behavior:
+Uses [changesets](https://github.com/changesets/changesets). After a PR that
+changes published package behavior:
+
 ```bash
 pnpm changeset
 ```
-and follow the prompts — don't hand-edit package versions.
+
+and follow the prompts — do not hand-edit package versions.
 
 ## Code of conduct
 
