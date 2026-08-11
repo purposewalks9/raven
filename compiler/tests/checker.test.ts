@@ -1276,5 +1276,52 @@ it("rejects appending wrong type to array", () => {
       expect(errors[0].message).toContain("Cannot reassign");
       expect(errors[0].message).toContain("const");
     });
+
+    it("allows records with extra inferred fields to flow into a narrower annotation", () => {
+      const ast: Program = {
+        type: "Program",
+        body: [{
+          type: "VariableDeclaration",
+          name: "user",
+          typeAnnotation: { kind: "record", fields: { name: "string" } },
+          value: {
+            type: "ObjectLiteral",
+            properties: [
+              { key: "name", value: { type: "StringLiteral", value: "Ada" } },
+              { key: "age", value: { type: "NumberLiteral", value: 37 } },
+            ],
+          },
+        }],
+      };
+
+      const errors = new TypeChecker().check(ast);
+      expect(errors).toEqual([]);
+    });
+
+    it("records whether binder symbols were inferred or explicitly typed", () => {
+      const checker = new TypeChecker();
+      const ast: Program = {
+        type: "Program",
+        body: [
+          {
+            type: "VariableDeclaration",
+            name: "inferredName",
+            value: { type: "StringLiteral", value: "Raven" },
+          },
+          {
+            type: "VariableDeclaration",
+            name: "declaredAge",
+            typeAnnotation: "number",
+            value: { type: "NumberLiteral", value: 1 },
+          },
+        ],
+      };
+
+      expect(checker.check(ast)).toEqual([]);
+      const origins = new Map(checker.getBinder().all().map(binding => [binding.name, binding.origin]));
+      expect(origins.get("inferredName")).toBe("inferred");
+      expect(origins.get("declaredAge")).toBe("local");
+    });
+
   });
 });
