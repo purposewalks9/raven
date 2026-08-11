@@ -904,10 +904,7 @@ describe("TypeChecker", () => {
       expect(errors).toEqual([]);
     });
 
-    it("infers a union element type for mixed-type arrays instead of rejecting them", () => {
-      // Layer 2 (docs/type-intelligence-roadmap.md §5): union types let the
-      // compiler describe `[1, "two", 3]` as `array<number | string>`
-      // instead of requiring every element to already be one exact type.
+    it("infers a union for arrays with mixed scalar types", () => {
       const ast: Program = {
         type: "Program",
         body: [{
@@ -1302,6 +1299,69 @@ it("widens the element type to a union instead of rejecting an append", () => {
 
       const errors = new TypeChecker().check(ast);
       expect(errors).toEqual([]);
+    });
+
+    it("infers optional fields when array records have missing keys", () => {
+      const ast: Program = {
+        type: "Program",
+        body: [{
+          type: "VariableDeclaration",
+          name: "users",
+          typeAnnotation: {
+            kind: "array",
+            elementType: {
+              kind: "record",
+              fields: {
+                name: "string",
+                age: { kind: "optional", inner: "number" },
+              },
+            },
+          },
+          value: {
+            type: "ArrayLiteral",
+            elements: [
+              {
+                type: "ObjectLiteral",
+                properties: [
+                  { key: "name", value: { type: "StringLiteral", value: "Ada" } },
+                  { key: "age", value: { type: "NumberLiteral", value: 37 } },
+                ],
+              },
+              {
+                type: "ObjectLiteral",
+                properties: [
+                  { key: "name", value: { type: "StringLiteral", value: "Grace" } },
+                ],
+              },
+            ],
+          },
+        }],
+      };
+
+      const errors = new TypeChecker().check(ast);
+      expect(errors).toEqual([]);
+    });
+
+    it("infers union return types instead of requiring explicit annotations", () => {
+      const checker = new TypeChecker();
+      const ast: Program = {
+        type: "Program",
+        body: [{
+          type: "FunctionDeclaration",
+          name: "maybeId",
+          parameters: [],
+          body: [
+            { type: "ReturnStatement", value: { type: "NumberLiteral", value: 1 } },
+            { type: "ReturnStatement", value: { type: "StringLiteral", value: "missing" } },
+          ],
+        }],
+      };
+
+      expect(checker.check(ast)).toEqual([]);
+      expect(checker.getExportedFunctions().get("maybeId")?.returnType).toEqual({
+        kind: "union",
+        variants: ["number", "string"],
+      });
     });
 
     it("records whether binder symbols were inferred or explicitly typed", () => {

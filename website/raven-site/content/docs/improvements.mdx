@@ -1,0 +1,46 @@
+---
+title: Improvements Backlog
+description: Concrete compiler and docs improvements to keep Raven moving toward automatic TypeScript-like intelligence.
+---
+
+This page is a living backlog for work that moves Raven toward compiler-derived
+types instead of developer-declared type ceremony.
+
+## Compiler core
+
+- Add source-aware assignability diagnostics that explain missing required
+  fields, optional fields, and union branch failures.
+- Add flow narrowing after union types are stable, starting with `typeof` checks.
+- Merge inferred return shapes across branches with clearer diagnostics when a
+  function annotation is stricter than the inferred body.
+- Continue separating exact identity (`sameType`) from compatibility
+  (`isAssignableTo`).
+- Thread symbol origin into more user-facing errors.
+
+## Project intelligence
+
+- Extend the workspace registry pattern beyond `model` declarations to inferred
+  module API shapes.
+- Persist compiler-derived package metadata during builds so libraries can be
+  consumed without hand-written declaration files.
+- Stress-test cross-file model resolution on deeper import graphs and circular
+  references.
+
+## Language surface
+
+- Keep type syntax small. Add syntax only when inference cannot know developer
+  intent.
+- Do not add `interface`, generics, `keyof`, mapped types, or conditional types
+  until the internal engine can reason about them.
+- Decide whether the examples should use only `let`/`const` or whether `val`
+  should become a real binding keyword.
+- Decide whether function declarations should accept a trailing `do` for
+  consistency with `while` and examples.
+
+## Tooling and docs
+
+- Make the language server query the same compiler program model for hover,
+  autocomplete, go-to-definition, and references.
+- Keep Fumadocs pages problem-first: explain what ceremony Raven removes before
+  explaining the compiler mechanism.
+- Add runnable examples for every documented compiler feature.

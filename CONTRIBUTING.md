@@ -1,24 +1,22 @@
 # Contributing to Raven
 
-Raven is early — pre-1.0. The most useful contributions right now are on
-the compiler core (`compiler/src`), not the framework or tooling layers,
-since almost everything downstream depends on it.
+Raven is early — pre-1.0. The most useful contributions right now are on the
+compiler core (`compiler/src`), not the framework or tooling layers, since almost
+everything downstream depends on it.
 
 ## Where to start
 
-1. Read the [README](./README.md) first — it explains *why* `model` and
-   inferred `let`/`const` exist, which is the core design bet the rest of
-   the compiler builds on.
+1. Read the [README](./README.md) first — it explains why `model` and inferred
+   `let`/`const` exist, which is the core design bet the rest of the compiler
+   builds on.
 2. If your change touches the type system (`compiler/src/typechecker`,
-   `compiler/src/ast/nodes.ts`, or anything that changes what a program
-   means, not just how it's written), read
+   `compiler/src/ast/nodes.ts`, or anything that changes what a program means,
+   not just how it is written), read
    [`docs/type-intelligence-roadmap.md`](./docs/type-intelligence-roadmap.md)
-   first. It lays out which problems the compiler should solve on its own
-   vs. which genuinely need developer-facing syntax, and which order the
-   underlying inference/flow/project machinery needs to land in. New type
-   syntax proposed without reading this tends to get sent back for that
-   reason, so it's worth the ten minutes.
-3. Pick an open issue, or open one to propose a change if it's not listed.
+   first. It lays out which problems the compiler should solve on its own vs.
+   which genuinely need developer-facing syntax, and which order the underlying
+   inference/flow/project machinery needs to land in.
+3. Pick an open issue, or open one to propose a change if it is not listed.
 
 ## Local setup
 
@@ -42,14 +40,6 @@ pnpm build            # build the CLI + library
   §6 of `docs/type-intelligence-roadmap.md` in your PR description.
 - Update the relevant doc (`README.md`, `docs/`, or the roadmap doc) in the
   same PR if you are changing grammar or semantics — the docs and the parser
-  `compiler/tests/` (see `compiler/tests/parser.test.ts` for the pattern:
-  tokenize → parse → assert on the AST shape, or `compiler/tests/optimizer.test.ts`
-  for the source → optimize → emit → assert-on-JS pattern).
-- Run `npm test` and `npx tsc --noEmit` in `compiler/` before opening a PR.
-- If your change adds type-system surface area, answer the four questions
-  in §6 of `docs/type-intelligence-roadmap.md` in your PR description.
-- Update the relevant doc (`README.md`, `docs/`, or the roadmap doc) in the
-  same PR if you're changing grammar or semantics — the docs and the parser
   should never drift apart.
 
 ## Commit style

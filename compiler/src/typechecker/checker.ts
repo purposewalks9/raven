@@ -19,13 +19,7 @@ import { SymbolTable } from "./symbolTable.js";
 import { Binder, SymbolBinding } from "./binder.js";
 import { DiagnosticBag, Diagnostic } from "../diagnostics/index.js";
 import { WorkspaceRegistry } from "./registry.js";
-import {
-  sameType as sharedSameType,
-  isAssignableTo as sharedIsAssignableTo,
-  makeUnion,
-  formatType as sharedFormatType,
-  closestMatch,
-} from "./types.js";
+import { sameType as sharedSameType, isAssignableTo as sharedIsAssignableTo, formatType as sharedFormatType, closestMatch, optionalType, unionType } from "./types.js";
 
 export type FunctionSignature = { params: TypeAnnotation[]; returnType: TypeAnnotation };
 
@@ -336,18 +330,8 @@ export class TypeChecker {
     }
 
     if (isReturnTypeInferred) {
-      let inferred: TypeAnnotation = "any";
-      for (const returnType of this.inferredReturnTypes ?? []) {
-        if (inferred === "any") {
-          inferred = returnType;
-        } else if (!this.sameType(inferred, returnType)) {
-          this.diagnostics.error(
-            `Function '${node.name}' returns different types in different places: '${this.formatType(inferred)}' and '${this.formatType(returnType)}'`,
-            node.location,
-            `Add an explicit return type annotation (e.g. ': ${this.formatType(inferred)}') to resolve the ambiguity.`
-          );
-        }
-      }
+      const returns = this.inferredReturnTypes ?? [];
+      const inferred = returns.length === 0 ? "any" : this.bestCommonType(returns);
       signature.returnType = inferred;
       functionBinding.type = inferred;
     }
@@ -451,13 +435,8 @@ export class TypeChecker {
         if (node.elements.length === 0) {
           return { kind: "array", elementType: "any" };
         }
-        // Elements no longer have to be one exact type: `[1, "a"]` infers
-        // as `array<number | string>` instead of erroring. This is a
-        // Layer 2 case of §6's question 2 — the mixed-type array was
-        // already something a developer could mean, and union types now
-        // let the compiler describe it instead of rejecting it.
-        const elementType = makeUnion(node.elements.map(el => this.inferType(el)));
-        return { kind: "array", elementType };
+        const elementTypes = node.elements.map(element => this.inferType(element));
+        return { kind: "array", elementType: this.bestCommonType(elementTypes) };
       }
 
       case "ObjectLiteral": {
@@ -588,6 +567,40 @@ export class TypeChecker {
       default:
         throw new Error(`Cannot infer type for node type: ${(node as any).type}`);
     }
+  }
+
+  private bestCommonType(types: TypeAnnotation[]): TypeAnnotation {
+    if (types.length === 0) return "any";
+    if (types.some(type => type === "any")) return "any";
+
+    const [first, ...rest] = types;
+    if (first && rest.every(type => this.sameType(type, first))) {
+      return first;
+    }
+
+    if (types.every(type => typeof type === "object" && type.kind === "record")) {
+      return this.mergeRecordTypes(types as Extract<TypeAnnotation, { kind: "record" }>[]);
+    }
+
+    return unionType(types);
+  }
+
+  private mergeRecordTypes(records: Extract<TypeAnnotation, { kind: "record" }>[]): TypeAnnotation {
+    const allKeys = new Set<string>();
+    for (const record of records) {
+      for (const key of Object.keys(record.fields)) allKeys.add(key);
+    }
+
+    const fields: Record<string, TypeAnnotation> = {};
+    for (const key of allKeys) {
+      const presentTypes = records
+        .map(record => record.fields[key])
+        .filter((type): type is TypeAnnotation => type !== undefined);
+      const merged = this.bestCommonType(presentTypes);
+      fields[key] = presentTypes.length === records.length ? merged : optionalType(merged);
+    }
+
+    return { kind: "record", fields };
   }
 
   private sameType(left: TypeAnnotation, right: TypeAnnotation): boolean {

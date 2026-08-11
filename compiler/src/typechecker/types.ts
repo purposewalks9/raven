@@ -22,74 +22,98 @@ export function makeUnion(members: TypeAnnotation[]): TypeAnnotation {
 
 
 export function sameType(left: TypeAnnotation, right: TypeAnnotation): boolean {
-  if (left === "any" || right === "any") return true;
+  const normalizedLeft = normalizeType(left);
+  const normalizedRight = normalizeType(right);
 
-  if (typeof left === "string" && typeof right === "string") {
-    return left === right;
+  if (normalizedLeft === "any" || normalizedRight === "any") return true;
+
+  if (typeof normalizedLeft === "string" && typeof normalizedRight === "string") {
+    return normalizedLeft === normalizedRight;
   }
-  if (typeof left === "string" || typeof right === "string") {
+  if (typeof normalizedLeft === "string" || typeof normalizedRight === "string") {
     return false;
   }
-  if (left.kind !== right.kind) {
+  if (normalizedLeft.kind !== normalizedRight.kind) {
     return false;
   }
 
-  if (left.kind === "array" && right.kind === "array") {
-    return sameType(left.elementType, right.elementType);
+  if (normalizedLeft.kind === "array" && normalizedRight.kind === "array") {
+    return sameType(normalizedLeft.elementType, normalizedRight.elementType);
   }
 
-  if (left.kind === "record" && right.kind === "record") {
-    const leftKeys = Object.keys(left.fields);
-    const rightKeys = Object.keys(right.fields);
+  if (normalizedLeft.kind === "record" && normalizedRight.kind === "record") {
+    const leftKeys = Object.keys(normalizedLeft.fields);
+    const rightKeys = Object.keys(normalizedRight.fields);
     if (leftKeys.length !== rightKeys.length) return false;
     return leftKeys.every(key => {
-      const rightFieldType = right.fields[key];
-      return rightFieldType !== undefined && sameType(left.fields[key]!, rightFieldType);
+      const rightFieldType = normalizedRight.fields[key];
+      return rightFieldType !== undefined && sameType(normalizedLeft.fields[key]!, rightFieldType);
     });
   }
 
-  if (left.kind === "union" && right.kind === "union") {
-    if (left.types.length !== right.types.length) return false;
-    return left.types.every(l => right.types.some(r => sameType(l, r)));
+  if (normalizedLeft.kind === "optional" && normalizedRight.kind === "optional") {
+    return sameType(normalizedLeft.inner, normalizedRight.inner);
+  }
+
+  if (normalizedLeft.kind === "union" && normalizedRight.kind === "union") {
+    return normalizedLeft.variants.length === normalizedRight.variants.length
+      && normalizedLeft.variants.every(leftVariant => normalizedRight.variants.some(rightVariant => sameType(leftVariant, rightVariant)));
   }
 
   return false;
 }
 
-export function isAssignableTo(from: TypeAnnotation, to: TypeAnnotation): boolean {
-  if (from === "any" || to === "any") return true;
+/** Normalize internal compiler-created types so the checker can reason about
+ * optional and union values without requiring TypeScript-like syntax from Raven
+ * developers. `any` absorbs unions, nested unions are flattened, duplicate
+ * variants are removed, and one-member unions collapse back to their member.
+ */
+export function normalizeType(type: TypeAnnotation): TypeAnnotation {
+  if (typeof type === "string") return type;
 
-  
-  if (typeof from === "object" && from.kind === "union") {
-    return from.types.every(member => isAssignableTo(member, to));
+  if (type.kind === "array") {
+    return { kind: "array", elementType: normalizeType(type.elementType) };
   }
 
-
-  if (typeof to === "object" && to.kind === "union") {
-    return to.types.some(member => isAssignableTo(from, member));
+  if (type.kind === "record") {
+    const fields: Record<string, TypeAnnotation> = {};
+    for (const [key, fieldType] of Object.entries(type.fields)) {
+      fields[key] = normalizeType(fieldType);
+    }
+    return { kind: "record", fields };
   }
 
-  if (typeof from === "string" || typeof to === "string") {
-    return from === to;
+  if (type.kind === "optional") {
+    return { kind: "optional", inner: normalizeType(type.inner) };
   }
 
-  if (from.kind !== to.kind) return false;
+  const variants = type.variants.flatMap(variant => {
+    const normalized = normalizeType(variant);
+    return typeof normalized === "object" && normalized.kind === "union" ? normalized.variants : [normalized];
+  });
 
-  if (from.kind === "array" && to.kind === "array") {
-    return isAssignableTo(from.elementType, to.elementType);
+  if (variants.some(variant => variant === "any")) return "any";
+
+  const unique: TypeAnnotation[] = [];
+  for (const variant of variants) {
+    if (!unique.some(existing => sameType(existing, variant))) {
+      unique.push(variant);
+    }
   }
 
-  if (from.kind === "record" && to.kind === "record") {
-    const fromKeys = Object.keys(from.fields);
-    const toKeys = Object.keys(to.fields);
-    if (fromKeys.length !== toKeys.length) return false;
-    return toKeys.every(key => {
-      const fromFieldType = from.fields[key];
-      return fromFieldType !== undefined && isAssignableTo(fromFieldType, to.fields[key]!);
-    });
-  }
+  if (unique.length === 0) return "any";
+  if (unique.length === 1) return unique[0]!;
+  return { kind: "union", variants: unique };
+}
 
-  return false;
+export function optionalType(inner: TypeAnnotation): TypeAnnotation {
+  const normalized = normalizeType(inner);
+  if (typeof normalized === "object" && normalized.kind === "optional") return normalized;
+  return { kind: "optional", inner: normalized };
+}
+
+export function unionType(variants: TypeAnnotation[]): TypeAnnotation {
+  return normalizeType({ kind: "union", variants });
 }
 
 /**
@@ -101,53 +125,80 @@ export function isAssignableTo(from: TypeAnnotation, to: TypeAnnotation): boolea
  * adding TypeScript-like syntax before the compiler can reason about it.
  */
 export function isAssignableTo(source: TypeAnnotation, target: TypeAnnotation): boolean {
-  if (source === "any" || target === "any") return true;
+  const normalizedSource = normalizeType(source);
+  const normalizedTarget = normalizeType(target);
 
-  if (typeof source === "string" && typeof target === "string") {
-    return source === target;
+  if (normalizedSource === "any" || normalizedTarget === "any") return true;
+
+  if (typeof normalizedSource === "object" && normalizedSource.kind === "optional") {
+    return typeof normalizedTarget === "object" && normalizedTarget.kind === "optional"
+      && isAssignableTo(normalizedSource.inner, normalizedTarget.inner);
   }
-  if (typeof source === "string" || typeof target === "string") {
+
+  if (typeof normalizedTarget === "object" && normalizedTarget.kind === "optional") {
+    return isAssignableTo(normalizedSource, normalizedTarget.inner);
+  }
+
+  if (typeof normalizedTarget === "object" && normalizedTarget.kind === "union") {
+    return normalizedTarget.variants.some(variant => isAssignableTo(normalizedSource, variant));
+  }
+
+  if (typeof normalizedSource === "object" && normalizedSource.kind === "union") {
+    return normalizedSource.variants.every(variant => isAssignableTo(variant, normalizedTarget));
+  }
+
+  if (typeof normalizedSource === "string" && typeof normalizedTarget === "string") {
+    return normalizedSource === normalizedTarget;
+  }
+  if (typeof normalizedSource === "string" || typeof normalizedTarget === "string") {
     return false;
   }
-  if (source.kind !== target.kind) {
+  if (normalizedSource.kind !== normalizedTarget.kind) {
     return false;
   }
 
-  if (source.kind === "array" && target.kind === "array") {
-    return isAssignableTo(source.elementType, target.elementType);
+  if (normalizedSource.kind === "array" && normalizedTarget.kind === "array") {
+    return isAssignableTo(normalizedSource.elementType, normalizedTarget.elementType);
   }
 
-  if (source.kind === "record" && target.kind === "record") {
-    return Object.entries(target.fields).every(([key, targetField]) => {
-      const sourceField = source.fields[key];
-      return sourceField !== undefined && isAssignableTo(sourceField, targetField);
+  if (normalizedSource.kind === "record" && normalizedTarget.kind === "record") {
+    return Object.entries(normalizedTarget.fields).every(([key, targetField]) => {
+      const sourceField = normalizedSource.fields[key];
+      return sourceField === undefined
+        ? isOptionalType(targetField)
+        : isAssignableTo(sourceField, targetField);
     });
   }
 
   return false;
 }
 
+export function isOptionalType(type: TypeAnnotation): boolean {
+  const normalized = normalizeType(type);
+  return typeof normalized === "object" && normalized.kind === "optional";
+}
+
 export function formatType(type: TypeAnnotation | undefined): string {
   if (!type) return "unknown";
-  if (type === "any") return "any";
-  if (typeof type === "string") {
-    return type;
+  const normalized = normalizeType(type);
+  if (normalized === "any") return "any";
+  if (typeof normalized === "string") {
+    return normalized;
   }
-  if (type.kind === "array") {
-    return `${formatType(type.elementType)}[]`;
+  if (normalized.kind === "array") {
+    return `${formatType(normalized.elementType)}[]`;
   }
-  if (type.kind === "record") {
-    const fields = Object.entries(type.fields)
+  if (normalized.kind === "record") {
+    const fields = Object.entries(normalized.fields)
       .map(([key, fieldType]) => `${key}: ${formatType(fieldType)}`)
       .join(", ");
     return `{ ${fields} }`;
   }
-  if (type.kind === "union") {
-    if (type.types.length === 2 && type.types.includes("none")) {
-      const other = type.types.find(t => t !== "none")!;
-      return `${formatType(other)}?`;
-    }
-    return type.types.map(formatType).join(" | ");
+  if (normalized.kind === "optional") {
+    return `${formatType(normalized.inner)}?`;
+  }
+  if (normalized.kind === "union") {
+    return normalized.variants.map(formatType).join(" | ");
   }
   return "unknown";
 }

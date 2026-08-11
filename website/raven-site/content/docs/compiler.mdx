@@ -1,0 +1,61 @@
+---
+title: Compiler Architecture
+description: How Raven source becomes JavaScript, and where type intelligence lives in the compiler.
+---
+
+Raven is a compiler written in TypeScript for the JavaScript ecosystem. The goal
+is not to replace TypeScript as a toolchain language; the goal is to make Raven's
+compiler do more of the type work TypeScript asks developers to write manually.
+
+## Pipeline
+
+Raven source moves through these stages:
+
+1. **Lexer** — tokenizes source and records file/line/column locations for
+   diagnostics.
+2. **Parser** — builds the AST and recognizes declarations, expressions,
+   functions, imports, arrays, records, and `model` declarations.
+3. **Binder + SymbolTable** — records declarations, references, mutability,
+   type, and origin metadata for names visible in a file.
+4. **TypeChecker** — infers expression types, validates assignments and calls,
+   resolves models from the workspace registry, and reports diagnostics.
+5. **Optimizer** — simplifies obvious dead branches and unreachable code.
+6. **Emitter** — emits JavaScript.
+
+## Program model
+
+The binder tracks not only what a symbol is, but where it came from:
+
+- `local` — explicitly declared in this file
+- `inferred` — created from a value with no annotation
+- `import` — resolved from an import declaration
+- `model` — resolved from a published model shape
+- `builtin` — supplied by the compiler/runtime
+
+That origin metadata is the foundation for better future errors like “this field
+is required because it came from `model User` in `models.rv`.”
+
+## Type engine
+
+The type engine has two different checks:
+
+- `sameType(a, b)` asks whether two types are exactly the same.
+- `isAssignableTo(value, target)` asks whether a value can flow into an expected
+  type.
+
+That split matters. JavaScript and TypeScript code often uses compatible shapes
+that are not textually identical. Raven should understand compatibility without
+forcing developers to write `interface` declarations first.
+
+## Project model
+
+`model` declarations publish record shapes into a workspace registry shared by
+all files in a project. This is how Raven removes `export type` / `import type`
+for project-owned data shapes.
+
+```lua
+model user = { id: 1, name: "Ada" }
+```
+
+Every file can use `user` directly. If two files publish the same model name with
+different shapes, the compiler reports a conflict with a field-level diff.

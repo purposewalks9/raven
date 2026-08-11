@@ -3,8 +3,7 @@ title: Features
 description: What Raven can actually do today — language syntax, the model/workspace registry, diagnostics, the CLI, and editor tooling.
 ---
 
-Everything on this page is implemented and working in the current compiler
-(`v0.0.1`) — verified by running `raven check`/`raven run` against the
+Everything on this page is implemented and working in the current compiler — verified by running `raven check`/`raven run` against the
 examples in `examples/raven/`, not just described from source.
 
 ## Language basics
@@ -70,9 +69,19 @@ and `toString`.
 ### Types
 
 Raven currently understands `string`, `number`, `boolean`, `any`,
-`array<T>`, and inferred record shapes (`{ field: type, ... }`). Record
-shapes are structural — two records with the same fields and types are the
-same type, regardless of where they were written.
+`array<T>`, inferred record shapes (`{ field: type, ... }`), and internal
+compiler-derived optional/union shapes. Record shapes are structural, and values
+flow through assignability checks rather than only exact text matches.
+
+```lua
+const users = [
+  { name: "Ada", age: 37 },
+  { name: "Grace" }
+]
+```
+
+The compiler derives an element shape like `{ name: string, age: number? }` from
+the data, without asking for an `interface`.
 
 ## `model` and the Workspace Registry
 
@@ -156,8 +165,9 @@ Source goes through five stages, each its own module under `compiler/src/`:
 
 1. **Lexer** (`lexer/`) — hand-written, tracks line/column for every token.
 2. **Parser** (`parser/`) — recursive-descent, produces the AST in `ast/`.
-3. **Type checker** (`typechecker/`) — binder + symbol table per file, plus
-   the shared `WorkspaceRegistry` for `model`.
+3. **Type checker** (`typechecker/`) — binder + symbol table per file, exact
+   type identity, assignability, inferred optional/union shapes, plus the shared
+   `WorkspaceRegistry` for `model`.
 4. **Optimizer** (`optimizer/`) — currently does dead-branch elimination
    (`if true/false then ... end` collapses) and drops unreachable code
    after a `return`.
