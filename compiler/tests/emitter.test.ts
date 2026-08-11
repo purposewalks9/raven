@@ -39,6 +39,19 @@ describe("emitter", () => {
     expect(js).toContain("true");
   });
 
+  it("emits `none` as `null`", () => {
+    const ast: Program = {
+      type: "Program",
+      body: [{
+        type: "VariableDeclaration",
+        name: "middleName",
+        value: { type: "NoneLiteral" },
+      }],
+    };
+    const js = new Emitter().emit(ast);
+    expect(js).toContain("null");
+  });
+
   it("emits a variable declaration", () => {
     const ast: Program = {
       type: "Program",

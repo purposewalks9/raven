@@ -19,16 +19,22 @@ import { SymbolTable } from "./symbolTable.js";
 import { Binder, SymbolBinding } from "./binder.js";
 import { DiagnosticBag, Diagnostic } from "../diagnostics/index.js";
 import { WorkspaceRegistry } from "./registry.js";
-import { sameType as sharedSameType, isAssignableTo as sharedIsAssignableTo, formatType as sharedFormatType, closestMatch } from "./types.js";
+import {
+  sameType as sharedSameType,
+  isAssignableTo as sharedIsAssignableTo,
+  makeUnion,
+  formatType as sharedFormatType,
+  closestMatch,
+} from "./types.js";
 
 export type FunctionSignature = { params: TypeAnnotation[]; returnType: TypeAnnotation };
 
 export interface TypeCheckerOptions {
-  /** Shared across every file in a project. Omit for standalone single-file checks. */
+ 
   registry?: WorkspaceRegistry;
-  /** Which file this checker instance is checking — used for registry attribution. */
+ 
   file?: string;
-  /** Function signatures resolved from this file's `import` statements. */
+
   importedFunctions?: Map<string, FunctionSignature>;
 }
 
@@ -110,7 +116,7 @@ export class TypeChecker {
         const returnType = this.checkExpression(node.value);
         if (this.inferredReturnTypes) {
           this.inferredReturnTypes.push(returnType);
-        } else if (this.currentReturnType && !this.sameType(returnType, this.currentReturnType)) {
+        } else if (this.currentReturnType && !this.isAssignableTo(returnType, this.currentReturnType)) {
           this.diagnostics.error(
             `Return type mismatch: expected '${this.formatType(this.currentReturnType)}', got '${this.formatType(returnType)}'`,
             node.location
@@ -250,7 +256,7 @@ export class TypeChecker {
 
   private checkIfStatement(node: IfStatement): void {
     const conditionType = this.inferType(node.condition);
-    if (conditionType !== "boolean" && conditionType !== "any") {
+    if (!this.isAssignableTo(conditionType, "boolean")) {
       this.diagnostics.error(
         `If condition must be a boolean, got '${this.formatType(conditionType)}'`,
         node.condition.location
@@ -274,7 +280,7 @@ export class TypeChecker {
 
   private checkWhileStatement(node: WhileStatement): void {
     const conditionType = this.inferType(node.condition);
-    if (conditionType !== "boolean" && conditionType !== "any") {
+    if (!this.isAssignableTo(conditionType, "boolean")) {
       this.diagnostics.error(
         `While condition must be a boolean, got '${this.formatType(conditionType)}'`,
         node.condition.location
@@ -366,6 +372,9 @@ export class TypeChecker {
       case "BooleanLiteral":
         return "boolean";
 
+      case "NoneLiteral":
+        return "none";
+
       case "Identifier": {
         const symbol = this.symbolTable.lookup(node.name);
         if (symbol) {
@@ -398,7 +407,7 @@ export class TypeChecker {
 
       case "UnaryExpression": {
         const argType = this.inferType(node.argument);
-        if (argType !== "boolean" && argType !== "any") {
+        if (!this.isAssignableTo(argType, "boolean")) {
           this.diagnostics.error(
             `Operator 'not' requires a boolean operand, got '${this.formatType(argType)}'`,
             node.location
@@ -442,16 +451,12 @@ export class TypeChecker {
         if (node.elements.length === 0) {
           return { kind: "array", elementType: "any" };
         }
-        const elementType = this.inferType(node.elements[0]!);
-        for (const el of node.elements) {
-          const elType = this.inferType(el);
-          if (!this.sameType(elType, elementType) && elementType !== "any" && elType !== "any") {
-            this.diagnostics.error(
-              `Array elements must all have the same type. Found '${this.formatType(elementType)}' and '${this.formatType(elType)}'`,
-              el.location
-            );
-          }
-        }
+        // Elements no longer have to be one exact type: `[1, "a"]` infers
+        // as `array<number | string>` instead of erroring. This is a
+        // Layer 2 case of §6's question 2 — the mixed-type array was
+        // already something a developer could mean, and union types now
+        // let the compiler describe it instead of rejecting it.
+        const elementType = makeUnion(node.elements.map(el => this.inferType(el)));
         return { kind: "array", elementType };
       }
 
@@ -531,7 +536,11 @@ export class TypeChecker {
         }
 
         if (["==", "!=", "<", "<=", ">", ">="].includes(node.operator)) {
-          if (!this.sameType(leftType, rightType)) {
+          // "Comparable" means overlap, not identity: a `string | number`
+          // can meaningfully be compared against a bare `string`, even
+          // though the two aren't the same type.
+          const comparable = this.isAssignableTo(leftType, rightType) || this.isAssignableTo(rightType, leftType);
+          if (!comparable) {
             this.diagnostics.error(
               `Cannot compare '${this.formatType(leftType)}' with '${this.formatType(rightType)}'`,
               node.location
@@ -543,24 +552,15 @@ export class TypeChecker {
         if (node.operator === "+") {
           if (typeof leftType === "object" && leftType.kind === "array") {
             if (typeof rightType === "object" && rightType.kind === "array") {
-              if (!this.sameType(leftType.elementType, rightType.elementType)) {
-                this.diagnostics.error(
-                  `Cannot concatenate arrays of different types: '${this.formatType(leftType.elementType)}[]' + '${this.formatType(rightType.elementType)}[]'`,
-                  node.location
-                );
-              }
-              return leftType;
+              // Concatenating arrays of different element types no longer
+              // errors — the result is `array<union of both>`, the same
+              // move as mixed-type array literals above.
+              return { kind: "array", elementType: makeUnion([leftType.elementType, rightType.elementType]) };
             }
 
-            if (this.sameType(leftType.elementType, rightType)) {
-              return leftType;
-            }
-
-            this.diagnostics.error(
-              `Cannot append '${this.formatType(rightType)}' to array of '${this.formatType(leftType.elementType)}'`,
-              node.location
-            );
-            return leftType;
+            // Appending a value widens the element type if it wasn't
+            // already covered, rather than requiring an exact match.
+            return { kind: "array", elementType: makeUnion([leftType.elementType, rightType]) };
           }
 
           if (leftType === "string" || rightType === "string") {

@@ -904,7 +904,10 @@ describe("TypeChecker", () => {
       expect(errors).toEqual([]);
     });
 
-    it("rejects array with mixed types", () => {
+    it("infers a union element type for mixed-type arrays instead of rejecting them", () => {
+      // Layer 2 (docs/type-intelligence-roadmap.md §5): union types let the
+      // compiler describe `[1, "two", 3]` as `array<number | string>`
+      // instead of requiring every element to already be one exact type.
       const ast: Program = {
         type: "Program",
         body: [{
@@ -918,11 +921,11 @@ describe("TypeChecker", () => {
               { type: "NumberLiteral", value: 3 },
             ],
           },
+          typeAnnotation: { kind: "array", elementType: { kind: "union", types: ["number", "string"] } },
         }],
       };
       const errors = new TypeChecker().check(ast);
-      expect(errors.length).toBe(1);
-      expect(errors[0].message).toContain("same type");
+      expect(errors).toEqual([]);
     });
 
     it("allows array indexing", () => {
@@ -1017,7 +1020,10 @@ describe("TypeChecker", () => {
       const errors = new TypeChecker().check(ast);
       expect(errors).toEqual([]);
     });
-it("rejects appending wrong type to array", () => {
+it("widens the element type to a union instead of rejecting an append", () => {
+  // Same Layer 2 move as the mixed-array-literal case above, applied to
+  // `+`: appending a value of a new type widens `array<number>` to
+  // `array<number | string>` rather than erroring.
   const ast: Program = {
     type: "Program",
     body: [{
@@ -1032,11 +1038,11 @@ it("rejects appending wrong type to array", () => {
         },
         right: { type: "StringLiteral", value: "oops" },
       },
+      typeAnnotation: { kind: "array", elementType: { kind: "union", types: ["number", "string"] } },
     }],
   };
   const errors = new TypeChecker().check(ast);
-  expect(errors.length).toBe(1);
-  expect(errors[0].message).toContain("Cannot append");
+  expect(errors).toEqual([]);
 });
   });
 

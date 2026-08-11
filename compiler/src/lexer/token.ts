@@ -43,11 +43,12 @@ export const KEYWORDS = new Set([
   "model",
   "import",
   "from",
+  "none",
 ]);
 
 const TWO_CHARACTER_OPERATORS = new Set(["==", "!=", "<=", ">="]);
 const SINGLE_CHARACTER_PUNCTUATION = new Set([
-  "+", "-", "*", "/", "%", "=", "<", ">", "!", ":", ",", ".", ";", "(", ")", "{", "}", "[", "]",
+  "+", "-", "*", "/", "%", "=", "<", ">", "!", ":", ",", ".", ";", "(", ")", "{", "}", "[", "]", "?", "|",
 ]);
 
 export function tokenize(source: string, file = "<anonymous>"): Token[] {

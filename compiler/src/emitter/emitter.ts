@@ -9,6 +9,7 @@ import {
   Identifier,
   NumberLiteral,
   BooleanLiteral,
+  NoneLiteral,
   BinaryExpression,
   Assignment,
   FunctionDeclaration,
@@ -179,6 +180,9 @@ export class Emitter {
         break;
       case "BooleanLiteral":
         this.emitBooleanLiteral(node);
+        break;
+      case "NoneLiteral":
+        this.write("null");
         break;
       case "BinaryExpression":
         this.emitBinaryExpression(node);
