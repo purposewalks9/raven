@@ -44,8 +44,7 @@ function findRavenFiles(root: string): string[] {
 }
 
 function resolveImportPath(fromFile: string, source: string, knownFiles: Set<string>): string | undefined {
-  // No bare-package resolution (e.g. `import x from "some-lib"`) yet —
-  // only relative/absolute paths within the project.
+
   if (!source.startsWith(".") && !isAbsolute(source)) return undefined;
 
   const base = resolve(dirname(fromFile), source);
@@ -53,18 +52,7 @@ function resolveImportPath(fromFile: string, source: string, knownFiles: Set<str
   return candidates.find(candidate => knownFiles.has(candidate));
 }
 
-/**
- * Compiles an entire project directory (or a single file) with full
- * cross-file `model` resolution.
- *
- * Function signatures are always fully annotated by the parser, so imports
- * can be resolved with one static AST scan — no need to run the checker
- * first. Models are different: their shape is inferred, so we run the
- * checker in two rounds. Round 1 populates the WorkspaceRegistry (its
- * diagnostics are discarded, since files may reference models that haven't
- * been published yet on a first pass). Round 2 runs against the now-complete
- * registry and its diagnostics are authoritative.
- */
+
 export function buildProject(root: string): ProjectResult {
   const rootPath = resolve(root);
   const isDir = statSync(rootPath).isDirectory();
@@ -90,8 +78,6 @@ export function buildProject(root: string): ProjectResult {
 
   const knownFiles = new Set(files.map(f => f.path));
 
-  // Static signature scan: function params/return types are always
-  // explicitly annotated, so exports can be resolved without checking.
   const exportedFunctions = new Map<string, Map<string, FunctionSignature>>();
   for (const file of files) {
     const signatures = new Map<string, FunctionSignature>();
@@ -126,7 +112,7 @@ export function buildProject(root: string): ProjectResult {
 
   const registry = new WorkspaceRegistry();
 
-  // Round 1 — populate the registry. Diagnostics discarded on purpose.
+
   for (const file of files) {
     const checker = new TypeChecker({
       registry,
@@ -137,7 +123,6 @@ export function buildProject(root: string): ProjectResult {
   }
 
 
-// Round 2 — registry is complete; these diagnostics are the real answer.
   for (const file of files) {
     const checker = new TypeChecker({
       registry,

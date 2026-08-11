@@ -1,0 +1,10 @@
+let id = "abc";
+let middleName = null;
+let middleName2 = "Rae";
+let mixed = [1, "two", 3];
+let combined = ([1, 2] + ["a", "b"]);
+function describe(value) {
+  return String(value);
+}
+console.log(describe(id));
+console.log(String(mixed));

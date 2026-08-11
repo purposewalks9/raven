@@ -23,9 +23,9 @@ everything downstream depends on it.
 ```bash
 git clone <your-fork-url>
 cd raven/compiler
-npm install
-npm test                # run the vitest suite (lexer/parser/checker/emitter/optimizer)
-npm run build           # build the CLI + library
+pnpm install
+pnpm test                # run the vitest suite (lexer/parser/checker/emitter/optimizer)
+pnpm build            # build the CLI + library
 ```
 
 ## Workflow

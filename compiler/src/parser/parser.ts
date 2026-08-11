@@ -1,5 +1,6 @@
 import { Token, TokenKind } from "../lexer/token.js";
 import { Program, Statement, Expression, Parameter, TypeAnnotation } from "../ast/nodes.js";
+import { makeUnion } from "../typechecker/types.js";
 
 export class Parser {
     private pos = 0;
@@ -403,6 +404,11 @@ parsePrimary(): Expression {
             return this.withLocation({ type: "BooleanLiteral", value: token.value === "true" }, token.location);
         }
 
+        if (this.checkKeyword("none")) {
+            this.advance();
+            return this.withLocation({ type: "NoneLiteral" }, token.location);
+        }
+
         if (this.peek().value === "[") {
             return this.parseArrayLiteral();
         }
@@ -463,21 +469,45 @@ parsePrimary(): Expression {
         this.expect("}");
         return this.withLocation({ type: "ObjectLiteral", properties }, start);
     }
+    // Entry point: `T`, `T?`, or `T | U | V` (any member of a union may
+    // itself carry a trailing `?`, e.g. `string? | number`).
     private parseTypeAnnotation(): TypeAnnotation {
+        const members: TypeAnnotation[] = [this.parseTypeAnnotationAtom()];
+
+        while (this.peek().value === "|") {
+            this.advance();
+            members.push(this.parseTypeAnnotationAtom());
+        }
+
+        return members.length === 1 ? members[0]! : makeUnion(members);
+    }
+
+    // One type name (or `array<...>`), plus an optional trailing `?`. `T?`
+    // is sugar for `T | none` — see the comment on TypeAnnotation's `union`
+    // kind in ast/nodes.ts for why this doesn't get its own representation.
+    private parseTypeAnnotationAtom(): TypeAnnotation {
         const token = this.peek();
         if (token.kind !== TokenKind.Identifier) {
             throw new Error(`Expected a type name, got: ${token.value} (${token.kind})`);
         }
         this.advance();
 
+        let base: TypeAnnotation;
         if (token.value === "array") {
             this.expect("<");
             const elementType = this.parseTypeAnnotation();
             this.expect(">");
-            return { kind: "array", elementType };
+            base = { kind: "array", elementType };
+        } else {
+            base = token.value as TypeAnnotation;
         }
 
-        return token.value as TypeAnnotation;
+        if (this.peek().value === "?") {
+            this.advance();
+            return makeUnion([base, "none"]);
+        }
+
+        return base;
     }
 
     private withLocation<T extends object>(node: T, location = this.peek().location): T & { location: Token["location"] } {

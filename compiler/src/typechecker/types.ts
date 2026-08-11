@@ -1,5 +1,26 @@
 import { TypeAnnotation } from "../ast/nodes.js";
 
+export function makeUnion(members: TypeAnnotation[]): TypeAnnotation {
+  const flattened: TypeAnnotation[] = [];
+  for (const member of members) {
+    if (typeof member === "object" && member.kind === "union") {
+      flattened.push(...member.types);
+    } else {
+      flattened.push(member);
+    }
+  }
+
+  const deduped: TypeAnnotation[] = [];
+  for (const candidate of flattened) {
+    if (!deduped.some(existing => sameType(existing, candidate))) {
+      deduped.push(candidate);
+    }
+  }
+
+  return deduped.length === 1 ? deduped[0]! : { kind: "union", types: deduped };
+}
+
+
 export function sameType(left: TypeAnnotation, right: TypeAnnotation): boolean {
   const normalizedLeft = normalizeType(left);
   const normalizedRight = normalizeType(right);
@@ -204,11 +225,6 @@ function levenshtein(a: string, b: string): number {
   return grid[rows - 1]![cols - 1]!;
 }
 
-/**
- * Finds the closest name to `target` among `candidates`, for "did you mean"
- * hints. Only suggests when the typo is plausibly close — short random
- * unrelated names shouldn't get suggested just because nothing else matched.
- */
 export function closestMatch(target: string, candidates: string[]): string | undefined {
   let best: string | undefined;
   let bestDistance = Infinity;
@@ -231,11 +247,7 @@ export type ShapeDiffEntry =
   | { kind: "removed"; field: string; type: TypeAnnotation }
   | { kind: "changed"; field: string; from: TypeAnnotation; to: TypeAnnotation };
 
-/**
- * Field-by-field diff between two record shapes — used to explain *why*
- * two `model` declarations of the same name conflict, instead of just
- * saying "different shape" and leaving the reader to spot it themselves.
- */
+
 export function diffShapes(previous: TypeAnnotation, next: TypeAnnotation): ShapeDiffEntry[] {
   if (typeof previous === "string" || typeof next === "string") return [];
   if (previous.kind !== "record" || next.kind !== "record") return [];
