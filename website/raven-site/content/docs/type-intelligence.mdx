@@ -1,0 +1,87 @@
+---
+title: Type Intelligence
+description: Raven's plan for making the compiler infer TypeScript-like types automatically instead of asking developers to declare them.
+---
+
+Raven's type-system direction is simple:
+
+> The programmer describes the data. The compiler manages the types.
+
+TypeScript gives developers tools like `interface`, unions, optional fields,
+generics, `keyof`, declaration files, and type imports. Raven should solve the
+same underlying problems inside the compiler first, then add syntax only where
+human intent is genuinely ambiguous.
+
+## What shipped in this step
+
+The compiler now has internal support for optional and union type shapes:
+
+```text
+number?
+number | string
+{ name: string, age: number? }
+```
+
+This is mostly compiler machinery. Raven code does not need to start with a new
+`interface` block. Instead, the checker can infer richer types from data.
+
+## Optional record fields from data
+
+If an array contains records with overlapping but not identical fields, Raven now
+computes a best common record shape:
+
+```lua
+const users = [
+  { name: "Ada", age: 37 },
+  { name: "Grace" }
+]
+```
+
+The compiler derives:
+
+```text
+array<{ name: string, age: number? }>
+```
+
+That is the important Raven move: the user wrote data once, and the compiler
+found the reusable shape.
+
+## Union inference
+
+If a collection or inferred function return has multiple compatible possibilities,
+the compiler can represent that internally as a union:
+
+```lua
+const values = [1, "missing"]
+```
+
+The compiler derives:
+
+```text
+array<number | string>
+```
+
+For inferred function returns, different return types become a derived union
+instead of immediately forcing the developer to write an annotation.
+
+## What is intentionally not next
+
+Raven should not rush to add TypeScript's surface syntax:
+
+- no `interface` yet
+- no generics yet
+- no `keyof`, mapped types, or conditional types yet
+- no frontend/DOM type system yet
+
+Those features are useful, but adding the syntax before the engine can infer,
+assign, narrow, and explain the types would make Raven a weaker TypeScript clone.
+
+## What comes next
+
+1. Better assignability diagnostics for missing required fields and bad union
+   branches.
+2. Flow narrowing for checks like `typeof x == "string"`.
+3. More project intelligence: publish inferred module/API shapes, not just
+   `model` declarations.
+4. Library intelligence: ship compiler-generated API metadata instead of asking
+   humans to maintain declaration files.

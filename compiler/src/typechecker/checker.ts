@@ -19,7 +19,7 @@ import { SymbolTable } from "./symbolTable.js";
 import { Binder, SymbolBinding } from "./binder.js";
 import { DiagnosticBag, Diagnostic } from "../diagnostics/index.js";
 import { WorkspaceRegistry } from "./registry.js";
-import { sameType as sharedSameType, formatType as sharedFormatType, closestMatch } from "./types.js";
+import { sameType as sharedSameType, isAssignableTo as sharedIsAssignableTo, formatType as sharedFormatType, closestMatch, optionalType, unionType } from "./types.js";
 
 export type FunctionSignature = { params: TypeAnnotation[]; returnType: TypeAnnotation };
 
@@ -132,7 +132,7 @@ export class TypeChecker {
   private checkDeclaration(node: VariableDeclaration | ConstantDeclaration): void {
     const actualType = this.inferType(node.value);
 
-    if (node.typeAnnotation && !this.sameType(node.typeAnnotation, actualType)) {
+    if (node.typeAnnotation && !this.isAssignableTo(actualType, node.typeAnnotation)) {
       this.diagnostics.error(
         `Type mismatch in declaration of '${node.name}': expected '${this.formatType(node.typeAnnotation)}', but got '${this.formatType(actualType)}'`,
         node.location,
@@ -142,8 +142,8 @@ export class TypeChecker {
 
     const type = node.typeAnnotation ?? actualType;
     const constant = node.type === "ConstantDeclaration";
-    const binding = this.binder.declare(node.name, constant ? "constant" : "variable", type, node.location);
-    const success = this.symbolTable.declare(node.name, { type, constant, binding });
+    const binding = this.binder.declare(node.name, constant ? "constant" : "variable", type, node.location, node.typeAnnotation ? "local" : "inferred");
+    const success = this.symbolTable.declare(node.name, { type, constant, binding, origin: binding.origin });
 
     if (!success) {
       this.diagnostics.error(`'${node.name}' has already been declared.`, node.location);
@@ -160,7 +160,7 @@ export class TypeChecker {
       type = node.typeAnnotation ?? "any";
     } else {
       const actualType = this.inferType(node.value);
-      if (node.typeAnnotation && !this.sameType(node.typeAnnotation, actualType)) {
+      if (node.typeAnnotation && !this.isAssignableTo(actualType, node.typeAnnotation)) {
         this.diagnostics.error(
           `Type mismatch in model '${node.name}': expected '${this.formatType(node.typeAnnotation)}', but got '${this.formatType(actualType)}'`,
           node.location
@@ -169,10 +169,10 @@ export class TypeChecker {
       type = node.typeAnnotation ?? actualType;
     }
 
-    const binding = this.binder.declare(node.name, "model", type, node.location);
+    const binding = this.binder.declare(node.name, "model", type, node.location, "model", node.external ? "external" : this.file);
 
     // Visible immediately in the file that publishes it, same as a const.
-    const success = this.symbolTable.declare(node.name, { type, constant: true, binding });
+    const success = this.symbolTable.declare(node.name, { type, constant: true, binding, origin: binding.origin, source: binding.source });
     if (!success) {
       this.diagnostics.error(`'${node.name}' has already been declared.`, node.location);
     }
@@ -194,7 +194,7 @@ export class TypeChecker {
       const imported = this.importedFunctions.get(name);
 
       if (imported) {
-        const binding = this.binder.declare(name, "function", imported.returnType, node.location);
+        const binding = this.binder.declare(name, "function", imported.returnType, node.location, "import", node.source);
         this.functionSignatures.set(name, { ...imported, binding });
         continue;
       }
@@ -240,7 +240,7 @@ export class TypeChecker {
     }
 
     const valueType = this.inferType(node.value);
-    if (!this.sameType(valueType, symbol.type)) {
+    if (!this.isAssignableTo(valueType, symbol.type)) {
       this.diagnostics.error(
         `Type mismatch in assignment to '${node.name}': expected '${this.formatType(symbol.type)}', got '${this.formatType(valueType)}'`,
         node.location
@@ -296,7 +296,7 @@ export class TypeChecker {
     const paramTypes: TypeAnnotation[] = node.parameters.map(p => p.typeAnnotation ?? "any");
     const isReturnTypeInferred = node.returnType === undefined;
 
-    const functionBinding = this.binder.declare(node.name, "function", node.returnType ?? "any", node.location);
+    const functionBinding = this.binder.declare(node.name, "function", node.returnType ?? "any", node.location, "local", this.file);
     const signature = {
       params: paramTypes,
       returnType: node.returnType ?? "any",
@@ -321,8 +321,8 @@ export class TypeChecker {
       seenParameters.add(param.name);
 
       const paramType = param.typeAnnotation ?? "any";
-      const paramBinding = this.binder.declare(param.name, "parameter", paramType, param.location ?? node.location);
-      this.symbolTable.declare(param.name, { type: paramType, constant: false, binding: paramBinding });
+      const paramBinding = this.binder.declare(param.name, "parameter", paramType, param.location ?? node.location, param.typeAnnotation ? "local" : "inferred");
+      this.symbolTable.declare(param.name, { type: paramType, constant: false, binding: paramBinding, origin: paramBinding.origin });
     }
 
     for (const stmt of node.body) {
@@ -330,18 +330,8 @@ export class TypeChecker {
     }
 
     if (isReturnTypeInferred) {
-      let inferred: TypeAnnotation = "any";
-      for (const returnType of this.inferredReturnTypes ?? []) {
-        if (inferred === "any") {
-          inferred = returnType;
-        } else if (!this.sameType(inferred, returnType)) {
-          this.diagnostics.error(
-            `Function '${node.name}' returns different types in different places: '${this.formatType(inferred)}' and '${this.formatType(returnType)}'`,
-            node.location,
-            `Add an explicit return type annotation (e.g. ': ${this.formatType(inferred)}') to resolve the ambiguity.`
-          );
-        }
-      }
+      const returns = this.inferredReturnTypes ?? [];
+      const inferred = returns.length === 0 ? "any" : this.bestCommonType(returns);
       signature.returnType = inferred;
       functionBinding.type = inferred;
     }
@@ -377,7 +367,7 @@ export class TypeChecker {
         if (published) {
           let binding = this.externalModelBindings.get(node.name);
           if (!binding) {
-            binding = this.binder.declare(node.name, "model", published.type, published.location);
+            binding = this.binder.declare(node.name, "model", published.type, published.location, "model", published.file);
             this.externalModelBindings.set(node.name, binding);
           }
           this.binder.reference(binding, node.location);
@@ -428,7 +418,7 @@ export class TypeChecker {
         node.arguments.forEach((arg, i) => {
           const argType = this.inferType(arg);
           const expectedType = signature.params[i];
-          if (expectedType && expectedType !== "any" && !this.sameType(argType, expectedType)) {
+          if (expectedType && expectedType !== "any" && !this.isAssignableTo(argType, expectedType)) {
             this.diagnostics.error(
               `Argument ${i + 1} of '${node.callee}': expected '${this.formatType(expectedType)}', got '${this.formatType(argType)}'`,
               arg.location
@@ -442,17 +432,8 @@ export class TypeChecker {
         if (node.elements.length === 0) {
           return { kind: "array", elementType: "any" };
         }
-        const elementType = this.inferType(node.elements[0]!);
-        for (const el of node.elements) {
-          const elType = this.inferType(el);
-          if (!this.sameType(elType, elementType) && elementType !== "any" && elType !== "any") {
-            this.diagnostics.error(
-              `Array elements must all have the same type. Found '${this.formatType(elementType)}' and '${this.formatType(elType)}'`,
-              el.location
-            );
-          }
-        }
-        return { kind: "array", elementType };
+        const elementTypes = node.elements.map(element => this.inferType(element));
+        return { kind: "array", elementType: this.bestCommonType(elementTypes) };
       }
 
       case "ObjectLiteral": {
@@ -590,8 +571,46 @@ export class TypeChecker {
     }
   }
 
+  private bestCommonType(types: TypeAnnotation[]): TypeAnnotation {
+    if (types.length === 0) return "any";
+    if (types.some(type => type === "any")) return "any";
+
+    const [first, ...rest] = types;
+    if (first && rest.every(type => this.sameType(type, first))) {
+      return first;
+    }
+
+    if (types.every(type => typeof type === "object" && type.kind === "record")) {
+      return this.mergeRecordTypes(types as Extract<TypeAnnotation, { kind: "record" }>[]);
+    }
+
+    return unionType(types);
+  }
+
+  private mergeRecordTypes(records: Extract<TypeAnnotation, { kind: "record" }>[]): TypeAnnotation {
+    const allKeys = new Set<string>();
+    for (const record of records) {
+      for (const key of Object.keys(record.fields)) allKeys.add(key);
+    }
+
+    const fields: Record<string, TypeAnnotation> = {};
+    for (const key of allKeys) {
+      const presentTypes = records
+        .map(record => record.fields[key])
+        .filter((type): type is TypeAnnotation => type !== undefined);
+      const merged = this.bestCommonType(presentTypes);
+      fields[key] = presentTypes.length === records.length ? merged : optionalType(merged);
+    }
+
+    return { kind: "record", fields };
+  }
+
   private sameType(left: TypeAnnotation, right: TypeAnnotation): boolean {
     return sharedSameType(left, right);
+  }
+
+  private isAssignableTo(source: TypeAnnotation, target: TypeAnnotation): boolean {
+    return sharedIsAssignableTo(source, target);
   }
 
   private formatType(type: TypeAnnotation | undefined): string {

@@ -202,3 +202,5 @@ export type TypeAnnotation =
     | "any" 
     | { kind: "array"; elementType: TypeAnnotation }
     | { kind: "record"; fields: Record<string, TypeAnnotation> }
+    | { kind: "optional"; inner: TypeAnnotation }
+    | { kind: "union"; variants: TypeAnnotation[] }

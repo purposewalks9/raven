@@ -1,0 +1,98 @@
+---
+title: Getting Started
+description: Install Raven, create a project, run a file, and understand the core syntax you can use today.
+---
+
+Raven is early, but the compiler is already usable for small typed programs that
+compile to JavaScript.
+
+## Install
+
+```bash
+npm install -g raven-lang
+```
+
+From the repository, work inside the compiler package:
+
+```bash
+cd compiler
+npm install
+npm test
+npm run build
+```
+
+## Create a project
+
+```bash
+raven new hello-raven
+cd hello-raven
+raven run main.rv
+```
+
+A Raven file is indentation-friendly and block-delimited with `end`:
+
+```lua
+const greeting = "hello"
+let count = 3
+
+fn shout(name: string): string
+  return greeting + ", " + name
+end
+
+print(shout("Raven"))
+```
+
+## Bindings
+
+Use `const` when a value should not be reassigned and `let` when it can change.
+The compiler infers the type from the value unless you add an annotation to lock
+intent:
+
+```lua
+const user = { id: 1, name: "Ada" }
+let retries: number = 0
+retries = retries + 1
+```
+
+Raven currently understands these annotations:
+
+```lua
+const name: string = "Ada"
+const age: number = 37
+const active: boolean = true
+const ids: array<number> = [1, 2, 3]
+```
+
+Record shapes are inferred from object literals. You normally do not write a
+separate interface for them.
+
+## Share data with `model`
+
+`model` publishes an inferred shape to the whole project. Other files use it by
+name with no type import.
+
+```lua
+// models.rv
+model user = { id: 1, name: "Ada", plan: "pro" }
+```
+
+```lua
+// app.rv
+fn showUser(): string
+  print(user.name)
+  return user.plan
+end
+```
+
+## Check and build
+
+```bash
+raven check .
+raven build main.rv dist/main.js
+raven run main.rv
+raven fmt main.rv
+```
+
+Use `raven check .` for project-wide model resolution. The compiler scans all
+`.rv` files, publishes models into the workspace registry, then type-checks each
+file against that shared view.

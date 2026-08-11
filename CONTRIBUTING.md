@@ -1,37 +1,46 @@
-# Contributing to Nova
+# Contributing to Raven
 
-Nova is early — pre-Phase-0-complete (see `language/roadmap.md`). The most
-useful contributions right now are on the compiler core, not the framework
-or tooling layers, since almost everything downstream depends on it.
+Raven is early — pre-1.0. The most useful contributions right now are on the
+compiler core (`compiler/src`), not the framework or tooling layers, since almost
+everything downstream depends on it.
 
 ## Where to start
 
-1. Read `language/specification.md` and `language/syntax.md` first —
-   they explain *why* the grammar looks the way it does.
-2. Check `language/roadmap.md` for the current phase and open questions.
-3. Pick an unchecked item from the current phase, or open an issue to
-   propose one if it's not listed.
+1. Read the [README](./README.md) first — it explains why `model` and inferred
+   `let`/`const` exist, which is the core design bet the rest of the compiler
+   builds on.
+2. If your change touches the type system (`compiler/src/typechecker`,
+   `compiler/src/ast/nodes.ts`, or anything that changes what a program means,
+   not just how it is written), read
+   [`docs/type-intelligence-roadmap.md`](./docs/type-intelligence-roadmap.md)
+   first. It lays out which problems the compiler should solve on its own vs.
+   which genuinely need developer-facing syntax, and which order the underlying
+   inference/flow/project machinery needs to land in.
+3. Pick an open issue, or open one to propose a change if it is not listed.
 
 ## Local setup
 
 ```bash
 git clone <your-fork-url>
-cd nova
-pnpm install
-cd compiler && pnpm test        # run the parser test suite
-pnpm build                       # build the compiler + packages
+cd raven/compiler
+npm install
+npm test                # run the vitest suite (lexer/parser/checker/emitter/optimizer)
+npm run build           # build the CLI + library
 ```
 
 ## Workflow
 
 - Branch off `main`: `feature/<short-description>` or `fix/<short-description>`.
-- Every change to `compiler/src/**` should come with a test in the same
-  folder (see `compiler/src/parser/parser.test.ts` for the pattern:
-  tokenize → parse → assert on the AST shape).
-- Run `pnpm test` and `npx tsc --noEmit` in the affected package before
-  opening a PR — CI (`.github/workflows/ci.yml`) runs both on every push.
-- Update the relevant `language/*.md` doc in the same PR if you're changing
-  grammar or semantics — the docs and the parser should never drift apart.
+- Every change to `compiler/src/**` should come with a test in
+  `compiler/tests/` (see `compiler/tests/parser.test.ts` for the tokenize →
+  parse → assert pattern, or `compiler/tests/optimizer.test.ts` for the source
+  → optimize → emit → assert-on-JS pattern).
+- Run `npm test` and `npx tsc --noEmit` in `compiler/` before opening a PR.
+- If your change adds type-system surface area, answer the four questions in
+  §6 of `docs/type-intelligence-roadmap.md` in your PR description.
+- Update the relevant doc (`README.md`, `docs/`, or the roadmap doc) in the
+  same PR if you are changing grammar or semantics — the docs and the parser
+  should never drift apart.
 
 ## Commit style
 
@@ -42,12 +51,14 @@ Conventional-ish, not strictly enforced yet:
 
 ## Versioning
 
-Uses [changesets](https://github.com/changesets/changesets). After a PR
-that changes published package behavior:
+Uses [changesets](https://github.com/changesets/changesets). After a PR that
+changes published package behavior:
+
 ```bash
 pnpm changeset
 ```
-and follow the prompts — don't hand-edit package versions.
+
+and follow the prompts — do not hand-edit package versions.
 
 ## Code of conduct
 

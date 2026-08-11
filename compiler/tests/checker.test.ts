@@ -904,7 +904,7 @@ describe("TypeChecker", () => {
       expect(errors).toEqual([]);
     });
 
-    it("rejects array with mixed types", () => {
+    it("infers a union for arrays with mixed scalar types", () => {
       const ast: Program = {
         type: "Program",
         body: [{
@@ -921,8 +921,7 @@ describe("TypeChecker", () => {
         }],
       };
       const errors = new TypeChecker().check(ast);
-      expect(errors.length).toBe(1);
-      expect(errors[0].message).toContain("same type");
+      expect(errors).toEqual([]);
     });
 
     it("allows array indexing", () => {
@@ -1276,5 +1275,115 @@ it("rejects appending wrong type to array", () => {
       expect(errors[0].message).toContain("Cannot reassign");
       expect(errors[0].message).toContain("const");
     });
+
+    it("allows records with extra inferred fields to flow into a narrower annotation", () => {
+      const ast: Program = {
+        type: "Program",
+        body: [{
+          type: "VariableDeclaration",
+          name: "user",
+          typeAnnotation: { kind: "record", fields: { name: "string" } },
+          value: {
+            type: "ObjectLiteral",
+            properties: [
+              { key: "name", value: { type: "StringLiteral", value: "Ada" } },
+              { key: "age", value: { type: "NumberLiteral", value: 37 } },
+            ],
+          },
+        }],
+      };
+
+      const errors = new TypeChecker().check(ast);
+      expect(errors).toEqual([]);
+    });
+
+    it("infers optional fields when array records have missing keys", () => {
+      const ast: Program = {
+        type: "Program",
+        body: [{
+          type: "VariableDeclaration",
+          name: "users",
+          typeAnnotation: {
+            kind: "array",
+            elementType: {
+              kind: "record",
+              fields: {
+                name: "string",
+                age: { kind: "optional", inner: "number" },
+              },
+            },
+          },
+          value: {
+            type: "ArrayLiteral",
+            elements: [
+              {
+                type: "ObjectLiteral",
+                properties: [
+                  { key: "name", value: { type: "StringLiteral", value: "Ada" } },
+                  { key: "age", value: { type: "NumberLiteral", value: 37 } },
+                ],
+              },
+              {
+                type: "ObjectLiteral",
+                properties: [
+                  { key: "name", value: { type: "StringLiteral", value: "Grace" } },
+                ],
+              },
+            ],
+          },
+        }],
+      };
+
+      const errors = new TypeChecker().check(ast);
+      expect(errors).toEqual([]);
+    });
+
+    it("infers union return types instead of requiring explicit annotations", () => {
+      const checker = new TypeChecker();
+      const ast: Program = {
+        type: "Program",
+        body: [{
+          type: "FunctionDeclaration",
+          name: "maybeId",
+          parameters: [],
+          body: [
+            { type: "ReturnStatement", value: { type: "NumberLiteral", value: 1 } },
+            { type: "ReturnStatement", value: { type: "StringLiteral", value: "missing" } },
+          ],
+        }],
+      };
+
+      expect(checker.check(ast)).toEqual([]);
+      expect(checker.getExportedFunctions().get("maybeId")?.returnType).toEqual({
+        kind: "union",
+        variants: ["number", "string"],
+      });
+    });
+
+    it("records whether binder symbols were inferred or explicitly typed", () => {
+      const checker = new TypeChecker();
+      const ast: Program = {
+        type: "Program",
+        body: [
+          {
+            type: "VariableDeclaration",
+            name: "inferredName",
+            value: { type: "StringLiteral", value: "Raven" },
+          },
+          {
+            type: "VariableDeclaration",
+            name: "declaredAge",
+            typeAnnotation: "number",
+            value: { type: "NumberLiteral", value: 1 },
+          },
+        ],
+      };
+
+      expect(checker.check(ast)).toEqual([]);
+      const origins = new Map(checker.getBinder().all().map(binding => [binding.name, binding.origin]));
+      expect(origins.get("inferredName")).toBe("inferred");
+      expect(origins.get("declaredAge")).toBe("local");
+    });
+
   });
 });

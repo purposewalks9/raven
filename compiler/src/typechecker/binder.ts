@@ -1,6 +1,7 @@
 import { SourceLocation, TypeAnnotation } from "../ast/nodes.js";
 
 export type SymbolKind = "variable" | "constant" | "parameter" | "function" | "model";
+export type SymbolOrigin = "local" | "inferred" | "import" | "model" | "builtin";
 
 export interface SymbolBinding {
   name: string;
@@ -8,6 +9,8 @@ export interface SymbolBinding {
   type: TypeAnnotation;
   declaration: SourceLocation;
   references: SourceLocation[];
+  origin: SymbolOrigin;
+  source?: string;
 }
 
 function contains(loc: SourceLocation, offset: number): boolean {
@@ -18,8 +21,15 @@ export class Binder {
   private bindings: SymbolBinding[] = [];
 
   /** Call once, at the same point the checker declares a symbol. */
-  declare(name: string, kind: SymbolKind, type: TypeAnnotation, location: SourceLocation): SymbolBinding {
-    const binding: SymbolBinding = { name, kind, type, declaration: location, references: [] };
+  declare(
+    name: string,
+    kind: SymbolKind,
+    type: TypeAnnotation,
+    location: SourceLocation,
+    origin: SymbolOrigin = "local",
+    source?: string,
+  ): SymbolBinding {
+    const binding: SymbolBinding = { name, kind, type, declaration: location, references: [], origin, source };
     this.bindings.push(binding);
     return binding;
   }
