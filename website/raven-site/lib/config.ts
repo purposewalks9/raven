@@ -1,7 +1,7 @@
 export const siteConfig = {
   name: "Raven",
   url: "http://localhost:3000/",
-  ogImage: "/og.png",
+  ogImage: "/opengraph-image.png",
   description:
     "A programming language that compiles to JavaScript, automatically inferring, registering, and propagating types across your workspace.",
   links: {
