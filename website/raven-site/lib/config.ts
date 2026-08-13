@@ -1,7 +1,7 @@
 export const siteConfig = {
   name: "Raven",
   url: "http://localhost:3000/",
-  ogImage: "https://res.cloudinary.com/do4b0rrte/image/upload/v1774660658/Hooraft_Light_t2esda.png",
+  ogImage: "/og.png",
   description:
     "A programming language that compiles to JavaScript, automatically inferring, registering, and propagating types across your workspace.",
   links: {
