@@ -6,7 +6,7 @@ export const siteConfig = {
     "A programming language that compiles to JavaScript, automatically inferring, registering, and propagating types across your workspace.",
   links: {
     tom: "https://x.com/purpose_walker",
-    x: "https://x.com/intent/follow?screen_name=zzxxx__x",
+    x: "https://x.com/intent/follow?screen_name=purpose_walker",
     discord: "https://discord.gg/zxzAZvv8",
     github: "https://github.com/purposewalks9/raven",
   },

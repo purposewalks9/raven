@@ -37,7 +37,7 @@ export default function Home() {
         </div>
         <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
           <Link
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[#B7D50B] px-5 text-primary-foreground transition-colors hover:opacity-90 md:w-[158px]"
+            className="flex h-12 w-full items-center justify-center  gap-2 rounded-full bg-[#B7D50B] px-5 text-primary-foreground transition-colors hover:opacity-90 md:w-[158px]"
             href="/"
             target="_blank"
             rel="noopener noreferrer"
