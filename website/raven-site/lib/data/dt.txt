@@ -1,0 +1,160 @@
+RAVEN
+│
+├── 01. COMPILER FOUNDATION
+│   ├── Lexer → Parser → AST → Binder → Type Checker → Optimizer → JS Emitter
+│   ├── Source locations + source maps
+│   ├── Structured diagnostics + suggestions
+│   └── Comprehensive compiler test suite
+│
+├── 02. TYPE ENGINE
+│   ├── Primitive types
+│   ├── Arrays + records
+│   ├── Optional types
+│   ├── Union types
+│   ├── Function types
+│   ├── Tuple types
+│   ├── Literal types
+│   ├── Recursive types
+│   ├── Type equality vs assignability
+│   └── Type normalization / simplification
+│
+├── 03. TYPE INFERENCE
+│   ├── Variable inference
+│   ├── Function return inference
+│   ├── Parameter/contextual inference
+│   ├── Array element inference
+│   ├── Object/record inference
+│   ├── Destructuring inference
+│   ├── Generic inference
+│   └── Inference through function calls
+│
+├── 04. CONTROL-FLOW INTELLIGENCE
+│   ├── Build control-flow graph
+│   ├── Narrow unions inside branches
+│   ├── Narrow optional values
+│   ├── Track assignments
+│   ├── Detect unreachable code
+│   ├── Detect possibly-uninitialized variables
+│   ├── Narrow after early returns
+│   └── Exhaustiveness checking
+│
+├── 05. EXPRESSIONS + STATEMENTS
+│   ├── Member access
+│   ├── Index access
+│   ├── Calls
+│   ├── Operators
+│   ├── Destructuring
+│   ├── Spread
+│   ├── Conditional expressions
+│   ├── Pattern matching
+│   └── Safe/null-aware operations
+│
+├── 06. FUNCTIONS
+│   ├── First-class functions
+│   ├── Closures
+│   ├── Function type inference
+│   ├── Generic functions
+│   ├── Default parameters
+│   ├── Variadic parameters
+│   ├── Async functions
+│   └── Promise/async type propagation
+│
+├── 07. PROJECT INTELLIGENCE
+│   ├── Workspace Registry
+│   ├── Workspace dependency graph
+│   ├── Cross-file symbol resolution
+│   ├── Cross-file type inference
+│   ├── Published models
+│   ├── Function signatures across files
+│   ├── Dependency tracking
+│   └── Project-wide diagnostics
+│
+├── 08. SMART MODELS
+│   ├── model declarations
+│   ├── Inferred models
+│   ├── Model composition
+│   ├── Model extension
+│   ├── Model validation
+│   ├── Model-to-function relationships
+│   └── Model evolution/change detection
+│
+├── 09. STANDARD LIBRARY
+│   ├── strings
+│   ├── arrays / collections
+│   ├── objects
+│   ├── math
+│   ├── dates
+│   ├── JSON
+│   ├── errors
+│   ├── filesystem
+│   ├── process/environment
+│   └── HTTP/networking
+│
+├── 10. LIBRARY INTELLIGENCE
+│   ├── Raven package metadata
+│   ├── Package API discovery
+│   ├── Automatic library type information
+│   ├── npm/JavaScript interoperability
+│   ├── TypeScript declaration consumption
+│   ├── Node/Web API knowledge
+│   └── Dependency API graph
+│
+├── 11. EXTERNAL KNOWLEDGE
+│   ├── HTTP API schemas
+│   ├── OpenAPI → Raven models
+│   ├── JSON schema → Raven types
+│   ├── Database schema → Raven models
+│   ├── Environment schema → Raven types
+│   └── Generated external models
+│
+├── 12. COMPILER PERFORMANCE
+│   ├── Incremental compilation
+│   ├── Dependency-aware recompilation
+│   ├── AST caching
+│   ├── Type/checking cache
+│   ├── Workspace metadata cache
+│   ├── Parallel compilation
+│   └── Memory + compilation benchmarks
+│
+├── 13. JAVASCRIPT OUTPUT
+│   ├── Correct JS emission
+│   ├── Source maps
+│   ├── Dead-code elimination
+│   ├── Constant folding
+│   ├── Tree shaking
+│   ├── Output optimization
+│   └── Runtime/source error mapping
+│
+├── 14. LANGUAGE SERVER
+│   ├── Diagnostics
+│   ├── Hover types
+│   ├── Autocomplete
+│   ├── Go to definition
+│   ├── Find references
+│   ├── Rename
+│   ├── Code actions
+│   ├── Quick fixes
+│   └── Workspace-aware intelligence
+│
+├── 15. DEVELOPER EXPERIENCE
+│   ├── raven init
+│   ├── raven dev
+│   ├── raven build
+│   ├── raven check
+│   ├── raven fmt
+│   ├── raven test
+│   ├── raven add/remove packages
+│   ├── Excellent error messages
+│   └── Fast watch mode
+│
+└── 16. APPLICATION PLATFORM
+    ├── Web APIs
+    ├── Server APIs
+    ├── Database clients
+    ├── Authentication libraries
+    ├── File/storage APIs
+    ├── WebSockets
+    ├── Workers/background tasks
+    ├── React/Next.js interoperability
+    └── Full-stack Raven application support
+    

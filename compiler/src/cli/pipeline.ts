@@ -6,12 +6,14 @@ import { Binder } from "../typechecker/binder.js";
 import { Program } from "../ast/nodes.js";
 import { optimize } from "../optimizer/index.js";
 import { Emitter } from "../emitter/emitter.js";
+import { SourceMapGenerator } from "../sourcemap/generator.js";
 import { Diagnostic, formatDiagnostic } from "../diagnostics/index.js";
 
 export interface CompileResult {
   source: string;
   diagnostics: Diagnostic[];
   js: string | null;
+  map: SourceMapGenerator | null;
 }
 
 export interface CheckResult {
@@ -28,7 +30,7 @@ export function checkSource(source: string, fileName = "<memory>"): CheckResult 
   return { source, ast, diagnostics, binder: checker.getBinder() };
 }
 
-export function compileFile(file: string, shouldOptimize = true): CompileResult {
+export function compileFile(file: string, shouldOptimize = true, options: { sourceMap?: boolean } = {}): CompileResult {
   let source: string;
   try {
     source = readFileSync(file, "utf8");
@@ -39,13 +41,21 @@ export function compileFile(file: string, shouldOptimize = true): CompileResult 
   const { ast, diagnostics } = checkSource(source, file);
 
   if (diagnostics.some(d => d.severity === "error")) {
-    return { source, diagnostics, js: null };
+    return { source, diagnostics, js: null, map: null };
   }
 
   const program = shouldOptimize ? optimize(ast) : ast;
-  const js = new Emitter().emit(program);
 
-  return { source, diagnostics, js };
+  if (options.sourceMap) {
+    const { code, map } = new Emitter().emitWithSourceMap(program, {
+      sourceFile: file,
+      sourceContent: source,
+    });
+    return { source, diagnostics, js: code, map };
+  }
+
+  const js = new Emitter().emit(program);
+  return { source, diagnostics, js, map: null };
 }
 
 export function printErrors(file: string, diagnostics: Diagnostic[], source?: string): void {

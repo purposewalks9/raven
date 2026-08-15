@@ -24,19 +24,81 @@ import {
   MemberExpression,
   ModelDeclaration,
   ImportDeclaration,
+  Node,
 } from "../ast/nodes.js";
+import { SourceMapGenerator } from "../sourcemap/generator.js";
+
+export interface EmitWithSourceMapOptions {
+  /** Name to record as the mapping's source, e.g. "app.rv". */
+  sourceFile: string;
+  /** Name to record as the source map's `file` field, e.g. "app.js". */
+  generatedFile?: string;
+  /** Embed the original Raven source as `sourcesContent` in the map. */
+  sourceContent?: string;
+}
+
+export interface EmitWithSourceMapResult {
+  code: string;
+  map: SourceMapGenerator;
+}
 
 export class Emitter {
   private indentLevel = 0;
   private output: string[] = [];
   private atLineStart = true;
 
+  // Source-map tracking. `sourceMap` is only set for the duration of
+  // `emitWithSourceMap`; `emit()` skips all of this (see `mark`/`track`).
+  private sourceMap: SourceMapGenerator | null = null;
+  private sourceMapFile = "<unknown>";
+  private genLine = 0; // 0-based, tracks the generated output position
+  private genColumn = 0;
+
   emit(program: Program): string {
     this.output = [];
     this.indentLevel = 0;
     this.atLineStart = true;
+    this.sourceMap = null;
     this.emitProgram(program);
     return this.output.join("");
+  }
+
+  /**
+   * Same as `emit`, but also produces a v3 source map linking every
+   * emitted statement and expression back to its position in the
+   * original Raven source, so stack traces and debuggers can step
+   * through `.rv` files instead of the generated JS.
+   */
+  emitWithSourceMap(program: Program, options: EmitWithSourceMapOptions): EmitWithSourceMapResult {
+    this.output = [];
+    this.indentLevel = 0;
+    this.atLineStart = true;
+    this.genLine = 0;
+    this.genColumn = 0;
+    this.sourceMapFile = options.sourceFile;
+    this.sourceMap = new SourceMapGenerator();
+    if (options.sourceContent !== undefined) {
+      this.sourceMap.setSourceContent(options.sourceFile, options.sourceContent);
+    }
+
+    this.emitProgram(program);
+
+    const map = this.sourceMap;
+    this.sourceMap = null;
+    return { code: this.output.join(""), map };
+  }
+
+  /** Records a mapping from the current generated position to `node`'s source location. */
+  private mark(node: Node): void {
+    if (!this.sourceMap) return;
+    this.sourceMap.addMapping({
+      generatedLine: this.genLine,
+      generatedColumn: this.genColumn,
+      source: this.sourceMapFile,
+      // Raven's SourceLocation is 1-based; source maps are 0-based.
+      sourceLine: node.location.line - 1,
+      sourceColumn: node.location.column - 1,
+    });
   }
 
   private emitProgram(node: Program): void {
@@ -46,6 +108,7 @@ export class Emitter {
   private emitStatementList(statements: Statement[]): void {
     for (const stmt of statements) {
       this.indent();
+      this.mark(stmt);
       this.emitStatement(stmt);
     }
   }
@@ -168,6 +231,7 @@ export class Emitter {
   }
 
   private emitExpression(node: Expression): void {
+    this.mark(node);
     switch (node.type) {
       case "StringLiteral":
         this.emitStringLiteral(node);
@@ -335,19 +399,32 @@ export class Emitter {
   }
 
   private write(text: string): void {
-    this.output.push(text);
+    this.push(text);
     this.atLineStart = text.endsWith("\n");
   }
 
   private newline(): void {
-    this.output.push("\n");
+    this.push("\n");
     this.atLineStart = true;
   }
 
   private indent(): void {
     if (this.atLineStart) {
-      this.output.push("  ".repeat(this.indentLevel));
+      this.push("  ".repeat(this.indentLevel));
       this.atLineStart = false;
+    }
+  }
+
+  /** Appends to the output buffer and keeps `genLine`/`genColumn` in sync for source-map marks. */
+  private push(text: string): void {
+    this.output.push(text);
+    for (let i = 0; i < text.length; i++) {
+      if (text[i] === "\n") {
+        this.genLine++;
+        this.genColumn = 0;
+      } else {
+        this.genColumn++;
+      }
     }
   }
 }
