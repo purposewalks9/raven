@@ -918,7 +918,7 @@ describe("TypeChecker", () => {
               { type: "NumberLiteral", value: 3 },
             ],
           },
-          typeAnnotation: { kind: "array", elementType: { kind: "union", types: ["number", "string"] } },
+          typeAnnotation: { kind: "array", elementType: { kind: "union", variants: ["number", "string"] } },
         }],
       };
       const errors = new TypeChecker().check(ast);
@@ -1035,7 +1035,7 @@ it("widens the element type to a union instead of rejecting an append", () => {
         },
         right: { type: "StringLiteral", value: "oops" },
       },
-      typeAnnotation: { kind: "array", elementType: { kind: "union", types: ["number", "string"] } },
+      typeAnnotation: { kind: "array", elementType: { kind: "union", variants: ["number", "string"] } },
     }],
   };
   const errors = new TypeChecker().check(ast);

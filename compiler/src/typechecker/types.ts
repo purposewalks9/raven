@@ -1,23 +1,16 @@
 import { TypeAnnotation } from "../ast/nodes.js";
 
+/**
+ * @deprecated Use `unionType` instead. Kept only so any external callers
+ * built against the old (buggy) signature don't hard-crash; it now just
+ * forwards to `unionType`, which produces the correct `{ kind: "union",
+ * variants }` shape that the rest of the checker expects. The previous
+ * implementation built `{ kind: "union", types: [...] }` — the wrong
+ * property name — so every `T?` / `T | U` annotation written in Raven
+ * source silently produced a malformed type the checker couldn't read.
+ */
 export function makeUnion(members: TypeAnnotation[]): TypeAnnotation {
-  const flattened: TypeAnnotation[] = [];
-  for (const member of members) {
-    if (typeof member === "object" && member.kind === "union") {
-      flattened.push(...member.types);
-    } else {
-      flattened.push(member);
-    }
-  }
-
-  const deduped: TypeAnnotation[] = [];
-  for (const candidate of flattened) {
-    if (!deduped.some(existing => sameType(existing, candidate))) {
-      deduped.push(candidate);
-    }
-  }
-
-  return deduped.length === 1 ? deduped[0]! : { kind: "union", types: deduped };
+  return unionType(members);
 }
 
 
@@ -139,12 +132,19 @@ export function isAssignableTo(source: TypeAnnotation, target: TypeAnnotation): 
     return isAssignableTo(normalizedSource, normalizedTarget.inner);
   }
 
-  if (typeof normalizedTarget === "object" && normalizedTarget.kind === "union") {
-    return normalizedTarget.variants.some(variant => isAssignableTo(normalizedSource, variant));
-  }
-
+  // Source-union must be checked first: `A | B` is assignable to `T` iff
+  // *every* member is assignable to `T` — including when `T` is itself a
+  // union, in which case each member just needs to match *some* variant
+  // of it (handled by recursing into the target-is-union branch below).
+  // Checking target-union first would instead ask "is the whole `A | B`
+  // assignable to a single variant of the target?", which wrongly rejects
+  // e.g. `number | string` against a target of `number | string`.
   if (typeof normalizedSource === "object" && normalizedSource.kind === "union") {
     return normalizedSource.variants.every(variant => isAssignableTo(variant, normalizedTarget));
+  }
+
+  if (typeof normalizedTarget === "object" && normalizedTarget.kind === "union") {
+    return normalizedTarget.variants.some(variant => isAssignableTo(normalizedSource, variant));
   }
 
   if (typeof normalizedSource === "string" && typeof normalizedTarget === "string") {
@@ -186,7 +186,11 @@ export function formatType(type: TypeAnnotation | undefined): string {
     return normalized;
   }
   if (normalized.kind === "array") {
-    return `${formatType(normalized.elementType)}[]`;
+    const elementNormalized = normalizeType(normalized.elementType);
+    const needsParens = typeof elementNormalized === "object"
+      && (elementNormalized.kind === "union" || elementNormalized.kind === "optional");
+    const elementText = formatType(normalized.elementType);
+    return needsParens ? `(${elementText})[]` : `${elementText}[]`;
   }
   if (normalized.kind === "record") {
     const fields = Object.entries(normalized.fields)

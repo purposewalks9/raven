@@ -25,8 +25,7 @@ export default function Home() {
             Write <HighlightedText className=" text-[#B7D50B] rounded-sm ">JavaScript</HighlightedText> applications without managing types.
           </h1>
           <p className="w-full text-lg leading-8 text-muted-foreground">
-            The compiler automatically builds a project-wide type registry,
-            so you spend less time managing types and more time building.{" "}
+            Raven’s compiler automatically understands your code and builds a project-wide type registry, so you spend less time managing types and more time building.{" "}
             {" "}
             <Link
               href="https://github.com/purposewalks9/raven"

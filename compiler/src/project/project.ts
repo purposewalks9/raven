@@ -4,7 +4,7 @@ import { tokenize } from "../lexer/token.js";
 import { Parser } from "../parser/parser.js";
 import { TypeChecker, FunctionSignature } from "../typechecker/checker.js";
 import { WorkspaceRegistry } from "../typechecker/registry.js";
-import { Diagnostic } from "../diagnostics/index.js";
+import { Diagnostic, CODES } from "../diagnostics/index.js";
 import { Program, FunctionDeclaration, ImportDeclaration } from "../ast/nodes.js";
 import { Binder } from "../index.js";
 
@@ -68,6 +68,7 @@ export function buildProject(root: string): ProjectResult {
       files.push({ path, source, ast });
     } catch (error) {
       diagnostics.push({
+        code: CODES.PARSE_ERROR,
         severity: "error",
         message: error instanceof Error ? error.message : String(error),
         location: { file: path, start: 0, end: 0, line: 1, column: 1 },

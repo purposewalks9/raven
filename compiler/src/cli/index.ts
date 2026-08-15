@@ -29,7 +29,7 @@ function usage(): void {
 Commands:
   raven new <name>
   raven run <file.rv>
-  raven build <file.rv> [out.js]
+  raven build <file.rv> [out.js] [--sourcemap|-s]
   raven check <file.rv | project-dir>
   raven fmt <file.rv>
   raven repl

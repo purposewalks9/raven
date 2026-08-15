@@ -17,7 +17,7 @@ import {
 } from "../ast/nodes.js";
 import { SymbolTable } from "./symbolTable.js";
 import { Binder, SymbolBinding } from "./binder.js";
-import { DiagnosticBag, Diagnostic } from "../diagnostics/index.js";
+import { DiagnosticBag, Diagnostic, CODES } from "../diagnostics/index.js";
 import { WorkspaceRegistry } from "./registry.js";
 import { sameType as sharedSameType, isAssignableTo as sharedIsAssignableTo, formatType as sharedFormatType, closestMatch, optionalType, unionType } from "./types.js";
 
@@ -112,6 +112,7 @@ export class TypeChecker {
           this.inferredReturnTypes.push(returnType);
         } else if (this.currentReturnType && !this.isAssignableTo(returnType, this.currentReturnType)) {
           this.diagnostics.error(
+            CODES.RETURN_TYPE_MISMATCH,
             `Return type mismatch: expected '${this.formatType(this.currentReturnType)}', got '${this.formatType(returnType)}'`,
             node.location
           );
@@ -134,9 +135,16 @@ export class TypeChecker {
 
     if (node.typeAnnotation && !this.isAssignableTo(actualType, node.typeAnnotation)) {
       this.diagnostics.error(
+        CODES.DECLARATION_TYPE_MISMATCH,
         `Type mismatch in declaration of '${node.name}': expected '${this.formatType(node.typeAnnotation)}', but got '${this.formatType(actualType)}'`,
         node.location,
-        `Either change the annotation to '${this.formatType(actualType)}' or change the value to match '${this.formatType(node.typeAnnotation)}'.`
+        {
+          hint: `Either change the annotation to '${this.formatType(actualType)}' or change the value to match '${this.formatType(node.typeAnnotation)}'.`,
+          suggestions: [
+            { message: `Change the annotation to '${this.formatType(actualType)}'` },
+            { message: `Change the value to match '${this.formatType(node.typeAnnotation)}'` },
+          ],
+        }
       );
     }
 
@@ -146,7 +154,7 @@ export class TypeChecker {
     const success = this.symbolTable.declare(node.name, { type, constant, binding, origin: binding.origin });
 
     if (!success) {
-      this.diagnostics.error(`'${node.name}' has already been declared.`, node.location);
+      this.diagnostics.error(CODES.DUPLICATE_DECLARATION, `'${node.name}' has already been declared.`, node.location);
     }
   }
 
@@ -162,6 +170,7 @@ export class TypeChecker {
       const actualType = this.inferType(node.value);
       if (node.typeAnnotation && !this.isAssignableTo(actualType, node.typeAnnotation)) {
         this.diagnostics.error(
+          CODES.MODEL_TYPE_MISMATCH,
           `Type mismatch in model '${node.name}': expected '${this.formatType(node.typeAnnotation)}', but got '${this.formatType(actualType)}'`,
           node.location
         );
@@ -174,16 +183,17 @@ export class TypeChecker {
     // Visible immediately in the file that publishes it, same as a const.
     const success = this.symbolTable.declare(node.name, { type, constant: true, binding, origin: binding.origin, source: binding.source });
     if (!success) {
-      this.diagnostics.error(`'${node.name}' has already been declared.`, node.location);
+      this.diagnostics.error(CODES.DUPLICATE_DECLARATION, `'${node.name}' has already been declared.`, node.location);
     }
 
     if (this.registry) {
       const result = this.registry.publish(node.name, type, node.external, this.file, node.location);
       if (!result.ok) {
         this.diagnostics.error(
+          CODES.MODEL_REGISTRY_CONFLICT,
           result.message,
           node.location,
-          `'${node.name}' was first published in ${result.existing.file}. Give this one a different name, or make both shapes match.`
+          { hint: `'${node.name}' was first published in ${result.existing.file}. Give this one a different name, or make both shapes match.` }
         );
       }
     }
@@ -201,13 +211,16 @@ export class TypeChecker {
 
       if (this.registry?.lookup(name)) {
         this.diagnostics.error(
+          CODES.INVALID_IMPORT_TARGET,
           `'${name}' is a published model, not code — models don't need an import, just use the name directly.`,
-          node.location
+          node.location,
+          { suggestions: [{ message: `Remove the import and reference '${name}' directly.` }] }
         );
         continue;
       }
 
       this.diagnostics.error(
+        CODES.UNRESOLVED_IMPORT,
         `Cannot resolve import '${name}' from '${node.source}'. Make sure it's declared as a top-level function there.`,
         node.location
       );
@@ -220,21 +233,26 @@ export class TypeChecker {
     if (!symbol) {
       if (this.registry?.lookup(node.name)) {
         this.diagnostics.error(
+          CODES.READONLY_MODEL_REASSIGNMENT,
           `Cannot reassign '${node.name}': it's a published model, which is read-only outside the file that declares it.`,
           node.location
         );
         return;
       }
-      this.diagnostics.error(`Cannot assign to undeclared variable '${node.name}'`, node.location);
+      this.diagnostics.error(CODES.UNDECLARED_ASSIGNMENT_TARGET, `Cannot assign to undeclared variable '${node.name}'`, node.location);
       return;
     }
     this.binder.reference(symbol.binding, node.location);
 
     if (symbol.constant) {
       this.diagnostics.error(
+        CODES.CONST_REASSIGNMENT,
         `Cannot reassign constant '${node.name}' (declared with 'const')`,
         node.location,
-        `Use 'let' instead of 'const' if '${node.name}' needs to change later.`
+        {
+          hint: `Use 'let' instead of 'const' if '${node.name}' needs to change later.`,
+          suggestions: [{ message: `Change 'const ${node.name}' to 'let ${node.name}'`, replacement: "let" }],
+        }
       );
       return;
     }
@@ -242,6 +260,7 @@ export class TypeChecker {
     const valueType = this.inferType(node.value);
     if (!this.isAssignableTo(valueType, symbol.type)) {
       this.diagnostics.error(
+        CODES.ASSIGNMENT_TYPE_MISMATCH,
         `Type mismatch in assignment to '${node.name}': expected '${this.formatType(symbol.type)}', got '${this.formatType(valueType)}'`,
         node.location
       );
@@ -252,6 +271,7 @@ export class TypeChecker {
     const conditionType = this.inferType(node.condition);
     if (!this.isAssignableTo(conditionType, "boolean")) {
       this.diagnostics.error(
+        CODES.NON_BOOLEAN_CONDITION,
         `If condition must be a boolean, got '${this.formatType(conditionType)}'`,
         node.condition.location
       );
@@ -276,6 +296,7 @@ export class TypeChecker {
     const conditionType = this.inferType(node.condition);
     if (!this.isAssignableTo(conditionType, "boolean")) {
       this.diagnostics.error(
+        CODES.NON_BOOLEAN_CONDITION,
         `While condition must be a boolean, got '${this.formatType(conditionType)}'`,
         node.condition.location
       );
@@ -290,7 +311,7 @@ export class TypeChecker {
 
   private checkFunctionDeclaration(node: FunctionDeclaration): void {
     if (this.functionSignatures.has(node.name)) {
-      this.diagnostics.error(`Function '${node.name}' has already been declared`, node.location);
+      this.diagnostics.error(CODES.DUPLICATE_FUNCTION, `Function '${node.name}' has already been declared`, node.location);
     }
 
     const paramTypes: TypeAnnotation[] = node.parameters.map(p => p.typeAnnotation ?? "any");
@@ -314,6 +335,7 @@ export class TypeChecker {
     for (const param of node.parameters) {
       if (seenParameters.has(param.name)) {
         this.diagnostics.error(
+          CODES.DUPLICATE_PARAMETER,
           `Duplicate parameter name '${param.name}' in function '${node.name}'`,
           node.location
         );
@@ -382,9 +404,15 @@ export class TypeChecker {
           ...(this.registry?.names() ?? []),
         ]);
         this.diagnostics.error(
+          CODES.UNDECLARED_VARIABLE,
           `Undeclared variable '${node.name}'`,
           node.location,
-          suggestion ? `Did you mean '${suggestion}'?` : undefined
+          suggestion
+            ? {
+                hint: `Did you mean '${suggestion}'?`,
+                suggestions: [{ message: `Did you mean '${suggestion}'?`, replacement: suggestion, location: node.location }],
+              }
+            : undefined
         );
         return "any";
       }
@@ -393,6 +421,7 @@ export class TypeChecker {
         const argType = this.inferType(node.argument);
         if (!this.isAssignableTo(argType, "boolean")) {
           this.diagnostics.error(
+            CODES.INVALID_UNARY_OPERAND,
             `Operator 'not' requires a boolean operand, got '${this.formatType(argType)}'`,
             node.location
           );
@@ -405,15 +434,22 @@ export class TypeChecker {
         if (!signature) {
           const suggestion = closestMatch(node.callee, [...this.functionSignatures.keys()]);
           this.diagnostics.error(
+            CODES.UNDECLARED_FUNCTION,
             `Undeclared function '${node.callee}'`,
             node.location,
-            suggestion ? `Did you mean '${suggestion}'?` : undefined
+            suggestion
+              ? {
+                  hint: `Did you mean '${suggestion}'?`,
+                  suggestions: [{ message: `Did you mean '${suggestion}'?`, replacement: suggestion, location: node.location }],
+                }
+              : undefined
           );
           return "any";
         }
         this.binder.reference(signature.binding, node.location);
         if (node.arguments.length !== signature.params.length) {
           this.diagnostics.error(
+            CODES.ARGUMENT_COUNT_MISMATCH,
             `Function '${node.callee}' expects ${signature.params.length} argument(s), but got ${node.arguments.length}`,
             node.location
           );
@@ -423,6 +459,7 @@ export class TypeChecker {
           const expectedType = signature.params[i];
           if (expectedType && expectedType !== "any" && !this.isAssignableTo(argType, expectedType)) {
             this.diagnostics.error(
+              CODES.ARGUMENT_TYPE_MISMATCH,
               `Argument ${i + 1} of '${node.callee}': expected '${this.formatType(expectedType)}', got '${this.formatType(argType)}'`,
               arg.location
             );
@@ -458,6 +495,7 @@ export class TypeChecker {
           const fieldType = objectType.fields[node.property];
           if (fieldType === undefined) {
             this.diagnostics.error(
+              CODES.UNKNOWN_PROPERTY,
               `Property '${node.property}' does not exist on type '${this.formatType(objectType)}'`,
               node.location
             );
@@ -467,6 +505,7 @@ export class TypeChecker {
         }
 
         this.diagnostics.error(
+          CODES.INVALID_PROPERTY_ACCESS,
           `Cannot access property '${node.property}' on non-record type '${this.formatType(objectType)}'`,
           node.location
         );
@@ -479,6 +518,7 @@ export class TypeChecker {
 
         if (indexType !== "number" && indexType !== "any") {
           this.diagnostics.error(
+            CODES.INVALID_INDEX_TYPE,
             `Array index must be a number, got '${this.formatType(indexType)}'`,
             node.index.location
           );
@@ -491,6 +531,7 @@ export class TypeChecker {
           return "any";
         }
         this.diagnostics.error(
+          CODES.INVALID_INDEX_TARGET,
           `Cannot index a non-array value of type '${this.formatType(arrayType)}'`,
           node.array.location
         );
@@ -507,6 +548,7 @@ export class TypeChecker {
         if (node.operator === "and" || node.operator === "or") {
           if (leftType !== "boolean" || rightType !== "boolean") {
             this.diagnostics.error(
+              CODES.INVALID_LOGICAL_OPERANDS,
               `Operator '${node.operator}' requires two booleans. Got '${this.formatType(leftType)}' and '${this.formatType(rightType)}'`,
               node.location
             );
@@ -521,6 +563,7 @@ export class TypeChecker {
           const comparable = this.isAssignableTo(leftType, rightType) || this.isAssignableTo(rightType, leftType);
           if (!comparable) {
             this.diagnostics.error(
+              CODES.INCOMPARABLE_TYPES,
               `Cannot compare '${this.formatType(leftType)}' with '${this.formatType(rightType)}'`,
               node.location
             );
@@ -534,12 +577,12 @@ export class TypeChecker {
               // Concatenating arrays of different element types no longer
               // errors — the result is `array<union of both>`, the same
               // move as mixed-type array literals above.
-              return { kind: "array", elementType: makeUnion([leftType.elementType, rightType.elementType]) };
+              return { kind: "array", elementType: unionType([leftType.elementType, rightType.elementType]) };
             }
 
             // Appending a value widens the element type if it wasn't
             // already covered, rather than requiring an exact match.
-            return { kind: "array", elementType: makeUnion([leftType.elementType, rightType]) };
+            return { kind: "array", elementType: unionType([leftType.elementType, rightType]) };
           }
 
           if (leftType === "string" || rightType === "string") {
@@ -548,6 +591,7 @@ export class TypeChecker {
 
           if (leftType !== "number" || rightType !== "number") {
             this.diagnostics.error(
+              CODES.INVALID_PLUS_OPERANDS,
               `Operator '+' requires numbers, strings, or arrays. Got '${this.formatType(leftType)}' and '${this.formatType(rightType)}'`,
               node.location
             );
@@ -557,6 +601,7 @@ export class TypeChecker {
 
         if (leftType !== "number" || rightType !== "number") {
           this.diagnostics.error(
+            CODES.INVALID_ARITHMETIC_OPERANDS,
             `Operator '${node.operator}' requires two numbers. Got '${this.formatType(leftType)}' and '${this.formatType(rightType)}'`,
             node.location
           );

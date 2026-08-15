@@ -4,6 +4,7 @@ import { execSync } from "node:child_process";
 import { tokenize } from "../src/lexer/token.js";
 import { Parser } from "../src/parser/parser.js";
 import { Emitter } from "../src/emitter/emitter.js";
+import { checkSource } from "../src/cli/pipeline.js";
 
 describe("integration", () => {
   it("runs source through the full pipeline to real output", () => {
@@ -195,5 +196,31 @@ describe("integration", () => {
     unlinkSync(tmpFile);
 
     expect(output).toBe("Hello World");
+  });
+
+  // Regression: `T?` and `T | U` annotations parsed from real Raven source
+  // used to build a malformed union (wrong property name) that the checker
+  // silently couldn't read, so type errors involving them went undetected
+  // and correct code involving them could be wrongly rejected.
+  it("checks a function whose parameter and return types use `T?` and `T | U`", () => {
+    const source = `
+      fn greet(name: string?): string
+        if name == none then
+          return "hello, stranger"
+        end
+        return "hello, " + name
+      end
+
+      let x: number | string = 5
+      let y: number | string = "five"
+    `;
+    const { diagnostics } = checkSource(source);
+    expect(diagnostics).toEqual([]);
+  });
+
+  it("reports a type error when a value doesn't match a union annotation", () => {
+    const source = `let x: number | string = true`;
+    const { diagnostics } = checkSource(source);
+    expect(diagnostics.some(d => d.severity === "error")).toBe(true);
   });
 });

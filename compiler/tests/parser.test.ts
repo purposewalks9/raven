@@ -74,7 +74,7 @@ describe("parser", () => {
     const ast = new Parser(tokenize(`let x: string | number = "hi"`)).parseProgram();
     expect((ast.body[0] as any).typeAnnotation).toEqual({
       kind: "union",
-      types: ["string", "number"],
+      variants: ["string", "number"],
     });
   });
 
@@ -82,7 +82,7 @@ describe("parser", () => {
     const ast = new Parser(tokenize(`let x: string | number | boolean = "hi"`)).parseProgram();
     expect((ast.body[0] as any).typeAnnotation).toEqual({
       kind: "union",
-      types: ["string", "number", "boolean"],
+      variants: ["string", "number", "boolean"],
     });
   });
 
@@ -90,7 +90,7 @@ describe("parser", () => {
     const ast = new Parser(tokenize(`let x: string? = "hi"`)).parseProgram();
     expect((ast.body[0] as any).typeAnnotation).toEqual({
       kind: "union",
-      types: ["string", "none"],
+      variants: ["string", "none"],
     });
   });
 
@@ -103,7 +103,7 @@ describe("parser", () => {
     const ast = new Parser(tokenize(`let x: string? | number = "hi"`)).parseProgram();
     expect((ast.body[0] as any).typeAnnotation).toEqual({
       kind: "union",
-      types: ["string", "none", "number"],
+      variants: ["string", "none", "number"],
     });
   });
 
@@ -111,7 +111,7 @@ describe("parser", () => {
     const ast = new Parser(tokenize(`let x: array<string | number> = [1]`)).parseProgram();
     expect((ast.body[0] as any).typeAnnotation).toEqual({
       kind: "array",
-      elementType: { kind: "union", types: ["string", "number"] },
+      elementType: { kind: "union", variants: ["string", "number"] },
     });
   });
 

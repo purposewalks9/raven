@@ -1,6 +1,6 @@
 import { Token, TokenKind } from "../lexer/token.js";
 import { Program, Statement, Expression, Parameter, TypeAnnotation } from "../ast/nodes.js";
-import { makeUnion } from "../typechecker/types.js";
+import { unionType } from "../typechecker/types.js";
 
 export class Parser {
     private pos = 0;
@@ -479,7 +479,7 @@ parsePrimary(): Expression {
             members.push(this.parseTypeAnnotationAtom());
         }
 
-        return members.length === 1 ? members[0]! : makeUnion(members);
+        return members.length === 1 ? members[0]! : unionType(members);
     }
 
     // One type name (or `array<...>`), plus an optional trailing `?`. `T?`
@@ -504,7 +504,7 @@ parsePrimary(): Expression {
 
         if (this.peek().value === "?") {
             this.advance();
-            return makeUnion([base, "none"]);
+            return unionType([base, "none"]);
         }
 
         return base;
