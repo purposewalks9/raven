@@ -1,0 +1,45 @@
+---
+title: Type Normalization / Simplification
+description: The step every type passes through before it's compared, checked, or printed in an error.
+---
+
+Before Raven's checker compares two types, or prints one in an error message, it runs the type through **normalization** first. This page is about what that step actually does, and why it has to happen before anything else.
+
+## Why normalization exists
+
+Two types can be written differently and still mean the same thing — `string | number | string` and `number | string` describe an identical set of allowed values, just with redundant syntax. Without a normalization step, `sameType` and `isAssignableTo` would have to special-case every one of these redundant shapes themselves, everywhere, forever. Instead, every type gets funneled through one function first, so the rest of the checker only ever has to deal with the canonical form.
+
+## What normalization does, kind by kind
+
+**Primitives, literals, references** pass through completely unchanged — there's nothing to simplify about a single string, a `"admin"` literal, or a `ref` to a named model.
+
+**Arrays, tuples, records, optionals, function types** normalize *recursively* — each one's inner type(s) get normalized too, so nesting never leaves an un-simplified type buried a level down.
+
+**Unions get the real work done to them, in three steps:**
+
+1. **Flatten.** A union containing another union as a member gets flattened into one flat list — there's no such thing as a "union of unions" once normalized.
+2. **Deduplicate.** Any two variants that are the [same type](./09-type-equality-vs-assignability) collapse into one, regardless of what order they were written in.
+3. **Collapse to `any`.** If `any` shows up as a variant anywhere, the whole union simplifies to plain `any` — tracking the other variants stops being useful once one of them already accepts everything.
+
+**A union that normalizes down to exactly one distinct member isn't a union anymore** — `number | number` normalizes to plain `number`, not a one-variant union. A normalized union, if it's a union at all, always has at least two genuinely distinct members.
+
+## The two small helpers built on top of normalization
+
+`optionalType(inner)` wraps a type in `optional`, but checks first whether it's already an optional and avoids double-wrapping it.
+
+`unionType(variants)` is just `normalizeType` called on a fresh union — it's the function everything else (array element widening, function return-type inference, record field merging) calls when it needs to combine several types into one.
+
+## Where you actually see this
+
+Error messages always show the *normalized* form. If you write a redundant or oddly-ordered union in an annotation, the error message reporting a mismatch against it will show the cleaned-up version, not what you literally typed:
+
+```typescript
+let role: "admin" | "user" | "admin" = "guest"
+// Type mismatch: expected '"admin" | "user"', ...
+```
+
+Notice the duplicate `"admin"` is gone in the error — that's normalization, not a display trick layered on afterward. The type genuinely *is* `"admin" | "user"` by the time anything looks at it.
+
+## What's next
+
+You've now been through every type kind Raven's engine supports, plus the two mechanisms — normalization and the equality/assignability split — that tie them all together. If you're extending the type engine yourself, [Type Equality vs Assignability](./09-type-equality-vs-assignability) is the page to revisit first: every new type kind needs a normalization case here, and an equality/assignability case there, or it'll compare inconsistently the way [Recursive Types](./08-recursive-types) briefly did before its `ref` handling was fixed.

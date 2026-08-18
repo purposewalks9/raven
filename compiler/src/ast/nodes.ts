@@ -218,3 +218,4 @@ export type TypeAnnotation =
     | { kind: "function"; params: TypeAnnotation[]; returnType: TypeAnnotation }
     | { kind: "literal"; value: string | number | boolean }
     | { kind: "tuple"; elements: TypeAnnotation[] }
+    | { kind: "ref"; name: string };  

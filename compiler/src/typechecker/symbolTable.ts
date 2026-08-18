@@ -29,7 +29,7 @@ export class SymbolTable {
       throw new Error("No active scope.");
     }
 
-    // Check if already declared in current scope
+   
     if (current.has(name)) {
       return false;
     }
@@ -39,7 +39,7 @@ export class SymbolTable {
   }
 
   lookup(name: string): SymbolInfo | undefined {
-    // Search from innermost to outermost scope
+    
     for (let i = this.scopes.length - 1; i >= 0; i--) {
       const symbol = this.scopes[i]?.get(name);
       if (symbol) {
@@ -67,7 +67,7 @@ export class SymbolTable {
     return current?.has(name) ?? false;
   }
 
-  /** Every name visible right now, from every open scope, for typo suggestions. */
+
   allNames(): string[] {
     const names = new Set<string>();
     for (const scope of this.scopes) {

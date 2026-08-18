@@ -1,0 +1,73 @@
+---
+title: Function Types
+description: Describing the shape of a function — its parameters and return type — as a type.
+---
+
+A function type describes what a function looks like from the outside: how many parameters it takes, what type each one is, and what it returns.
+
+## Syntax
+
+```typescript
+(number, string) -> boolean
+```
+
+Read this as "takes a `number` and a `string`, returns a `boolean`." A function type with no parameters is written `() -> T`:
+
+```typescript
+() -> number
+```
+
+Function types nest like anything else — a function that takes a function is written by parenthesizing the inner one:
+
+```typescript
+((number) -> number) -> number
+```
+
+## Where you'll see this
+
+Every declared function has a function type, whether you write it explicitly or not. `fn add(a: number, b: number): number ... end` has the type `(number, number) -> number` — Raven builds this automatically to describe the function to itself (for tooling like hover and go-to-definition), and to check calls against it.
+
+You can also write a function type explicitly, as a parameter annotation:
+
+```typescript
+fn describe(handler: (number) -> number): string
+    return "ok"
+end
+```
+
+## Assignability: contravariant parameters, covariant return
+
+This is the one rule about function types worth understanding deliberately, because it's backwards from what feels intuitive at first. For one function type to be assignable to another:
+
+- **Parameters compare target-to-source** (contravariant) — a function's parameter types must be *at least as general* as what's required, not more specific.
+- **The return type compares source-to-target** (covariant) — a function's return type must be *at least as specific* as what's promised, not more general.
+
+Both function types must also have the same number of parameters — Raven doesn't allow a function with fewer or more parameters to substitute for another.
+
+This is the standard rule for when it's safe to substitute one function for another as a value, and it's the same rule most statically-typed languages use for function subtyping.
+
+## Known limitation: functions aren't first-class values yet
+
+Function types are fully real and checked — but there's an important gap worth knowing about before you reach for this: **Raven can describe a function's type, and check a declared parameter's shape, but it can't yet pass a function by name and call it indirectly through a variable or parameter.**
+
+Concretely, this does *not* work yet:
+
+```typescript
+fn double(n: number): number
+    return n * 2
+end
+
+fn apply(callback: (number) -> number, value: number): number
+    return callback(value)   // "Undeclared function 'callback'"
+end
+
+let result = apply(double, 5)   // "Undeclared variable 'double'"
+```
+
+The reason: `CallExpression` only resolves a callee against the global table of top-level function declarations — it doesn't yet check whether the callee name refers to a local parameter or variable holding a function type. And referencing a declared function *by name as a value* (rather than calling it immediately) isn't wired up either, since top-level functions currently only register in that global table, not in ordinary variable scope.
+
+What **does** work today is describing the shape and having it checked structurally — a parameter annotated `(number) -> number` is a fully real, correctly-variant type, even though nothing can be passed into it as a value yet. Higher-order functions (genuinely passing and calling functions indirectly) is a planned, separate piece of work.
+
+## What's next
+
+Function types compare structurally, the same machinery as everything else — see [Type Equality vs Assignability](./09-type-equality-vs-assignability) for exactly how that comparison works across every type kind, function types included.

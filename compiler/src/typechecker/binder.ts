@@ -20,7 +20,6 @@ function contains(loc: SourceLocation, offset: number): boolean {
 export class Binder {
   private bindings: SymbolBinding[] = [];
 
-  /** Call once, at the same point the checker declares a symbol. */
   declare(
     name: string,
     kind: SymbolKind,
@@ -34,7 +33,7 @@ export class Binder {
     return binding;
   }
 
-  /** Call at the same point the checker resolves a lookup for a use. */
+  
   reference(binding: SymbolBinding | undefined, location: SourceLocation): void {
     if (binding) binding.references.push(location);
   }

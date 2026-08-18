@@ -1,4 +1,12 @@
 {
   "title": "Docs",
-  "pages": ["index", "getting-started", "features", "type-intelligence", "compiler", "roadmap", "improvements"]
+  "pages": [
+    "index",
+    "getting-started",
+    "features",
+    "typeengine",
+    "compiler",
+    "roadmap",
+    "improvements"
+  ]
 }

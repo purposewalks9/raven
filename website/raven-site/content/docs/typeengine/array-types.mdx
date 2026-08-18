@@ -1,0 +1,100 @@
+---
+title: Arrays + Records
+description: Homogeneous lists and structural object shapes.
+---
+
+Arrays and records are Raven's two built-in **structural** types — types described by their shape, not by a name. Two records with the same fields are the same type, even if you never called either of them anything.
+
+## Arrays
+
+Declared with `array<T>`, where `T` is any type:
+
+```typescript
+let numbers: array<number> = [1, 2, 3]
+let names: array<string> = ["Ada", "Grace"]
+```
+
+Every element in an array must share (or widen to) the same type. Leave the annotation off and Raven infers it from the elements:
+
+```typescript
+let numbers = [1, 2, 3]          // array<number>
+let empty = []                    // array<any> — nothing to infer from
+```
+
+### Mixed-type arrays widen to a union
+
+An array with elements of different types doesn't error — it infers a **union** element type (see [Union Types](./04-union-types)):
+
+```typescript
+let mixed = [1, "two", 3]
+// inferred as array<number | string>
+```
+
+### Indexing
+
+```typescript
+let numbers = [1, 2, 3]
+let first = numbers[0]     // number
+```
+
+Indexing with anything other than a `number` (or `any`) is rejected. Indexing something that isn't an array at all is also rejected — `Cannot index a non-array value of type '...'`.
+
+### Concatenation with `+`
+
+```typescript
+let combined = [1] + [2]           // array<number>
+let widened = [1] + "oops"          // array<number | string> — widens, doesn't error
+```
+
+## Records
+
+Raven doesn't have a standalone "record type" keyword — records come from `model`, and from any object literal:
+
+```typescript
+model User = { id: 1, name: "Ada", active: true }
+```
+
+The type of `User` is inferred structurally from the value:
+```
+{ id: number, name: string, active: boolean }
+```
+
+You can also give `model` an explicit annotation, in which case Raven checks the inferred shape against it:
+
+```typescript
+model User: { id: number, name: string } = { id: 1, name: "Ada" }
+```
+
+### Structural typing means extra fields are fine
+
+A record with *more* fields than an annotation asks for still satisfies it — this is what lets you narrow a broader inferred shape into a specific slot:
+
+```typescript
+let user: { name: string } = { name: "Ada", age: 37 }
+// fine — the annotation only asked for `name`, extra fields are ignored
+```
+
+### Missing fields infer as optional
+
+When Raven merges the shape of several records (for example, elements of an array of records where some have a field and some don't), a field that isn't present everywhere is inferred as [optional](./03-optional-types), not rejected:
+
+```typescript
+let users = [
+    { name: "Ada", age: 37 },
+    { name: "Grace" },
+]
+// inferred element type: { name: string, age: number? }
+```
+
+## Accessing fields
+
+```typescript
+let user = { name: "Ada", age: 37 }
+print(user.name)
+```
+
+Accessing a field that doesn't exist on the record's type is a checked error: `Property 'x' does not exist on type '...'`. Accessing a field on something that isn't a record at all is also rejected.
+
+## What's next
+
+Records are the type most commonly given a *name* via `model` — and once you start referencing a model by name elsewhere, or a model references itself, you're in [Recursive Types](./08-recursive-types) territory.

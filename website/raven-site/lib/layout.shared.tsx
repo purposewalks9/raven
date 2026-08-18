@@ -12,7 +12,6 @@ export function baseOptions(): BaseLayoutProps {
 
     links: [
       { text: 'Docs', url: '/docs' },
-      { text: 'Playground', url: '/playground' },
       { text: 'GitHub', url: 'https://github.com/purposewalks9/raven', external: true },
     ],
   };
