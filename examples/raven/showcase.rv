@@ -1,0 +1,112 @@
+// ============================================
+// RAVEN — everything the language can do today
+// ============================================
+
+// --- comments ---
+// single-line comment
+/* multi-line
+   block comment */
+
+// --- let / const, with and without explicit type annotations ---
+let age = 25                       // inferred as number
+const name: string = "Ada"         // explicit annotation
+let score: number = 0
+
+// --- primitives ---
+let isReady: boolean = true
+let nothingYet = none              // the "none" literal
+
+// --- optional types: T? is sugar for T | none ---
+let maybeName: string? = "Grace"
+maybeName = none                   // allowed, since it's optional
+
+// --- union types: T | U ---
+let id: number | string = 42
+id = "ABC-42"                      // still valid, id is number | string
+
+// --- arrays ---
+const numbers: array<number> = [4, 8, 15, 16, 23, 42]
+let mixed = [1, "two", 3]          // inferred as array<number | string>
+
+// --- records / object literals (shape inferred from the literal) ---
+let user = { id: 1, name: "Bro", plan: "free" }
+print(user.name)                   // member access, checked against inferred shape
+
+// --- indexing + built-ins ---
+print(numbers[0])
+print(len(numbers))
+
+// --- arithmetic, comparison, logical operators ---
+let total = 0
+let i = 0
+while i < len(numbers) do
+  total = total + numbers[i]
+  i = i + 1
+end
+
+let big = total > 100 and len(numbers) >= 3
+let small = not big
+
+// --- string concatenation with + ---
+let greeting = "Hello, " + name + "!"
+
+// --- array concatenation / widening with + ---
+let combined = numbers + [100]         // still array<number>
+let widened = numbers + "oops"         // becomes array<number | string>
+
+// --- if / then / else / end ---
+if big then
+  print("Big array, big sum.")
+else
+  print("Not that big.")
+end
+
+// --- functions: typed params, typed return, recursion ---
+fn fibonacci(n: number): number
+  if n < 2 then
+    return n
+  end
+  return fibonacci(n - 1) + fibonacci(n - 2)
+end
+
+fn sumArray(values: array<number>): number
+  let sum = 0
+  let index = 0
+  while index < len(values) do
+    sum = sum + values[index]
+    index = index + 1
+  end
+  return sum
+end
+
+print(fibonacci(10))
+print(sumArray(numbers))
+
+// --- while / do / end, break, continue ---
+let n = 0
+let evenSum = 0
+while n < 10 do
+  n = n + 1
+  if n == 5 then
+    continue
+  end
+  if n > 8 then
+    break
+  end
+  evenSum = evenSum + n
+end
+print(evenSum)
+
+// --- model: publish a shape to the whole project, no import needed ---
+// (other .rv files in this workspace can reference `settings.theme`
+//  directly, with zero `import` statements)
+model settings = { theme: "dark", version: 2 }
+
+// --- external model: bound to something outside this project's code ---
+// (typed as `any` unless you give it an explicit annotation)
+model remoteUser = api("/users/1")
+
+// --- import: only ever for code (functions/values), never for types ---
+// import { helper } from "./utils"
+
+print("done.")

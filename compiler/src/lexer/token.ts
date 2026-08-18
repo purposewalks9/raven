@@ -46,7 +46,7 @@ export const KEYWORDS = new Set([
   "none",
 ]);
 
-const TWO_CHARACTER_OPERATORS = new Set(["==", "!=", "<=", ">="]);
+const TWO_CHARACTER_OPERATORS = new Set(["==", "!=", "<=", ">=", "->"]);
 const SINGLE_CHARACTER_PUNCTUATION = new Set([
   "+", "-", "*", "/", "%", "=", "<", ">", "!", ":", ",", ".", ";", "(", ")", "{", "}", "[", "]", "?", "|",
 ]);

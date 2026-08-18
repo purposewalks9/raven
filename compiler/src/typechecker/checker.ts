@@ -24,9 +24,9 @@ import { sameType as sharedSameType, isAssignableTo as sharedIsAssignableTo, for
 export type FunctionSignature = { params: TypeAnnotation[]; returnType: TypeAnnotation };
 
 export interface TypeCheckerOptions {
- 
+
   registry?: WorkspaceRegistry;
- 
+
   file?: string;
 
   importedFunctions?: Map<string, FunctionSignature>;
@@ -55,7 +55,7 @@ export class TypeChecker {
     this.importedFunctions = options.importedFunctions ?? new Map();
   }
 
- check(program: Program): Diagnostic[] {
+  check(program: Program): Diagnostic[] {
     this.diagnostics = new DiagnosticBag();
     this.binder = new Binder();
     this.externalModelBindings = new Map();
@@ -65,17 +65,14 @@ export class TypeChecker {
     return this.diagnostics.all();
   }
 
-  /** Every top-level function this file makes available to `import`. */
   getExportedFunctions(): Map<string, FunctionSignature> {
     const result = new Map<string, FunctionSignature>();
     for (const [name, sig] of this.functionSignatures) {
-      // Built-ins (len, abs, sqrt, toString) carry no binding — skip them,
-      // they're not something a file "exports".
       if (sig.binding) result.set(name, { params: sig.params, returnType: sig.returnType });
     }
     return result;
   }
-     getBinder(): Binder {
+  getBinder(): Binder {
     return this.binder;
   }
 
@@ -107,7 +104,8 @@ export class TypeChecker {
         this.checkFunctionDeclaration(node);
         break;
       case "ReturnStatement": {
-        const returnType = this.checkExpression(node.value);
+
+        const returnType = this.currentReturnType ? this.literalAwareType(node.value) : this.checkExpression(node.value);
         if (this.inferredReturnTypes) {
           this.inferredReturnTypes.push(returnType);
         } else if (this.currentReturnType && !this.isAssignableTo(returnType, this.currentReturnType)) {
@@ -131,7 +129,8 @@ export class TypeChecker {
   }
 
   private checkDeclaration(node: VariableDeclaration | ConstantDeclaration): void {
-    const actualType = this.inferType(node.value);
+
+    const actualType = node.typeAnnotation ? this.literalAwareType(node.value) : this.inferType(node.value);
 
     if (node.typeAnnotation && !this.isAssignableTo(actualType, node.typeAnnotation)) {
       this.diagnostics.error(
@@ -167,7 +166,7 @@ export class TypeChecker {
       // one was given, otherwise it's opaque (`any`) until schema binding exists.
       type = node.typeAnnotation ?? "any";
     } else {
-      const actualType = this.inferType(node.value);
+      const actualType = node.typeAnnotation ? this.literalAwareType(node.value) : this.inferType(node.value);
       if (node.typeAnnotation && !this.isAssignableTo(actualType, node.typeAnnotation)) {
         this.diagnostics.error(
           CODES.MODEL_TYPE_MISMATCH,
@@ -204,7 +203,21 @@ export class TypeChecker {
       const imported = this.importedFunctions.get(name);
 
       if (imported) {
-        const binding = this.binder.declare(name, "function", imported.returnType, node.location, "import", node.source);
+        const functionType: TypeAnnotation = {
+          kind: "function",
+          params: imported.params,
+          returnType: imported.returnType,
+        };
+
+        const binding = this.binder.declare(
+          name,
+          "function",
+          functionType,
+          node.location,
+          "import",
+          node.source
+        );
+
         this.functionSignatures.set(name, { ...imported, binding });
         continue;
       }
@@ -257,7 +270,8 @@ export class TypeChecker {
       return;
     }
 
-    const valueType = this.inferType(node.value);
+
+    const valueType = this.literalAwareType(node.value);
     if (!this.isAssignableTo(valueType, symbol.type)) {
       this.diagnostics.error(
         CODES.ASSIGNMENT_TYPE_MISMATCH,
@@ -314,16 +328,33 @@ export class TypeChecker {
       this.diagnostics.error(CODES.DUPLICATE_FUNCTION, `Function '${node.name}' has already been declared`, node.location);
     }
 
-    const paramTypes: TypeAnnotation[] = node.parameters.map(p => p.typeAnnotation ?? "any");
+    const paramTypes: TypeAnnotation[] = node.parameters.map(
+      p => p.typeAnnotation ?? "any"
+    );
+
     const isReturnTypeInferred = node.returnType === undefined;
 
-    const functionBinding = this.binder.declare(node.name, "function", node.returnType ?? "any", node.location, "local", this.file);
+    const functionType: TypeAnnotation = {
+      kind: "function",
+      params: paramTypes,
+      returnType: node.returnType ?? "any",
+    };
+
+    const functionBinding = this.binder.declare(
+      node.name,
+      "function",
+      functionType,
+      node.location,
+      "local",
+      this.file
+    );
+
     const signature = {
       params: paramTypes,
       returnType: node.returnType ?? "any",
       binding: functionBinding,
     };
-    this.functionSignatures.set(node.name, signature);
+    this.functionSignatures.set(node.name, signature);  
 
     this.symbolTable.enterScope();
     const seenParameters = new Set<string>();
@@ -354,8 +385,14 @@ export class TypeChecker {
     if (isReturnTypeInferred) {
       const returns = this.inferredReturnTypes ?? [];
       const inferred = returns.length === 0 ? "any" : this.bestCommonType(returns);
+
       signature.returnType = inferred;
-      functionBinding.type = inferred;
+
+      functionBinding.type = {
+        kind: "function",
+        params: signature.params,
+        returnType: inferred,
+      };
     }
 
     this.symbolTable.exitScope();
@@ -365,6 +402,18 @@ export class TypeChecker {
 
   private checkExpression(node: Expression): TypeAnnotation {
     return this.inferType(node);
+  }
+
+
+  private literalAwareType(node: Expression): TypeAnnotation {
+    switch (node.type) {
+      case "StringLiteral":
+      case "NumberLiteral":
+      case "BooleanLiteral":
+        return { kind: "literal", value: node.value };
+      default:
+        return this.inferType(node);
+    }
   }
 
   private inferType(node: Expression): TypeAnnotation {
@@ -387,7 +436,7 @@ export class TypeChecker {
           this.binder.reference(symbol.binding, node.location);
           return symbol.type;
         }
-  
+
         const published = this.registry?.lookup(node.name);
         if (published) {
           let binding = this.externalModelBindings.get(node.name);
@@ -398,7 +447,7 @@ export class TypeChecker {
           this.binder.reference(binding, node.location);
           return published.type;
         }
-        
+
         const suggestion = closestMatch(node.name, [
           ...this.symbolTable.allNames(),
           ...(this.registry?.names() ?? []),
@@ -409,9 +458,9 @@ export class TypeChecker {
           node.location,
           suggestion
             ? {
-                hint: `Did you mean '${suggestion}'?`,
-                suggestions: [{ message: `Did you mean '${suggestion}'?`, replacement: suggestion, location: node.location }],
-              }
+              hint: `Did you mean '${suggestion}'?`,
+              suggestions: [{ message: `Did you mean '${suggestion}'?`, replacement: suggestion, location: node.location }],
+            }
             : undefined
         );
         return "any";
@@ -439,9 +488,9 @@ export class TypeChecker {
             node.location,
             suggestion
               ? {
-                  hint: `Did you mean '${suggestion}'?`,
-                  suggestions: [{ message: `Did you mean '${suggestion}'?`, replacement: suggestion, location: node.location }],
-                }
+                hint: `Did you mean '${suggestion}'?`,
+                suggestions: [{ message: `Did you mean '${suggestion}'?`, replacement: suggestion, location: node.location }],
+              }
               : undefined
           );
           return "any";
@@ -455,8 +504,8 @@ export class TypeChecker {
           );
         }
         node.arguments.forEach((arg, i) => {
-          const argType = this.inferType(arg);
           const expectedType = signature.params[i];
+          const argType = expectedType ? this.literalAwareType(arg) : this.inferType(arg);
           if (expectedType && expectedType !== "any" && !this.isAssignableTo(argType, expectedType)) {
             this.diagnostics.error(
               CODES.ARGUMENT_TYPE_MISMATCH,
@@ -474,6 +523,11 @@ export class TypeChecker {
         }
         const elementTypes = node.elements.map(element => this.inferType(element));
         return { kind: "array", elementType: this.bestCommonType(elementTypes) };
+      }
+
+      case "TupleLiteral": {
+        const elementTypes = node.elements.map(element => this.inferType(element));
+        return { kind: "tuple", elements: elementTypes };
       }
 
       case "ObjectLiteral": {
@@ -511,7 +565,6 @@ export class TypeChecker {
         );
         return "any";
       }
-
       case "IndexExpression": {
         const arrayType = this.inferType(node.array);
         const indexType = this.inferType(node.index);
@@ -522,6 +575,23 @@ export class TypeChecker {
             `Array index must be a number, got '${this.formatType(indexType)}'`,
             node.index.location
           );
+        }
+        if (typeof arrayType === "object" && arrayType.kind === "tuple") {
+          if (node.index.type === "NumberLiteral") {
+            const i = node.index.value;
+
+            if (i < 0 || i >= arrayType.elements.length) {
+              this.diagnostics.error(
+                CODES.TUPLE_INDEX_OUT_OF_BOUNDS,
+                `Tuple index ${i} is out of bounds for '${this.formatType(arrayType)}' (length ${arrayType.elements.length})`,
+                node.index.location
+              );
+              return "any";
+            }
+
+            return arrayType.elements[i] ?? "any";
+          }
+          return this.bestCommonType(arrayType.elements);
         }
 
         if (typeof arrayType === "object" && arrayType.kind === "array") {
@@ -537,7 +607,6 @@ export class TypeChecker {
         );
         return "any";
       }
-
       case "BinaryExpression": {
         const leftType = this.inferType(node.left);
         const rightType = this.inferType(node.right);
@@ -557,9 +626,6 @@ export class TypeChecker {
         }
 
         if (["==", "!=", "<", "<=", ">", ">="].includes(node.operator)) {
-          // "Comparable" means overlap, not identity: a `string | number`
-          // can meaningfully be compared against a bare `string`, even
-          // though the two aren't the same type.
           const comparable = this.isAssignableTo(leftType, rightType) || this.isAssignableTo(rightType, leftType);
           if (!comparable) {
             this.diagnostics.error(
@@ -574,14 +640,10 @@ export class TypeChecker {
         if (node.operator === "+") {
           if (typeof leftType === "object" && leftType.kind === "array") {
             if (typeof rightType === "object" && rightType.kind === "array") {
-              // Concatenating arrays of different element types no longer
-              // errors — the result is `array<union of both>`, the same
-              // move as mixed-type array literals above.
+
               return { kind: "array", elementType: unionType([leftType.elementType, rightType.elementType]) };
             }
 
-            // Appending a value widens the element type if it wasn't
-            // already covered, rather than requiring an exact match.
             return { kind: "array", elementType: unionType([leftType.elementType, rightType]) };
           }
 

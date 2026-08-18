@@ -32,10 +32,7 @@ export type Statement =
     | ModelDeclaration
     | ImportDeclaration;
 
-// `model` publishes a shape project-wide — no import needed for other files
-// to use it. `external` is true when the value is bound to something outside
-// the project (e.g. `database.users`, `api("/users")`) rather than inferred
-// from a literal written in this file.
+
 export interface ModelDeclaration extends Node {
     type: "ModelDeclaration";
     name: string;
@@ -44,8 +41,6 @@ export interface ModelDeclaration extends Node {
     external: boolean;
 }
 
-// `import` is for code (functions/values), never for types — model shapes
-// resolve through the workspace registry instead.
 export interface ImportDeclaration extends Node {
     type: "ImportDeclaration";
     names: string[];
@@ -134,13 +129,15 @@ export interface ConstantDeclaration extends Node {
    typeAnnotation?: TypeAnnotation; 
 }
 
+export interface TupleLiteral extends Node {
+    type: "TupleLiteral";
+    elements: Expression[];
+}
 export interface BooleanLiteral extends Node {   
     type: "BooleanLiteral";
     value: boolean;
 }
 
-// The only value of type `none` — what a `T?` (i.e. `T | none`) variable
-// holds when it isn't a `T`. Exists so `?` has something to desugar to.
 export interface NoneLiteral extends Node {
     type: "NoneLiteral";
 }
@@ -151,7 +148,8 @@ export type Expression =
     | NoneLiteral
     | CallExpression
     | Identifier
-    | ArrayLiteral      
+    | ArrayLiteral     
+    | TupleLiteral
     | IndexExpression
     | ObjectLiteral  
     | MemberExpression
@@ -176,6 +174,11 @@ export interface UnaryExpression extends Node {
     operator: "not";
     argument: Expression;
 }
+export interface StringLiteral extends Node {
+    type: "StringLiteral";
+    value: string;
+}
+
 export interface StringLiteral extends Node {
     type: "StringLiteral";
     value: string;
@@ -212,3 +215,6 @@ export type TypeAnnotation =
     | { kind: "record"; fields: Record<string, TypeAnnotation> }
     | { kind: "optional"; inner: TypeAnnotation }
     | { kind: "union"; variants: TypeAnnotation[] }
+    | { kind: "function"; params: TypeAnnotation[]; returnType: TypeAnnotation }
+    | { kind: "literal"; value: string | number | boolean }
+    | { kind: "tuple"; elements: TypeAnnotation[] }

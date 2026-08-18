@@ -31,6 +31,7 @@ export class Parser {
             const token = this.advance();
             return this.withLocation({ type: "BreakStatement" }, token.location);
         }
+
         if (this.checkKeyword("continue")) {
             const token = this.advance();
             return this.withLocation({ type: "ContinueStatement" }, token.location);
@@ -137,9 +138,7 @@ export class Parser {
         }, start);
     }
 
-    // A model is "external" when it's bound to something outside the
-    // project's own source — `database.users`, `api("/users")` — rather
-    // than inferred from a literal written right here.
+
     private isExternalBinding(expr: Expression): boolean {
         if (expr.type === "CallExpression") {
             return expr.callee === "api" || expr.callee === "database";
@@ -343,26 +342,26 @@ export class Parser {
 
         return left;
     }
-parsePrimary(): Expression {
-    let expr = this.parsePrimaryBase(); 
-    while (this.peek().value === "[" || this.peek().value === ".") {
-        if (this.peek().value === "[") {
-            this.advance();
-            const index = this.parseExpression();
-            this.expect("]");
-            expr = this.withLocation({ type: "IndexExpression", array: expr, index }, expr.location);
-        } else {
-            this.advance();
-            const propertyToken = this.peek();
-            if (propertyToken.kind !== TokenKind.Identifier) {
-                throw new Error(`Expected a property name after '.', got: ${propertyToken.value} (${propertyToken.kind})`);
+    parsePrimary(): Expression {
+        let expr = this.parsePrimaryBase();
+        while (this.peek().value === "[" || this.peek().value === ".") {
+            if (this.peek().value === "[") {
+                this.advance();
+                const index = this.parseExpression();
+                this.expect("]");
+                expr = this.withLocation({ type: "IndexExpression", array: expr, index }, expr.location);
+            } else {
+                this.advance();
+                const propertyToken = this.peek();
+                if (propertyToken.kind !== TokenKind.Identifier) {
+                    throw new Error(`Expected a property name after '.', got: ${propertyToken.value} (${propertyToken.kind})`);
+                }
+                this.advance();
+                expr = this.withLocation({ type: "MemberExpression", object: expr, property: propertyToken.value }, expr.location);
             }
-            this.advance();
-            expr = this.withLocation({ type: "MemberExpression", object: expr, property: propertyToken.value }, expr.location);
         }
+        return expr;
     }
-    return expr;
-}
 
     private parsePrimaryBase(): Expression {
         const token = this.peek();
@@ -374,10 +373,20 @@ parsePrimary(): Expression {
         }
 
         if (this.peek().value === "(") {
+            const start = this.peek().location;
             this.advance();
-            const expression = this.parseExpression();
+            const first = this.parseExpression();
+            if (this.peek().value === ",") {
+                const elements = [first];
+                while (this.peek().value === ",") {
+                    this.advance();
+                    elements.push(this.parseExpression());
+                }
+                this.expect(")");
+                return this.withLocation({ type: "TupleLiteral", elements }, start);
+            }
             this.expect(")");
-            return expression;
+            return first;
         }
 
         if (token.kind === TokenKind.Identifier && this.tokens[this.pos + 1]?.value === "(") {
@@ -482,11 +491,41 @@ parsePrimary(): Expression {
         return members.length === 1 ? members[0]! : unionType(members);
     }
 
-    // One type name (or `array<...>`), plus an optional trailing `?`. `T?`
-    // is sugar for `T | none` — see the comment on TypeAnnotation's `union`
-    // kind in ast/nodes.ts for why this doesn't get its own representation.
     private parseTypeAnnotationAtom(): TypeAnnotation {
         const token = this.peek();
+
+        if (token.kind === TokenKind.String) {
+            this.advance();
+            return this.finishTypeAnnotationAtom({ kind: "literal", value: token.value });
+        }
+        if (token.kind === TokenKind.Number) {
+            this.advance();
+            return this.finishTypeAnnotationAtom({ kind: "literal", value: Number(token.value) });
+        }
+        if (token.kind === TokenKind.Keyword && (token.value === "true" || token.value === "false")) {
+            this.advance();
+            return this.finishTypeAnnotationAtom({ kind: "literal", value: token.value === "true" });
+        }
+
+        if (token.value === "(") {
+            this.advance();
+            const params: TypeAnnotation[] = [];
+            while (this.peek().value !== ")") {
+                params.push(this.parseTypeAnnotation());
+                if (this.peek().value === ",") {
+                    this.advance();
+                }
+            }
+            this.expect(")");
+            this.expect("->");
+            const returnType = this.parseTypeAnnotation();
+            return this.finishTypeAnnotationAtom({ kind: "function", params, returnType });
+        }
+
+        if (token.kind !== TokenKind.Identifier) {
+            throw new Error(`Expected a type name, got: ${token.value} (${token.kind})`);
+        }
+
         if (token.kind !== TokenKind.Identifier) {
             throw new Error(`Expected a type name, got: ${token.value} (${token.kind})`);
         }
@@ -498,15 +537,28 @@ parsePrimary(): Expression {
             const elementType = this.parseTypeAnnotation();
             this.expect(">");
             base = { kind: "array", elementType };
+        } else if (token.value === "tuple") {
+            this.expect("<");
+            const elements: TypeAnnotation[] = [this.parseTypeAnnotation()];
+            while (this.peek().value === ",") {
+                this.advance();
+                elements.push(this.parseTypeAnnotation());
+            }
+            this.expect(">");
+            base = { kind: "tuple", elements };
         } else {
             base = token.value as TypeAnnotation;
         }
+        return this.finishTypeAnnotationAtom(base);
+    }
 
+    // Shared by every atom above: an optional trailing `?` widens the atom
+    // (including a literal, e.g. `"admin"?`) to `atom | none`.
+    private finishTypeAnnotationAtom(base: TypeAnnotation): TypeAnnotation {
         if (this.peek().value === "?") {
             this.advance();
             return unionType([base, "none"]);
         }
-
         return base;
     }
 

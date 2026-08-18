@@ -1,13 +1,6 @@
 import type { SourceLocation } from "../ast/index.js";
 
-/**
- * A concrete, machine-applicable fix for a diagnostic. `replacement` is
- * the exact text an editor/LSP can splice in at `location` (defaulting to
- * the diagnostic's own location when omitted) — e.g. swapping a misspelled
- * identifier for the name the checker thinks you meant. Suggestions with
- * no `replacement` are still worth showing (e.g. "declare it first"), they
- * just aren't something a tool can apply automatically.
- */
+
 export interface DiagnosticSuggestion {
   message: string;
   replacement?: string;
@@ -29,24 +22,7 @@ export interface DiagnosticOptions {
   suggestions?: DiagnosticSuggestion[];
 }
 
-/**
- * Every diagnostic code the checker can raise, grouped by category. This
- * exists so codes are declared once, in one place, instead of scattered as
- * string literals through checker.ts — grep this object, not the checker,
- * to find every diagnostic Raven can produce.
- *
- * Numbering scheme (mirrors rustc/tsc-style "one stable code per distinct
- * failure kind"):
- *   1xxx — duplicate declarations
- *   2xxx — type mismatches
- *   3xxx — unresolved references (undeclared names, bad imports)
- *   4xxx — invalid assignment targets
- *   5xxx — invalid operator operands
- *   6xxx — invalid property/index access
- *   7xxx — function call shape errors
- *   8xxx — model/workspace-registry conflicts
- *   9xxx — file-level failures (parse errors reported at the project level)
- */
+
 export const CODES = {
   DUPLICATE_DECLARATION: "RAV1001",
   DUPLICATE_FUNCTION: "RAV1002",
@@ -78,6 +54,7 @@ export const CODES = {
   INVALID_PROPERTY_ACCESS: "RAV6002",
   INVALID_INDEX_TYPE: "RAV6003",
   INVALID_INDEX_TARGET: "RAV6004",
+  TUPLE_INDEX_OUT_OF_BOUNDS: "RAV6005",
 
   ARGUMENT_COUNT_MISMATCH: "RAV7001",
 
