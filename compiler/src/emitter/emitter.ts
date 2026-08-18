@@ -12,6 +12,7 @@ import {
   NoneLiteral,
   BinaryExpression,
   Assignment,
+  TupleLiteral,
   FunctionDeclaration,
   ReturnStatement,
   IfStatement,
@@ -257,13 +258,15 @@ export class Emitter {
       case "ObjectLiteral":
         this.emitObjectLiteral(node);
         break;
-
       case "UnaryExpression":
         this.emitUnaryExpression(node);
         break;
       case "ArrayLiteral":
         this.emitArrayLiteral(node);
         break;
+     case "TupleLiteral":
+    this.emitArrayLiteral(node as any);
+    break;
       case "IndexExpression":
         this.emitIndexExpression(node);
         break;

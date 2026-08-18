@@ -158,3 +158,9 @@ RAVEN
     ├── React/Next.js interoperability
     └── Full-stack Raven application support
     
+
+
+
+That's the complete surface area right now: let/const, string/number/boolean/any/none, optional T?, union T | U, array<T>, inferred record types, fn/return, if/then/else/end, while/do/end, break/continue, all the binary operators + not, indexing, len()/abs()/sqrt()/toString(), model (local and external via api()/database), import { } from, and both // and /* */ comments. Every model there also gets the "no import needed, cross-file typo suggestions, immutable outside its file" behavior you built into the WorkspaceRegistry — that just doesn't show visibly in a single file.
+
+One thing worth knowing about while you're in here: while testing I found numbers + [100] type-checks correctly as array concat, but the emitter passes + straight through to JS, so at runtime it actually does string coercion ("4,8,15,16,23,42100" instead of an array). Compile-time semantics and emitted semantics have drifted apart for array +. Didn't fix it, just flagging since it's a real one — happy to dig into the emitter with you if/when you want to chase it.

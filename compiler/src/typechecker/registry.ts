@@ -36,8 +36,6 @@ export class WorkspaceRegistry {
       return { ok: true };
     }
 
-    // External bindings are opaque — we can't compare shapes we didn't infer,
-    // so we trust the developer rather than false-flagging a conflict.
     if (external || existing.external) {
       return { ok: true };
     }

@@ -38,7 +38,25 @@ describe("emitter", () => {
     const js = new Emitter().emit(ast);
     expect(js).toContain("true");
   });
-
+it("emits a tuple literal as a plain JS array", () => {
+  const ast: Program = {
+    type: "Program",
+    body: [{
+      type: "VariableDeclaration",
+      name: "point",
+      value: {
+        type: "TupleLiteral",
+        elements: [
+          { type: "NumberLiteral", value: 1 },
+          { type: "StringLiteral", value: "a" },
+        ],
+      },
+    }],
+  };
+  const js = new Emitter().emit(ast);
+  expect(js).toContain("[1,");
+  expect(js).toContain('"a"');
+});
   it("emits `none` as `null`", () => {
     const ast: Program = {
       type: "Program",

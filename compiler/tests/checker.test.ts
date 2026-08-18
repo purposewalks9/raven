@@ -1,9 +1,15 @@
 import { describe, it, expect } from "vitest";
 import { TypeChecker } from "../src/typechecker/checker.js";
+import { tokenize } from "../src/lexer/token.js";
+import { Parser } from "../src/parser/parser.js";
 import type { Program } from "../src/ast/index.js";
 
+function check(source: string) {
+  const ast = new Parser(tokenize(source)).parseProgram();
+  return new TypeChecker().check(ast);
+}
+
 describe("TypeChecker", () => {
-  // ========== VARIABLE DECLARATIONS ==========
   
   describe("Variable Declarations", () => {
     it("passes when annotation matches the value's type", () => {
@@ -61,7 +67,7 @@ describe("TypeChecker", () => {
       expect(errors.length).toBe(1);
       expect(errors[0].message).toContain("age");
       expect(errors[0].message).toContain("number");
-      expect(errors[0].message).toContain("string");
+      expect(errors[0].message).toContain('"oops"');
     });
 
     it("catches a boolean/string mismatch", () => {
@@ -78,9 +84,139 @@ describe("TypeChecker", () => {
       expect(errors.length).toBe(1);
       expect(errors[0].message).toContain("isReady");
       expect(errors[0].message).toContain("boolean");
-      expect(errors[0].message).toContain("string");
+      expect(errors[0].message).toContain('"yes"');
     });
+it("infers a tuple literal's type without an annotation", () => {
+  const ast: Program = {
+    type: "Program",
+    body: [{
+      type: "VariableDeclaration",
+      name: "point",
+      value: {
+        type: "TupleLiteral",
+        elements: [
+          { type: "NumberLiteral", value: 1 },
+          { type: "StringLiteral", value: "a" },
+        ],
+      },
+    }],
+  };
+  const errors = new TypeChecker().check(ast);
+  expect(errors).toEqual([]);
+});
 
+it("accepts a tuple literal matching its tuple annotation", () => {
+  const ast: Program = {
+    type: "Program",
+    body: [{
+      type: "VariableDeclaration",
+      name: "point",
+      value: {
+        type: "TupleLiteral",
+        elements: [
+          { type: "NumberLiteral", value: 1 },
+          { type: "StringLiteral", value: "a" },
+        ],
+      },
+      typeAnnotation: { kind: "tuple", elements: ["number", "string"] },
+    }],
+  };
+  const errors = new TypeChecker().check(ast);
+  expect(errors).toEqual([]);
+});
+
+it("rejects a tuple literal with the wrong arity for its annotation", () => {
+  const ast: Program = {
+    type: "Program",
+    body: [{
+      type: "VariableDeclaration",
+      name: "point",
+      value: {
+        type: "TupleLiteral",
+        elements: [{ type: "NumberLiteral", value: 1 }],
+      },
+      typeAnnotation: { kind: "tuple", elements: ["number", "string"] },
+    }],
+  };
+  const errors = new TypeChecker().check(ast);
+  expect(errors.length).toBe(1);
+  expect(errors[0].message).toContain("Type mismatch");
+});
+
+it("returns the exact positional type when indexing a tuple with a literal number", () => {
+  const ast: Program = {
+    type: "Program",
+    body: [
+      {
+        type: "VariableDeclaration",
+        name: "point",
+        value: {
+          type: "TupleLiteral",
+          elements: [
+            { type: "NumberLiteral", value: 1 },
+            { type: "StringLiteral", value: "a" },
+          ],
+        },
+      },
+      {
+        type: "VariableDeclaration",
+        name: "second",
+        value: {
+          type: "IndexExpression",
+          array: { type: "Identifier", name: "point" },
+          index: { type: "NumberLiteral", value: 1 },
+        },
+        typeAnnotation: "string",
+      },
+    ],
+  };
+  const errors = new TypeChecker().check(ast);
+  expect(errors).toEqual([]);
+});
+
+it("accepts a higher-order function parameter with a matching argument", () => {
+    const source = `
+        fn double(n: number): number
+            return n * 2
+        end
+        fn apply(callback: (number) -> number, value: number): number
+            return callback(value)
+        end
+        let result = apply(double, 5)
+    `;
+    expect(check(source)).toEqual([]);
+});
+
+it("rejects an out-of-bounds literal index into a tuple", () => {
+  const ast: Program = {
+    type: "Program",
+    body: [
+      {
+        type: "VariableDeclaration",
+        name: "point",
+        value: {
+          type: "TupleLiteral",
+          elements: [
+            { type: "NumberLiteral", value: 1 },
+            { type: "StringLiteral", value: "a" },
+          ],
+        },
+      },
+      {
+        type: "VariableDeclaration",
+        name: "bad",
+        value: {
+          type: "IndexExpression",
+          array: { type: "Identifier", name: "point" },
+          index: { type: "NumberLiteral", value: 5 },
+        },
+      },
+    ],
+  };
+  const errors = new TypeChecker().check(ast);
+  expect(errors.length).toBe(1);
+  expect(errors[0].message).toContain("out of bounds");
+});
     it("rejects duplicate variable declarations", () => {
       const ast: Program = {
         type: "Program",
@@ -1243,7 +1379,7 @@ it("widens the element type to a union instead of rejecting an append", () => {
       const errors = new TypeChecker().check(ast);
       expect(errors[0].message).toContain("age");
       expect(errors[0].message).toContain("number");
-      expect(errors[0].message).toContain("string");
+      expect(errors[0].message).toContain('"oops"');
     });
 
     it("provides clear error message for undeclared variable", () => {
@@ -1389,5 +1525,124 @@ it("widens the element type to a union instead of rejecting an append", () => {
       expect(origins.get("declaredAge")).toBe("local");
     });
 
+  });
+
+  // ========== LITERAL TYPES ==========
+
+  describe("Literal Types", () => {
+    it("accepts a value that matches its literal annotation", () => {
+      expect(check(`let role: "admin" = "admin"`)).toEqual([]);
+      expect(check(`let code: 200 = 200`)).toEqual([]);
+      expect(check(`let flag: true = true`)).toEqual([]);
+    });
+
+    it("rejects a value that doesn't match its literal annotation", () => {
+      const errors = check(`let role: "admin" = "user"`);
+      expect(errors.length).toBe(1);
+      expect(errors[0].message).toContain('"admin"');
+      expect(errors[0].message).toContain('"user"');
+    });
+
+    it("accepts any member of a union of literals", () => {
+      expect(check(`let role: "admin" | "user" | "guest" = "user"`)).toEqual([]);
+    });
+
+    it("rejects a value outside a union of literals", () => {
+      const errors = check(`let role: "admin" | "user" = "root"`);
+      expect(errors.length).toBe(1);
+      expect(errors[0].message).toContain('"admin" | "user"');
+      expect(errors[0].message).toContain('"root"');
+    });
+
+    it("does not let a bare primitive satisfy a literal annotation", () => {
+      // `name` is inferred as plain `string`, not the literal "admin" — so
+      // assigning it into a literal-typed slot should fail even though the
+      // runtime value happens to match.
+      const errors = check(`
+        let name = "admin"
+        let role: "admin" = name
+      `);
+      expect(errors.length).toBe(1);
+      expect(errors[0].message).toContain("string");
+    });
+
+    it("still widens an unannotated declaration to the base primitive", () => {
+      // No annotation means no narrowing: `role` should stay reassignable to
+      // any string, not get pinned to "admin" forever.
+      expect(check(`
+        let role = "admin"
+        role = "someone-else"
+      `)).toEqual([]);
+    });
+
+    it("checks a literal-typed function parameter against a call argument", () => {
+      const source = `
+        fn setRole(role: "admin" | "user"): boolean
+          return true
+        end
+        setRole("admin")
+      `;
+      expect(check(source)).toEqual([]);
+    });
+
+    it("rejects a call argument outside a literal-typed parameter's union", () => {
+      const source = `
+        fn setRole(role: "admin" | "user"): boolean
+          return true
+        end
+        setRole("root")
+      `;
+      const errors = check(source);
+      expect(errors.length).toBe(1);
+      expect(errors[0].message).toContain("setRole");
+      expect(errors[0].message).toContain('"root"');
+    });
+
+    it("checks a return statement against a literal-typed return annotation", () => {
+      expect(check(`
+        fn status(): "ok" | "error"
+          return "ok"
+        end
+      `)).toEqual([]);
+
+      const errors = check(`
+        fn status(): "ok" | "error"
+          return "pending"
+        end
+      `);
+      expect(errors.length).toBe(1);
+      expect(errors[0].message).toContain('"ok" | "error"');
+      expect(errors[0].message).toContain('"pending"');
+    });
+
+    it("does not pin an inferred (unannotated) return type to a single literal", () => {
+      // With no declared return type, the return type should still widen —
+      // two different string returns should unify to `string`, not fail
+      // because they're different literals.
+      expect(check(`
+        fn label(n: number): string
+          if n > 0 then
+            return "positive"
+          else
+            return "non-positive"
+          end
+        end
+      `)).toEqual([]);
+    });
+
+    it("checks a literal-typed assignment against the variable's declared union", () => {
+      expect(check(`
+        let role: "admin" | "user" = "admin"
+        role = "user"
+      `)).toEqual([]);
+
+      const errors = check(`
+        let role: "admin" | "user" = "admin"
+        role = "root"
+      `);
+      expect(errors.length).toBe(1);
+      expect(errors[0].message).toContain("role");
+      expect(errors[0].message).toContain('"root"');
+    });
   });
 });

@@ -1,14 +1,5 @@
 import { TypeAnnotation } from "../ast/nodes.js";
 
-/**
- * @deprecated Use `unionType` instead. Kept only so any external callers
- * built against the old (buggy) signature don't hard-crash; it now just
- * forwards to `unionType`, which produces the correct `{ kind: "union",
- * variants }` shape that the rest of the checker expects. The previous
- * implementation built `{ kind: "union", types: [...] }` — the wrong
- * property name — so every `T?` / `T | U` annotation written in Raven
- * source silently produced a malformed type the checker couldn't read.
- */
 export function makeUnion(members: TypeAnnotation[]): TypeAnnotation {
   return unionType(members);
 }
@@ -44,6 +35,11 @@ export function sameType(left: TypeAnnotation, right: TypeAnnotation): boolean {
     });
   }
 
+  if (normalizedLeft.kind === "tuple" && normalizedRight.kind === "tuple") {
+    return normalizedLeft.elements.length === normalizedRight.elements.length
+        && normalizedLeft.elements.every((el, i) => sameType(el, normalizedRight.elements[i]!));
+}
+
   if (normalizedLeft.kind === "optional" && normalizedRight.kind === "optional") {
     return sameType(normalizedLeft.inner, normalizedRight.inner);
   }
@@ -53,14 +49,21 @@ export function sameType(left: TypeAnnotation, right: TypeAnnotation): boolean {
       && normalizedLeft.variants.every(leftVariant => normalizedRight.variants.some(rightVariant => sameType(leftVariant, rightVariant)));
   }
 
+  if (normalizedLeft.kind === "function" && normalizedRight.kind === "function") {
+  return normalizedLeft.params.length === normalizedRight.params.length
+    && normalizedLeft.params.every((param, index) =>
+      sameType(param, normalizedRight.params[index]!)
+    )
+    && sameType(normalizedLeft.returnType, normalizedRight.returnType);
+}
+
+  if (normalizedLeft.kind === "literal" && normalizedRight.kind === "literal") {
+    return normalizedLeft.value === normalizedRight.value;
+  }
+
   return false;
 }
 
-/** Normalize internal compiler-created types so the checker can reason about
- * optional and union values without requiring TypeScript-like syntax from Raven
- * developers. `any` absorbs unions, nested unions are flattened, duplicate
- * variants are removed, and one-member unions collapse back to their member.
- */
 export function normalizeType(type: TypeAnnotation): TypeAnnotation {
   if (typeof type === "string") return type;
 
@@ -75,11 +78,23 @@ export function normalizeType(type: TypeAnnotation): TypeAnnotation {
     }
     return { kind: "record", fields };
   }
-
+if (type.kind === "tuple") {
+    return { kind: "tuple", elements: type.elements.map(normalizeType) };
+}
   if (type.kind === "optional") {
     return { kind: "optional", inner: normalizeType(type.inner) };
   }
 
+  if (type.kind === "literal") {
+    return { kind: "literal", value: type.value };
+  }
+if (type.kind === "function") {
+  return {
+    kind: "function",
+    params: type.params.map(normalizeType),
+    returnType: normalizeType(type.returnType),
+  };
+}
   const variants = type.variants.flatMap(variant => {
     const normalized = normalizeType(variant);
     return typeof normalized === "object" && normalized.kind === "union" ? normalized.variants : [normalized];
@@ -109,14 +124,6 @@ export function unionType(variants: TypeAnnotation[]): TypeAnnotation {
   return normalizeType({ kind: "union", variants });
 }
 
-/**
- * Compatibility check used by the checker when a value flows into an expected
- * type. This deliberately stays distinct from `sameType`: `sameType` answers
- * "are these identical?", while assignability answers "can a value of the
- * source type be used where the target type is expected?" Keeping that seam now
- * gives Raven a place to grow optional fields, unions, and narrowing without
- * adding TypeScript-like syntax before the compiler can reason about it.
- */
 export function isAssignableTo(source: TypeAnnotation, target: TypeAnnotation): boolean {
   const normalizedSource = normalizeType(source);
   const normalizedTarget = normalizeType(target);
@@ -132,19 +139,25 @@ export function isAssignableTo(source: TypeAnnotation, target: TypeAnnotation): 
     return isAssignableTo(normalizedSource, normalizedTarget.inner);
   }
 
-  // Source-union must be checked first: `A | B` is assignable to `T` iff
-  // *every* member is assignable to `T` — including when `T` is itself a
-  // union, in which case each member just needs to match *some* variant
-  // of it (handled by recursing into the target-is-union branch below).
-  // Checking target-union first would instead ask "is the whole `A | B`
-  // assignable to a single variant of the target?", which wrongly rejects
-  // e.g. `number | string` against a target of `number | string`.
   if (typeof normalizedSource === "object" && normalizedSource.kind === "union") {
     return normalizedSource.variants.every(variant => isAssignableTo(variant, normalizedTarget));
   }
 
   if (typeof normalizedTarget === "object" && normalizedTarget.kind === "union") {
     return normalizedTarget.variants.some(variant => isAssignableTo(normalizedSource, variant));
+  }
+
+  if (typeof normalizedSource === "object" && normalizedSource.kind === "literal") {
+    if (typeof normalizedTarget === "object" && normalizedTarget.kind === "literal") {
+      return normalizedSource.value === normalizedTarget.value;
+    }
+    if (typeof normalizedTarget === "string") {
+      return typeof normalizedSource.value === normalizedTarget;
+    }
+    return false;
+  }
+  if (typeof normalizedTarget === "object" && normalizedTarget.kind === "literal") {
+    return false;
   }
 
   if (typeof normalizedSource === "string" && typeof normalizedTarget === "string") {
@@ -169,7 +182,29 @@ export function isAssignableTo(source: TypeAnnotation, target: TypeAnnotation): 
         : isAssignableTo(sourceField, targetField);
     });
   }
+  if (normalizedSource.kind === "tuple" && normalizedTarget.kind === "tuple") {
+    return normalizedSource.elements.length === normalizedTarget.elements.length
+        && normalizedSource.elements.every((el, i) => isAssignableTo(el, normalizedTarget.elements[i]!));
+}
+  if (normalizedSource.kind === "function" && normalizedTarget.kind === "function") {
+  if (normalizedSource.params.length !== normalizedTarget.params.length) {
+    return false;
+  }
 
+  const paramsAssignable = normalizedSource.params.every((sourceParam, index) => {
+    const targetParam = normalizedTarget.params[index]!;
+    return isAssignableTo(targetParam, sourceParam);
+  });
+
+  if (!paramsAssignable) {
+    return false;
+  }
+
+  return isAssignableTo(
+    normalizedSource.returnType,
+    normalizedTarget.returnType
+  );
+}
   return false;
 }
 
@@ -198,13 +233,29 @@ export function formatType(type: TypeAnnotation | undefined): string {
       .join(", ");
     return `{ ${fields} }`;
   }
+
+  if (normalized.kind === "tuple") {
+    return `[${normalized.elements.map(formatType).join(", ")}]`;
+}
   if (normalized.kind === "optional") {
     return `${formatType(normalized.inner)}?`;
   }
   if (normalized.kind === "union") {
     return normalized.variants.map(formatType).join(" | ");
   }
+  if (normalized.kind === "literal") {
+    return typeof normalized.value === "string" ? JSON.stringify(normalized.value) : String(normalized.value);
+  }
+  if (normalized.kind === "function") {
+  const params = normalized.params
+    .map(formatType)
+    .join(", ");
+
+  return `(${params}) -> ${formatType(normalized.returnType)}`;
+}
   return "unknown";
+
+  
 }
 
 function levenshtein(a: string, b: string): number {

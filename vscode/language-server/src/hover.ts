@@ -14,6 +14,9 @@ function formatType(type: TypeAnnotation): string {
       .join("; ");
     return `{ ${fields} }`;
   }
+  if (type.kind === "optional") return `${formatType(type.inner)}?`;
+  if (type.kind === "union") return type.variants.map(formatType).join(" | ");
+  if (type.kind === "literal") return typeof type.value === "string" ? JSON.stringify(type.value) : String(type.value);
   return "unknown";
 }
 

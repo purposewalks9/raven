@@ -54,7 +54,54 @@ describe("parser", () => {
       typeAnnotation: "string",
     });
   });
+it("parses a tuple type annotation", () => {
+  const ast = new Parser(tokenize(`let x: tuple<number, string> = (1, "a")`)).parseProgram();
+  expect((ast.body[0] as any).typeAnnotation).toEqual({
+    kind: "tuple",
+    elements: ["number", "string"],
+  });
+});
 
+it("parses a three-member tuple type annotation", () => {
+  const ast = new Parser(tokenize(`let x: tuple<number, string, boolean> = (1, "a", true)`)).parseProgram();
+  expect((ast.body[0] as any).typeAnnotation).toEqual({
+    kind: "tuple",
+    elements: ["number", "string", "boolean"],
+  });
+});
+
+it("parses a tuple literal", () => {
+  const ast = new Parser(tokenize(`let x = (1, "a", true)`)).parseProgram();
+  expect(stripLocations((ast.body[0] as any).value)).toEqual({
+    type: "TupleLiteral",
+    elements: [
+      { type: "NumberLiteral", value: 1 },
+      { type: "StringLiteral", value: "a" },
+      { type: "BooleanLiteral", value: true },
+    ],
+  });
+});
+
+
+it("still parses a grouped expression as a plain expression, not a tuple", () => {
+  const ast = new Parser(tokenize(`let x = (2 + 3)`)).parseProgram();
+  expect(stripLocations((ast.body[0] as any).value)).toEqual({
+    type: "BinaryExpression",
+    operator: "+",
+    left: { type: "NumberLiteral", value: 2 },
+    right: { type: "NumberLiteral", value: 3 },
+  });
+});
+
+
+it("still parses a function call with multiple arguments correctly", () => {
+  const ast = new Parser(tokenize(`let x = add(1, 2)`)).parseProgram();
+  expect(stripLocations((ast.body[0] as any).value)).toEqual({
+    type: "CallExpression",
+    callee: "add",
+    arguments: [{ type: "NumberLiteral", value: 1 }, { type: "NumberLiteral", value: 2 }],
+  });
+});
   it("parses a const declaration with a type annotation", () => {
     const ast = new Parser(tokenize(`const x: string = "hi"`)).parseProgram();
     expect(stripLocations(ast.body[0])).toEqual({
@@ -77,7 +124,23 @@ describe("parser", () => {
       variants: ["string", "number"],
     });
   });
+it("parses a function type annotation", () => {
+    const ast = new Parser(tokenize(`let f: (number, string) -> boolean = isValid`)).parseProgram();
+    expect((ast.body[0] as any).typeAnnotation).toEqual({
+        kind: "function",
+        params: ["number", "string"],
+        returnType: "boolean",
+    });
+});
 
+it("parses a zero-parameter function type", () => {
+    const ast = new Parser(tokenize(`let f: () -> number = getValue`)).parseProgram();
+    expect((ast.body[0] as any).typeAnnotation).toEqual({
+        kind: "function",
+        params: [],
+        returnType: "number",
+    });
+});
   it("parses a three-member union type annotation", () => {
     const ast = new Parser(tokenize(`let x: string | number | boolean = "hi"`)).parseProgram();
     expect((ast.body[0] as any).typeAnnotation).toEqual({
@@ -112,6 +175,49 @@ describe("parser", () => {
     expect((ast.body[0] as any).typeAnnotation).toEqual({
       kind: "array",
       elementType: { kind: "union", variants: ["string", "number"] },
+    });
+  });
+
+  it("parses a string literal type annotation", () => {
+    const ast = new Parser(tokenize(`let role: "admin" = "admin"`)).parseProgram();
+    expect((ast.body[0] as any).typeAnnotation).toEqual({ kind: "literal", value: "admin" });
+  });
+
+  it("parses a number literal type annotation", () => {
+    const ast = new Parser(tokenize(`let code: 200 = 200`)).parseProgram();
+    expect((ast.body[0] as any).typeAnnotation).toEqual({ kind: "literal", value: 200 });
+  });
+
+  it("parses a boolean literal type annotation", () => {
+    const ast = new Parser(tokenize(`let flag: true = true`)).parseProgram();
+    expect((ast.body[0] as any).typeAnnotation).toEqual({ kind: "literal", value: true });
+  });
+
+  it("parses a union of string literal types", () => {
+    const ast = new Parser(tokenize(`let role: "admin" | "user" | "guest" = "admin"`)).parseProgram();
+    expect((ast.body[0] as any).typeAnnotation).toEqual({
+      kind: "union",
+      variants: [
+        { kind: "literal", value: "admin" },
+        { kind: "literal", value: "user" },
+        { kind: "literal", value: "guest" },
+      ],
+    });
+  });
+
+  it("desugars a trailing `?` on a literal type to `literal | none`", () => {
+    const ast = new Parser(tokenize(`let role: "admin"? = "admin"`)).parseProgram();
+    expect((ast.body[0] as any).typeAnnotation).toEqual({
+      kind: "union",
+      variants: [{ kind: "literal", value: "admin" }, "none"],
+    });
+  });
+
+  it("parses a literal type inside array<T>", () => {
+    const ast = new Parser(tokenize(`let roles: array<"admin" | "user"> = ["admin"]`)).parseProgram();
+    expect((ast.body[0] as any).typeAnnotation).toEqual({
+      kind: "array",
+      elementType: { kind: "union", variants: [{ kind: "literal", value: "admin" }, { kind: "literal", value: "user" }] },
     });
   });
 

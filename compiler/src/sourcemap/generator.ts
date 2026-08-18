@@ -1,10 +1,5 @@
 import { encodeVlq } from "./vlq.js";
 
-/**
- * A single (generated position -> source position) mapping. Positions are
- * 0-based, matching the source map v3 spec (Raven's own `SourceLocation`
- * is 1-based, so callers convert when calling `addMapping`).
- */
 export interface RawMapping {
   generatedLine: number;
   generatedColumn: number;
@@ -24,11 +19,6 @@ export interface RawSourceMap {
   mappings: string;
 }
 
-/**
- * Builds a v3 source map from a stream of mappings collected while
- * emitting output (see `Emitter.emitWithSourceMap`). Mappings can be
- * added out of order; `toJSON` sorts and encodes them.
- */
 export class SourceMapGenerator {
   private mappings: RawMapping[] = [];
   private sources: string[] = [];
@@ -78,10 +68,6 @@ export class SourceMapGenerator {
         lastEmittedGeneratedColumn = null;
       }
 
-      // Multiple mappings can land on the exact same generated position
-      // (e.g. a statement-level mark followed by its first expression's
-      // mark); keep only the first, since a duplicate zero-delta segment
-      // adds nothing a debugger can use.
       if (lastEmittedGeneratedColumn === mapping.generatedColumn) {
         continue;
       }
