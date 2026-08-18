@@ -20,7 +20,7 @@ import { Binder, SymbolBinding } from "./binder.js";
 import { DiagnosticBag, Diagnostic, CODES } from "../diagnostics/index.js";
 import { WorkspaceRegistry } from "./registry.js";
 import { sameType as sharedSameType, isAssignableTo as sharedIsAssignableTo, formatType as sharedFormatType, closestMatch, optionalType, unionType } from "./types.js";
-
+import { isDirectSelfAlias } from "./recursive.js";
 export type FunctionSignature = { params: TypeAnnotation[]; returnType: TypeAnnotation };
 
 export interface TypeCheckerOptions {
@@ -157,46 +157,53 @@ export class TypeChecker {
     }
   }
 
-  private checkModelDeclaration(node: ModelDeclaration): void {
-    let type: TypeAnnotation;
+private checkModelDeclaration(node: ModelDeclaration): void {
+  let type: TypeAnnotation;
 
-    if (node.external) {
-      // `database.users` / `api("/users")` — the data doesn't live in this
-      // project, so we can't infer a shape from it. Trust the annotation if
-      // one was given, otherwise it's opaque (`any`) until schema binding exists.
-      type = node.typeAnnotation ?? "any";
+  if (node.external) {
+    type = node.typeAnnotation ?? "any";
+  } else {
+    const actualType = node.typeAnnotation ? this.literalAwareType(node.value) : this.inferType(node.value);
+    
+
+  if (node.typeAnnotation && isDirectSelfAlias(node.typeAnnotation, node.name)) {
+      this.diagnostics.error(
+        CODES.RECURSIVE_MODEL_CYCLE,
+        `Model '${node.name}' cannot reference itself directly. Use a union or optional type instead.`,
+        node.location
+      );
+      type = "any";
+    } else if (node.typeAnnotation && !this.isAssignableTo(actualType, node.typeAnnotation)) {
+      this.diagnostics.error(
+        CODES.MODEL_TYPE_MISMATCH,
+        `Type mismatch in model '${node.name}': expected '${this.formatType(node.typeAnnotation)}', but got '${this.formatType(actualType)}'`,
+        node.location
+      );
+      type = node.typeAnnotation ?? actualType;
     } else {
-      const actualType = node.typeAnnotation ? this.literalAwareType(node.value) : this.inferType(node.value);
-      if (node.typeAnnotation && !this.isAssignableTo(actualType, node.typeAnnotation)) {
-        this.diagnostics.error(
-          CODES.MODEL_TYPE_MISMATCH,
-          `Type mismatch in model '${node.name}': expected '${this.formatType(node.typeAnnotation)}', but got '${this.formatType(actualType)}'`,
-          node.location
-        );
-      }
       type = node.typeAnnotation ?? actualType;
     }
+  }
 
-    const binding = this.binder.declare(node.name, "model", type, node.location, "model", node.external ? "external" : this.file);
+  const binding = this.binder.declare(node.name, "model", type, node.location, "model", node.external ? "external" : this.file);
 
-    // Visible immediately in the file that publishes it, same as a const.
-    const success = this.symbolTable.declare(node.name, { type, constant: true, binding, origin: binding.origin, source: binding.source });
-    if (!success) {
-      this.diagnostics.error(CODES.DUPLICATE_DECLARATION, `'${node.name}' has already been declared.`, node.location);
-    }
+  const success = this.symbolTable.declare(node.name, { type, constant: true, binding, origin: binding.origin, source: binding.source });
+  if (!success) {
+    this.diagnostics.error(CODES.DUPLICATE_DECLARATION, `'${node.name}' has already been declared.`, node.location);
+  }
 
-    if (this.registry) {
-      const result = this.registry.publish(node.name, type, node.external, this.file, node.location);
-      if (!result.ok) {
-        this.diagnostics.error(
-          CODES.MODEL_REGISTRY_CONFLICT,
-          result.message,
-          node.location,
-          { hint: `'${node.name}' was first published in ${result.existing.file}. Give this one a different name, or make both shapes match.` }
-        );
-      }
+  if (this.registry) {
+    const result = this.registry.publish(node.name, type, node.external, this.file, node.location);
+    if (!result.ok) {
+      this.diagnostics.error(
+        CODES.MODEL_REGISTRY_CONFLICT,
+        result.message,
+        node.location,
+        { hint: `'${node.name}' was first published in ${result.existing.file}. Give this one a different name, or make both shapes match.` }
+      );
     }
   }
+}
 
   private checkImportDeclaration(node: ImportDeclaration): void {
     for (const name of node.names) {
@@ -539,7 +546,7 @@ export class TypeChecker {
       }
 
       case "MemberExpression": {
-        const objectType = this.inferType(node.object);
+        const objectType = this.resolveRef(this.inferType(node.object));
 
         if (objectType === "any") {
           return "any";
@@ -709,14 +716,22 @@ export class TypeChecker {
 
     return { kind: "record", fields };
   }
+  
 
-  private sameType(left: TypeAnnotation, right: TypeAnnotation): boolean {
-    return sharedSameType(left, right);
+private resolveRef(type: TypeAnnotation): TypeAnnotation {
+  if (typeof type === "object" && type.kind === "ref") {
+    const published = this.registry?.lookup(type.name);
+    return published ? published.type : "any";
   }
+  return type;
+}
+private sameType(left: TypeAnnotation, right: TypeAnnotation): boolean {
+  return sharedSameType(this.resolveRef(left), this.resolveRef(right));
+}
 
-  private isAssignableTo(source: TypeAnnotation, target: TypeAnnotation): boolean {
-    return sharedIsAssignableTo(source, target);
-  }
+private isAssignableTo(source: TypeAnnotation, target: TypeAnnotation): boolean {
+  return sharedIsAssignableTo(this.resolveRef(source), this.resolveRef(target));
+}
 
   private formatType(type: TypeAnnotation | undefined): string {
     return sharedFormatType(type);

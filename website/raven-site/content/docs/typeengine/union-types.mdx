@@ -1,0 +1,65 @@
+---
+title: Union Types
+description: A value that can be one of several types, and how Raven keeps unions clean.
+---
+
+A union says a value is *one of* several possible types. Raven writes this with `|`.
+
+## Syntax
+
+```typescript
+let id: number | string = 42
+let status: "ok" | "error" | "pending" = "ok"
+```
+
+Any type can appear as a union member — primitives, literals, records, even other unions (which get flattened, see below).
+
+## Normalization
+
+Every union in Raven passes through a normalization step before the checker does anything else with it. Normalization does three things:
+
+**1. Flattens nested unions.** Writing a union of unions collapses into one flat union — there's no such thing as a "union of unions" as a distinct shape:
+
+```typescript
+// (number | string) | boolean  normalizes to  number | string | boolean
+```
+
+**2. Deduplicates variants.** Two variants that are the [same type](./09-type-equality-vs-assignability) collapse into one, regardless of the order you wrote them in:
+
+```typescript
+// string | number | string  normalizes to  string | number
+```
+
+This is also why union *comparison* doesn't care about order or duplicates — `string | number` and `number | string` are the same type.
+
+**3. Collapses to `any` if any variant is `any`.** A union containing `any` alongside anything else is just `any` — there's no point tracking the other variants once one of them accepts everything.
+
+**A union of exactly one distinct type also collapses** — writing `number | number` doesn't produce a one-variant union, it produces plain `number`. Unions always have at least two distinct members once normalized, or they aren't unions at all.
+
+## Assignability
+
+Union assignability runs in two different directions depending on which side the union is on:
+
+**A union as the *source*** — every variant must be assignable to the target, individually:
+
+```typescript
+let id: number | string = someValue
+// assignable to number|string as a whole only if EVERY variant
+// of someValue's type can go into number|string
+```
+
+**A union as the *target*** — the source just needs to match *some* variant, not all of them:
+
+```typescript
+let x: number | string = 42   // 42 is a number, and number is one of the variants — fine
+```
+
+This asymmetry is the same shape as [optional types](./03-optional-types) — in fact `T?` is just this exact mechanism applied to a two-variant union with `none`.
+
+## `any` inside a union
+
+Because of normalization, you'll never actually see `any` sitting *inside* a union by the time the checker looks at it — it always collapses the whole thing to plain `any` first. If you're debugging and a union you expected to see three variants in only shows `any`, that's why.
+
+## What's next
+
+Optional types are the special case of a two-variant union with `none` — see [Optional Types](./03-optional-types). Literal types are the most common thing you'll actually put *inside* a union, since a union of literals (`"admin" | "user" | "guest"`) is how Raven expresses an enum-like set of allowed values — see [Literal Types](./07-literal-types).

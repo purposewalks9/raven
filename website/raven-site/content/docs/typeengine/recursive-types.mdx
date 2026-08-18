@@ -1,0 +1,54 @@
+---
+title: Recursive Types
+description: Self-referencing shapes — a tree, a linked list — and the design that makes them possible.
+---
+
+A recursive type is one that refers to itself as part of its own definition — a tree node whose children are also tree nodes, a linked list node whose `next` is another node of the same type.
+
+## Why this needs its own mechanism
+
+Every other type in Raven's engine is **structural** — fully spelled out, no indirection. A tuple type *is* its element types; a record type *is* its field types. That works fine until a shape tries to reference itself: if a `Node`'s definition contains `children: array<Node>`, and the checker tried to fully expand that structurally, it would expand forever. There's no bottom.
+
+The fix is a **type reference** — internally, `{ kind: "ref", name: "Node" }` — which stays as just a name, and only gets resolved to the real shape at the exact moment something needs to look inside it. It's never eagerly expanded, which is exactly what stops the infinite expansion from ever starting.
+
+## Referencing a model by name
+
+Any identifier used in type position that *isn't* one of the five primitives (`string`, `number`, `boolean`, `any`, `none`) is treated as a reference to a named type — almost always a `model`:
+
+```typescript
+model Node: { value: number, next: Node? } = { value: 1, next: none }
+```
+
+`Node` inside its own definition refers to the model being defined. This resolves correctly because the `next: Node?` field is wrapped in `optional` — the reference isn't expanded until a value actually needs to be checked against it, so defining `Node` in terms of `Node?` never triggers infinite expansion.
+
+## Using a named type elsewhere
+
+Once published, a model's name works as a type anywhere else in the same project:
+
+```typescript
+let n: Node = { value: 2, next: none }
+print(n.value)
+```
+
+`n`'s type is stored as the reference `Node`, not the expanded record shape — accessing `n.value` is the moment the checker actually resolves `Node` against the registry to find out it's a record, and looks up the `value` field on that.
+
+## The one case that's actually rejected
+
+There's exactly one self-reference Raven treats as a hard error: a model that is **directly and unwrappedly** itself, with nothing in between:
+
+```typescript
+model X: X = something
+// Model 'X' cannot reference itself directly. Use a union or optional type instead.
+```
+
+This shape can never hold a real value — there's no way to construct an `X` without already having one. Anything **wrapped** — inside `optional`, `array`, a `record` field, a `union` — is fine and not flagged, because that wrapping is exactly what makes construction possible (a tree's base case, a linked list's empty tail).
+
+## Comparing named types: by name, not by shape
+
+When two references appear nested inside a larger comparison — say, two record fields that both happen to be typed `Node` — Raven compares them **by name**, not by resolving both and comparing their full structure. Two references to `"Node"` are the same type because they're both named `Node`, not because the checker proved their expanded shapes match field-by-field.
+
+This is a deliberate, documented tradeoff, not an oversight: proving deep structural equivalence between two self-referential shapes runs into the same infinite-expansion problem the reference mechanism exists to avoid. The practical effect is that referencing another *typed variable* of the same model works cleanly — since both sides already carry the same reference — while assigning a raw, untyped literal into a deeply nested self-referential slot gets less scrutiny than a top-level declaration would. In practice, the natural way to build recursive structures (constructing pieces through separately typed variables, rather than one giant nested literal) doesn't run into this.
+
+## What's next
+
+Recursive types lean the hardest on the difference between "these are the exact same type" and "this can flow into that slot" — see [Type Equality vs Assignability](./09-type-equality-vs-assignability) for how those two questions diverge across every type kind, references included.

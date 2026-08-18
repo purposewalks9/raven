@@ -1,0 +1,54 @@
+---
+title: Primitive Types
+description: The five built-in types every other type in Raven is built from.
+---
+
+Every type in Raven's type engine is either one of five **primitives**, or something built out of them. This page covers the primitives themselves — the atoms everything else composes.
+
+## The five primitives
+
+```typescript
+let name: string = "Ada"
+let age: number = 37
+let active: boolean = true
+let anything: any = 42
+let nothing: none = none
+```
+
+| Type      | What it holds                                  |
+|-----------|-------------------------------------------------|
+| `string`  | Text, written with double quotes: `"hello"`     |
+| `number`  | Any numeric value — Raven doesn't distinguish integers from floats |
+| `boolean` | `true` or `false`                                |
+| `any`     | Opts a value out of type checking entirely       |
+| `none`    | The absence of a value — Raven's version of null |
+
+These are the only five identifiers the type checker treats specially. Any other identifier used where a type is expected — `Node`, `User`, whatever you've named a `model` — is treated as a **type reference**, not a primitive. See [Recursive Types](./08-recursive-types) for how those resolve.
+
+## Type inference
+
+Annotations are optional on `let` and `const`. Leave one off, and Raven infers the type from the value:
+
+```typescript
+let name = "Ada"       // inferred as string
+const pi = 3.14        // inferred as number
+```
+
+If you do write an annotation, Raven checks the value against it and reports a mismatch if they don't line up:
+
+```typescript
+let age: number = "oops"
+// Type mismatch in declaration of 'age': expected 'number', but got '"oops"'
+```
+
+## `any` disables checking, deliberately
+
+`any` is the escape hatch. Assigning `any` into a typed slot, or a typed value into an `any` slot, always succeeds — the type checker treats `any` as compatible with everything in both directions. Reach for it when a shape genuinely can't be known yet (Raven itself uses it internally for external data sources — see [Recursive Types](./08-recursive-types) for how `model database.users` works).
+
+## `none` is a real type, not just "no value"
+
+`none` behaves like any other primitive — it can be compared, stored, and checked. What makes it useful is combining it with other types via `?`, covered in [Optional Types](./03-optional-types).
+
+## What's next
+
+Primitives are also the *foundation* every literal type narrows from — `"admin"` is a more specific version of `string`, `200` a more specific version of `number`. That relationship, and exactly which direction it's allowed to flow, is covered in [Literal Types](./07-literal-types).

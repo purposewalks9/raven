@@ -1,0 +1,70 @@
+---
+title: Tuple Types
+description: Fixed-length, positionally-typed values — where each slot can be a different type.
+---
+
+An array holds any number of elements, all the same type. A tuple is the opposite: a **fixed number** of elements, where each position can have its **own, different type**.
+
+## Syntax
+
+Tuple types are written `tuple<T, U, ...>`:
+
+```typescript
+let point: tuple<number, number> = (3, 4)
+let entry: tuple<string, number, boolean> = ("Ada", 37, true)
+```
+
+Tuple *values* use parentheses with commas — this is a distinct literal form from a grouped expression. `(x)` is just `x` in parentheses; `(x, y)` is a tuple:
+
+```typescript
+let solo = (5)         // just the number 5 — no comma, no tuple
+let pair = (5, 6)      // a tuple
+```
+
+## Fixed arity — no width subtyping
+
+Unlike records (where extra fields are fine) or arrays (where length isn't part of the type at all), a tuple's length **is** part of its type. A 2-tuple is never assignable to a 3-tuple, or vice versa, no matter what the element types are:
+
+```typescript
+let a: tuple<number, string> = (1, "x")
+let b: tuple<number, string, boolean> = a
+// Type mismatch — different arity, not assignable either direction
+```
+
+## Positional assignability
+
+Each position is checked independently against the same position on the other side — position 0 against position 0, position 1 against position 1, and so on. Order matters, unlike a union:
+
+```typescript
+tuple<number, string>   // NOT the same as tuple<string, number>
+```
+
+`any` still absorbs normally at each position — `tuple<number, any>` accepts `tuple<number, string>` in that second slot, same as `any` does everywhere else.
+
+## Indexing
+
+Indexing a tuple with a literal number gives you the **exact** type at that position, not a widened union:
+
+```typescript
+let point: tuple<number, string> = (1, "a")
+let first = point[0]     // number, specifically — not number | string
+let second = point[1]    // string, specifically
+```
+
+Indexing out of bounds with a literal number is a checked error:
+
+```typescript
+let bad = point[5]
+// Tuple index 5 is out of bounds for '[number, string]' (length 2)
+```
+
+If you index with something that *isn't* a literal number — a variable, say — Raven can't know which position you'll land on at compile time, so it falls back to the union of every element type instead of erroring:
+
+```typescript
+let i = someVariable
+let value = point[i]     // number | string — the best it can promise
+```
+
+## What's next
+
+Tuples are the most "exact" structural type in Raven — every position is pinned precisely. For how that precision compares against the looser rules records and arrays use, see [Type Equality vs Assignability](./09-type-equality-vs-assignability).

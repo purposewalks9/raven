@@ -1,0 +1,429 @@
+---
+title: What is Raven?
+description: Raven is a statically typed programming language that compiles to JavaScript.
+---
+
+Its core idea is simple:
+
+> **You describe your data. Raven's compiler manages the types.**
+
+Raven doesn't ask you to constantly define, import, export, and maintain types separately from the code that produces them. Instead, the compiler builds that knowledge itself — from individual expressions all the way up to the entire workspace.
+
+## The problem
+
+In TypeScript, it is common to describe the same data twice:
+
+```ts
+type User = {
+  id: number
+  name: string
+}
+
+const user: User = {
+  id: 1,
+  name: "Bro"
+}
+```
+
+The compiler already knows the shape of `user`, but the programmer still has to maintain a separate `User` type.
+
+Raven starts with the data:
+
+```typescript
+let user = {
+  id: 1,
+  name: "Bro"
+}
+```
+
+The compiler derives the record type automatically:
+
+```text
+{
+  id: number
+  name: string
+}
+```
+
+No interface. No type alias. No annotation.
+
+The shape exists because the compiler understands the value.
+
+## Local inference and project-wide types
+
+Raven has an important distinction between **local inferred values** and **published project-wide models**.
+
+### `let` and `const`
+
+`let` and `const` create ordinary local bindings.
+
+```typescript
+let user = {
+  id: 1,
+  name: "Bro"
+}
+```
+
+Raven infers the complete shape and uses it throughout the scope where it is available.
+
+You don't have to manually describe the type.
+
+### `model`
+
+`model` publishes a shape to the Raven workspace.
+
+```typescript
+model User = {
+  id: 1,
+  name: "Bro"
+}
+```
+
+That model becomes part of the project's **Workspace Registry**.
+
+Another file can use the model without importing a type:
+
+```typescript
+fn greet(user: User)
+    print(user.name)
+end
+```
+
+The compiler resolves `User` through the workspace rather than requiring:
+
+```ts
+import type { User } from "./types"
+```
+
+This is one of Raven's fundamental ideas:
+
+> **Types belong to the workspace, not to arbitrary import paths.**
+
+Imports still exist in Raven. They are used to bring **code** into another module.
+
+```typescript
+import { login } from "./auth"
+```
+
+Raven is not removing imports.
+
+It is removing the need to use imports as a mechanism for moving type definitions around your project.
+
+## The Workspace Registry
+
+The Workspace Registry is what makes Raven's type system project-aware.
+
+Instead of treating every source file as an isolated island, the compiler maintains a registry of the types and symbols that exist across the workspace.
+
+Conceptually:
+
+```text
+                         Raven Workspace
+                               │
+                     ┌─────────┴─────────┐
+                     │ Workspace Registry │
+                     └─────────┬─────────┘
+                               │
+             ┌─────────────────┼─────────────────┐
+             │                 │                 │
+          user.rv           auth.rv          server.rv
+             │                 │                 │
+        model User        fn login()       fn createUser()
+             │                 │                 │
+             └─────────────────┼─────────────────┘
+                               │
+                       Type information
+                       available globally
+```
+
+This gives Raven information that ordinary file-local inference cannot provide.
+
+The compiler can reason about:
+
+* types declared in other files
+* published models
+* function signatures
+* cross-file references
+* dependencies between symbols
+* project-wide diagnostics
+* type compatibility across the workspace
+
+That information is maintained by the compiler rather than manually duplicated by the programmer.
+
+## Models can describe external data
+
+Not every type can be inferred from Raven source code.
+
+Sometimes the data comes from somewhere else:
+
+```typescript
+model User = database.users
+```
+
+or:
+
+```typescript
+model User = api("/users")
+```
+
+In these cases, Raven uses `model` as a boundary between the program and external knowledge.
+
+The compiler can eventually use external schemas to build the model:
+
+```text
+Database
+    │
+    ▼
+External schema
+    │
+    ▼
+Raven model
+    │
+    ▼
+Workspace Registry
+    │
+    ▼
+Type checking + inference
+```
+
+This same system can eventually connect Raven to things such as:
+
+* databases
+* HTTP APIs
+* OpenAPI schemas
+* JSON Schema
+* environment configuration
+* generated external models
+* JavaScript and TypeScript libraries
+
+The important distinction is that **Raven only asks the programmer to describe information when the compiler genuinely cannot derive it itself.**
+
+## TypeEngine
+
+Underneath Raven's inference system is the **TypeEngine**.
+
+The TypeEngine is responsible for representing and reasoning about Raven's types.
+
+It understands types such as:
+
+```text
+string
+number
+boolean
+any
+none
+```
+
+and compound types such as:
+
+```text
+User?
+```
+
+```text
+string | number
+```
+
+```text
+array<string>
+```
+
+```text
+(id: number, name: string) -> User
+```
+
+as well as inferred record types:
+
+```typescript
+let user = {
+    id: 1,
+    name: "Bro"
+}
+```
+
+The compiler can then determine whether values are compatible, normalize equivalent types, infer missing information, and propagate that information through expressions and function calls.
+
+The TypeEngine is not just a collection of type definitions.
+
+It is the part of Raven that answers questions such as:
+
+> What type is this?
+
+> Are these two types equivalent?
+
+> Can this value be assigned here?
+
+> What type should this expression produce?
+
+> What information can be inferred from this function call?
+
+## Type inference
+
+Raven's compiler performs inference throughout the program.
+
+For example:
+
+```typescript
+let age = 18
+```
+
+becomes:
+
+```text
+age: number
+```
+
+Arrays are inferred from their elements:
+
+```typescript
+let numbers = [1, 2, 3]
+```
+
+becomes:
+
+```text
+array<number>
+```
+
+Records are inferred from their properties:
+
+```typescript
+let user = {
+    id: 1,
+    name: "Bro"
+}
+```
+
+becomes:
+
+```text
+{
+    id: number
+    name: string
+}
+```
+
+Function return types can also be inferred:
+
+```typescript
+fn add(a, b)
+    return a + b
+end
+```
+
+The goal is to make type information **emerge from the program**, rather than forcing the programmer to repeatedly encode information the compiler already has.
+
+## A type system that scales beyond one file
+
+Raven's type system is designed to grow from local inference into workspace-wide intelligence.
+
+The pipeline looks roughly like:
+
+```text
+Source
+  │
+  ▼
+Lexer
+  │
+  ▼
+Parser
+  │
+  ▼
+AST
+  │
+  ▼
+Binder
+  │
+  ▼
+Workspace Registry
+  │
+  ▼
+TypeEngine
+  │
+  ▼
+Type Checker
+  │
+  ▼
+Optimizer
+  │
+  ▼
+JavaScript
+```
+
+This allows Raven to reason about code at multiple levels:
+
+```text
+Expression
+    ↓
+Variable
+    ↓
+Function
+    ↓
+File
+    ↓
+Workspace
+    ↓
+External systems
+```
+
+The further up the stack Raven understands the program, the more work the compiler can take away from the programmer.
+
+## The philosophy
+
+Raven is built around a simple principle:
+
+> **The programmer describes the program. The compiler manages its type knowledge.**
+
+That means Raven tries to minimize three kinds of repetition:
+
+1. **Defining a type that can already be inferred**
+2. **Copying a type between files**
+3. **Manually maintaining information the compiler can derive**
+
+The programmer should spend time describing **what the program does**, not maintaining a parallel type system beside it.
+
+## What Raven supports today
+
+The current compiler already has the foundation for this model:
+
+* variables with `let` and `const`
+* primitive types
+* strings, numbers, booleans, `any`, and `none`
+* optional types
+* union types
+* arrays
+* inferred record types
+* functions and return types
+* conditionals
+* loops
+* `break` and `continue`
+* binary operators and `not`
+* indexing
+* built-in functions such as `len`, `abs`, `sqrt`, and `toString`
+* `model` declarations
+* external models through `api()` and `database`
+* imports
+* single-line and block comments
+* workspace-wide model registration
+* cross-file type resolution
+* compiler diagnostics
+* JavaScript emission
+
+The language and compiler are still evolving, but the architectural direction is deliberate:
+
+**local inference → TypeEngine → Workspace Registry → project-wide intelligence → external knowledge**
+
+
+## Next steps
+
+Start with [Getting Started](/docs/getting-started) to write your first Raven program.
+
+Then explore:
+
+* [TypeEngine](/docs/typeengine) — how Raven represents and reasons about types
+* [Workspace] — how Raven shares type knowledge across a project
+* [Compiler Architecture](/docs/compiler) — how source code moves through the compiler
+
+Raven is early, and the compiler is actively evolving. Contributions, compiler experiments, language-design discussions, and testing are welcome.
+
+[GitHub](https://github.com/purposewalks9/raven)

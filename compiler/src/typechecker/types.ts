@@ -4,7 +4,6 @@ export function makeUnion(members: TypeAnnotation[]): TypeAnnotation {
   return unionType(members);
 }
 
-
 export function sameType(left: TypeAnnotation, right: TypeAnnotation): boolean {
   const normalizedLeft = normalizeType(left);
   const normalizedRight = normalizeType(right);
@@ -19,6 +18,10 @@ export function sameType(left: TypeAnnotation, right: TypeAnnotation): boolean {
   }
   if (normalizedLeft.kind !== normalizedRight.kind) {
     return false;
+  }
+
+  if (normalizedLeft.kind === "ref" && normalizedRight.kind === "ref") {
+    return normalizedLeft.name === normalizedRight.name;
   }
 
   if (normalizedLeft.kind === "array" && normalizedRight.kind === "array") {
@@ -37,8 +40,8 @@ export function sameType(left: TypeAnnotation, right: TypeAnnotation): boolean {
 
   if (normalizedLeft.kind === "tuple" && normalizedRight.kind === "tuple") {
     return normalizedLeft.elements.length === normalizedRight.elements.length
-        && normalizedLeft.elements.every((el, i) => sameType(el, normalizedRight.elements[i]!));
-}
+      && normalizedLeft.elements.every((el, i) => sameType(el, normalizedRight.elements[i]!));
+  }
 
   if (normalizedLeft.kind === "optional" && normalizedRight.kind === "optional") {
     return sameType(normalizedLeft.inner, normalizedRight.inner);
@@ -50,12 +53,10 @@ export function sameType(left: TypeAnnotation, right: TypeAnnotation): boolean {
   }
 
   if (normalizedLeft.kind === "function" && normalizedRight.kind === "function") {
-  return normalizedLeft.params.length === normalizedRight.params.length
-    && normalizedLeft.params.every((param, index) =>
-      sameType(param, normalizedRight.params[index]!)
-    )
-    && sameType(normalizedLeft.returnType, normalizedRight.returnType);
-}
+    return normalizedLeft.params.length === normalizedRight.params.length
+      && normalizedLeft.params.every((param, index) => sameType(param, normalizedRight.params[index]!))
+      && sameType(normalizedLeft.returnType, normalizedRight.returnType);
+  }
 
   if (normalizedLeft.kind === "literal" && normalizedRight.kind === "literal") {
     return normalizedLeft.value === normalizedRight.value;
@@ -78,9 +79,11 @@ export function normalizeType(type: TypeAnnotation): TypeAnnotation {
     }
     return { kind: "record", fields };
   }
-if (type.kind === "tuple") {
+
+  if (type.kind === "tuple") {
     return { kind: "tuple", elements: type.elements.map(normalizeType) };
-}
+  }
+
   if (type.kind === "optional") {
     return { kind: "optional", inner: normalizeType(type.inner) };
   }
@@ -88,13 +91,19 @@ if (type.kind === "tuple") {
   if (type.kind === "literal") {
     return { kind: "literal", value: type.value };
   }
-if (type.kind === "function") {
-  return {
-    kind: "function",
-    params: type.params.map(normalizeType),
-    returnType: normalizeType(type.returnType),
-  };
-}
+
+  if (type.kind === "function") {
+    return {
+      kind: "function",
+      params: type.params.map(normalizeType),
+      returnType: normalizeType(type.returnType),
+    };
+  }
+
+  if (type.kind === "ref") {
+    return type;
+  }
+
   const variants = type.variants.flatMap(variant => {
     const normalized = normalizeType(variant);
     return typeof normalized === "object" && normalized.kind === "union" ? normalized.variants : [normalized];
@@ -134,19 +143,15 @@ export function isAssignableTo(source: TypeAnnotation, target: TypeAnnotation): 
     return typeof normalizedTarget === "object" && normalizedTarget.kind === "optional"
       && isAssignableTo(normalizedSource.inner, normalizedTarget.inner);
   }
-
   if (typeof normalizedTarget === "object" && normalizedTarget.kind === "optional") {
     return isAssignableTo(normalizedSource, normalizedTarget.inner);
   }
-
   if (typeof normalizedSource === "object" && normalizedSource.kind === "union") {
     return normalizedSource.variants.every(variant => isAssignableTo(variant, normalizedTarget));
   }
-
   if (typeof normalizedTarget === "object" && normalizedTarget.kind === "union") {
     return normalizedTarget.variants.some(variant => isAssignableTo(normalizedSource, variant));
   }
-
   if (typeof normalizedSource === "object" && normalizedSource.kind === "literal") {
     if (typeof normalizedTarget === "object" && normalizedTarget.kind === "literal") {
       return normalizedSource.value === normalizedTarget.value;
@@ -166,15 +171,20 @@ export function isAssignableTo(source: TypeAnnotation, target: TypeAnnotation): 
   if (typeof normalizedSource === "string" || typeof normalizedTarget === "string") {
     return false;
   }
+
   if (normalizedSource.kind !== normalizedTarget.kind) {
     return false;
   }
 
-  if (normalizedSource.kind === "array" && normalizedTarget.kind === "array") {
+  if (normalizedSource.kind === "ref" && normalizedTarget.kind === "ref") {
+    return normalizedSource.name === normalizedTarget.name;
+  }
+
+  if (normalizedSource.kind === "array" && typeof normalizedTarget === "object" && normalizedTarget.kind === "array") {
     return isAssignableTo(normalizedSource.elementType, normalizedTarget.elementType);
   }
 
-  if (normalizedSource.kind === "record" && normalizedTarget.kind === "record") {
+  if (normalizedSource.kind === "record" && typeof normalizedTarget === "object" && normalizedTarget.kind === "record") {
     return Object.entries(normalizedTarget.fields).every(([key, targetField]) => {
       const sourceField = normalizedSource.fields[key];
       return sourceField === undefined
@@ -182,29 +192,26 @@ export function isAssignableTo(source: TypeAnnotation, target: TypeAnnotation): 
         : isAssignableTo(sourceField, targetField);
     });
   }
-  if (normalizedSource.kind === "tuple" && normalizedTarget.kind === "tuple") {
+
+  if (normalizedSource.kind === "tuple" && typeof normalizedTarget === "object" && normalizedTarget.kind === "tuple") {
     return normalizedSource.elements.length === normalizedTarget.elements.length
         && normalizedSource.elements.every((el, i) => isAssignableTo(el, normalizedTarget.elements[i]!));
-}
-  if (normalizedSource.kind === "function" && normalizedTarget.kind === "function") {
-  if (normalizedSource.params.length !== normalizedTarget.params.length) {
-    return false;
   }
 
-  const paramsAssignable = normalizedSource.params.every((sourceParam, index) => {
-    const targetParam = normalizedTarget.params[index]!;
-    return isAssignableTo(targetParam, sourceParam);
-  });
-
-  if (!paramsAssignable) {
-    return false;
+  if (normalizedSource.kind === "function" && typeof normalizedTarget === "object" && normalizedTarget.kind === "function") {
+    if (normalizedSource.params.length !== normalizedTarget.params.length) {
+      return false;
+    }
+    const paramsAssignable = normalizedSource.params.every((sourceParam, index) => {
+      const targetParam = normalizedTarget.params[index]!;
+      return isAssignableTo(targetParam, sourceParam);
+    });
+    if (!paramsAssignable) {
+      return false;
+    }
+    return isAssignableTo(normalizedSource.returnType, normalizedTarget.returnType);
   }
 
-  return isAssignableTo(
-    normalizedSource.returnType,
-    normalizedTarget.returnType
-  );
-}
   return false;
 }
 
@@ -236,26 +243,33 @@ export function formatType(type: TypeAnnotation | undefined): string {
 
   if (normalized.kind === "tuple") {
     return `[${normalized.elements.map(formatType).join(", ")}]`;
-}
+  }
+
   if (normalized.kind === "optional") {
     return `${formatType(normalized.inner)}?`;
   }
+
   if (normalized.kind === "union") {
     return normalized.variants.map(formatType).join(" | ");
   }
+
   if (normalized.kind === "literal") {
     return typeof normalized.value === "string" ? JSON.stringify(normalized.value) : String(normalized.value);
   }
+
   if (normalized.kind === "function") {
-  const params = normalized.params
-    .map(formatType)
-    .join(", ");
+    const params = normalized.params
+      .map(formatType)
+      .join(", ");
 
-  return `(${params}) -> ${formatType(normalized.returnType)}`;
-}
+    return `(${params}) -> ${formatType(normalized.returnType)}`;
+  }
+
+  if (normalized.kind === "ref") {
+    return `ref<${(normalized as any).name}>`;
+  }
+
   return "unknown";
-
-  
 }
 
 function levenshtein(a: string, b: string): number {
@@ -301,7 +315,6 @@ export type ShapeDiffEntry =
   | { kind: "added"; field: string; type: TypeAnnotation }
   | { kind: "removed"; field: string; type: TypeAnnotation }
   | { kind: "changed"; field: string; from: TypeAnnotation; to: TypeAnnotation };
-
 
 export function diffShapes(previous: TypeAnnotation, next: TypeAnnotation): ShapeDiffEntry[] {
   if (typeof previous === "string" || typeof next === "string") return [];

@@ -13,13 +13,6 @@ export type PublishResult =
   | { ok: true }
   | { ok: false; message: string; existing: PublishedModel };
 
-/**
- * One instance of this is shared across every file in a project. `let`/`const`
- * never touch it — they live entirely in a file's own SymbolTable. `model`
- * publishes here, and every other file's TypeChecker consults it when an
- * identifier isn't found locally, which is what makes `model` project-wide
- * without an import.
- */
 export class WorkspaceRegistry {
   private models = new Map<string, PublishedModel>();
 
@@ -31,7 +24,7 @@ export class WorkspaceRegistry {
       return { ok: true };
     }
 
-    // The same file re-publishing (e.g. a second compilation pass) is fine.
+  
     if (existing.file === file) {
       return { ok: true };
     }

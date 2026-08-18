@@ -1,0 +1,63 @@
+---
+title: Optional Types
+description: The `?` suffix, and how it desugars to a union with `none`.
+---
+
+An optional type says "this is a `T`, or it isn't there at all." Raven writes this with a trailing `?` on any type.
+
+## Syntax
+
+```typescript
+let nickname: string? = none
+let age: number? = 30
+```
+
+`string?` reads as "a string, or `none`." Both a real value and `none` satisfy it.
+
+## `?` is sugar, not a separate mechanism
+
+Under the hood, `T?` is exactly `T | none` — there's no distinct "optional" concept the checker treats specially beyond that. Writing `string?` and writing `string | none` produce the identical type. This matters because it means everything covered in [Union Types](./04-union-types) — how variants get compared, how assignability works — applies here too, for free.
+
+`?` can trail *any* type atom, not just primitives — including a literal, a record, or even a union member inside a larger union:
+
+```typescript
+let role: "admin"? = none                    // "admin" | none
+let user: { name: string }? = none            // { name: string } | none
+let mixed: string? | number = "x"             // (string | none) | number
+```
+
+## Optional record fields
+
+This is where `?` shows up most naturally in practice — describing a field that might be absent:
+
+```typescript
+model User = { name: string, nickname: string? }
+
+let a = { name: "Ada" }                      // fine — nickname is optional
+let b = { name: "Ada", nickname: "Ace" }      // also fine
+```
+
+A field typed as optional in a **target** annotation doesn't have to be present in the source at all:
+
+```typescript
+let user: { name: string, age: number? } = { name: "Ada" }
+// fine — age is missing entirely, but it's optional, so that's allowed
+```
+
+This is also how Raven automatically infers optional fields when merging record shapes — covered in [Arrays + Records](./02-arrays-and-records).
+
+## Assignability rules
+
+- A plain `T` is assignable into a `T?` slot — you don't need to explicitly write `none` for the non-`none` case to work.
+- `none` is assignable into any `T?` slot, for any `T`.
+- A `T?` is **not** assignable into a plain `T` slot — the checker won't let you drop the possibility of `none` silently. If you have a `string?` and need a `string`, you have to narrow it yourself (Raven doesn't currently have flow-sensitive narrowing from an `if` check).
+
+```typescript
+let maybe: string? = "hi"
+let definite: string = maybe
+// Type mismatch: expected 'string', but got 'string?'
+```
+
+## What's next
+
+Optional types are the single most common union you'll write, but the underlying mechanism — normalization, deduplication, how `any` interacts with a union — is the full subject of [Union Types](./04-union-types).

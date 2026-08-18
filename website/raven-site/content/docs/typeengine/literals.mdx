@@ -1,0 +1,63 @@
+---
+title: Literal Types
+description: Pinning a type to one exact value, rather than a whole category of values.
+---
+
+`string` accepts any string. A literal type accepts exactly *one* specific value — one exact string, number, or boolean.
+
+## Syntax
+
+A literal type is written as the value itself, in type position:
+
+```typescript
+let role: "admin" = "admin"
+let code: 200 = 200
+let flag: true = true
+```
+
+`role` here isn't just "a string" — it's specifically the string `"admin"`, and nothing else can go in that slot.
+
+## Unions of literals are Raven's enums
+
+The genuinely useful pattern is combining literal types with a [union](./04-union-types) — this is how Raven expresses "one of these specific values," the way an enum would in other languages:
+
+```typescript
+let role: "admin" | "user" | "guest" = "user"
+
+let role2: "admin" | "user" = "root"
+// Type mismatch: expected '"admin" | "user"', but got '"root"'
+```
+
+## Widening is one-directional
+
+This is the rule worth internalizing: a literal type widens *into* its base primitive, but a plain primitive is never narrow enough to satisfy a literal:
+
+```typescript
+let role: "admin" = "admin"     // fine — literal into itself
+let base: string = "admin"       // fine — literal widens into string
+
+let name = "admin"                // inferred as plain string, NOT the literal "admin"
+let role2: "admin" = name
+// Type mismatch: expected '"admin"', but got 'string'
+```
+
+That last example is the important one. Even though `name` happens to hold the runtime value `"admin"`, its *inferred type* is the general `string` — Raven only pins a value down to its literal type when a literal annotation is present to check against, not from inference alone. A bare, unannotated `let` always widens to the base primitive.
+
+## Where the checker treats a value as literal-aware
+
+Raven doesn't compute a literal type for every string/number/boolean everywhere — only at the specific points where checking against a possibly-literal annotation matters: declarations, assignments, function arguments, and return statements. In every other context (like plain type inference for a `let` with no annotation), a string literal just infers as `string`.
+
+This means function parameters typed with a literal (or union of literals) get checked properly against call arguments:
+
+```typescript
+fn setRole(role: "admin" | "user"): boolean
+    return true
+end
+
+setRole("admin")   // fine
+setRole("root")    // Argument 1 of 'setRole': expected '"admin" | "user"', got '"root"'
+```
+
+## What's next
+
+Literal-widening is the clearest example of Raven's assignability rules being **directional** rather than symmetric — see [Type Equality vs Assignability](./09-type-equality-vs-assignability) for the full picture of where "same type" and "can flow into" diverge.

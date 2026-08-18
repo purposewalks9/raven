@@ -32,12 +32,6 @@ function optimizeStatement(statement: Statement): Statement | undefined {
     case "IfStatement": {
       const condition = optimizeExpression(statement.condition);
       if (condition.type === "BooleanLiteral") {
-        // FIX: these two branches construct a brand-new IfStatement node
-        // (dead-branch elimination — e.g. `if false then ... end` collapses
-        // to just the alternate, or disappears entirely). Node now requires
-        // `location` on every node, so we reuse `statement.location` here:
-        // the simplified statement still "is," semantically, the original
-        // if-statement in the source, just with one branch proven away.
         return condition.value
           ? { type: "IfStatement", condition, consequent: optimizeStatements(statement.consequent), location: statement.location }
           : statement.alternate
@@ -73,10 +67,6 @@ function optimizeExpression(expression: Expression): Expression {
       const right = optimizeExpression(expression.right);
       if (left.type === "NumberLiteral" && right.type === "NumberLiteral") {
         const folded = foldNumbers(expression.operator, left.value, right.value);
-        // FIX: folded is a brand-new literal replacing the whole binary
-        // expression (e.g. `5 + 3` -> `8`). Reuse expression.location so
-        // an error involving the folded constant still points at the
-        // original arithmetic in the source, not nowhere.
         if (folded !== undefined) {
           return typeof folded === "boolean"
             ? { type: "BooleanLiteral", value: folded, location: expression.location }
@@ -93,8 +83,6 @@ function optimizeExpression(expression: Expression): Expression {
     }
     case "UnaryExpression": {
       const argument = optimizeExpression(expression.argument);
-      // FIX: same reasoning — `not true` folds to `false`, reuse the
-      // original unary expression's location.
       return argument.type === "BooleanLiteral"
         ? { type: "BooleanLiteral", value: !argument.value, location: expression.location }
         : { ...expression, argument };
