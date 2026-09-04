@@ -1,0 +1,10 @@
+// large_rv — synthetic model file 6 for Phase 0 benchmarking
+model model_6 = { id: 6, name: "item6", value: 60, active: true }
+
+fn describe_model_6(): string
+  return "model 6"
+end
+
+fn double_model_6(x: number): number
+  return x * 2
+end
