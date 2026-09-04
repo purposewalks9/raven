@@ -63,11 +63,17 @@ interface StageTime {
 // Warm up (JIT) before measuring.
 function warmup(): void {
   const src = readFileSync(join(__dirname, "fixtures", "small", "hello.rv"), "utf8");
-  for (let i = 0; i < 20; i++) {
+  const warmSrc = readFileSync(join(__dirname, "fixtures", "medium", "work.rv"), "utf8");
+  for (let i = 0; i < 50; i++) {
     const ast = new Parser(tokenize(src)).parseProgram();
-    new TypeChecker().check(ast);
+    const checker = new TypeChecker();
+    checker.check(ast);
     optimize(ast);
     new Emitter().emit(ast);
+    const wAst = new Parser(tokenize(warmSrc)).parseProgram();
+    const wChecker = new TypeChecker();
+    wChecker.check(wAst);
+    new Emitter().emit(wAst);
   }
 }
 
@@ -249,13 +255,13 @@ function main(): void {
   sections.push(renderTable("Medium single file (200 iters)", benchSingle(mediumSrc, 200)));
 
   // Summary.
-  const wsTimes = benchWorkspace(largeDir, 20);
+  const wsTimes = benchWorkspace(largeDir, 50);
   const wsCheck = wsTimes.find((t) => t.stage === "check (buildProject)");
   const wsParse = wsTimes.find((t) => t.stage === "parse");
   const wsLex = wsTimes.find((t) => t.stage === "lex");
   const wsTotal = wsTimes.reduce((acc, t) => acc + t.ns, 0n);
   const pct = (t: bigint | undefined) => (t && wsTotal !== 0n ? ((Number(t) / Number(wsTotal)) * 100).toFixed(0) : "?");
-  sections.push(renderTable("Large workspace (20 iters)", wsTimes));
+  sections.push(renderTable("Large workspace (50 iters)", wsTimes));
 
   sections.push("## Analysis");
   sections.push("");
