@@ -1,0 +1,2 @@
+let t: tuple<number, string> = [1, "a"]
+print(t["x"])

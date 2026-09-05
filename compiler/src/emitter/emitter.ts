@@ -87,8 +87,8 @@ export class Emitter {
       generatedLine: this.genLine,
       generatedColumn: this.genColumn,
       source: this.sourceMapFile,
-      sourceLine: node.location.line - 1,
-      sourceColumn: node.location.column - 1,
+      sourceLine: (node.location?.line ?? 1) - 1,
+      sourceColumn: (node.location?.column ?? 1) - 1,
     });
   }
 

@@ -9,3 +9,5 @@ build/
 coverage/
 *.tsbuildinfo
 .novacache/
+target/
+crates/raven-node/*.node

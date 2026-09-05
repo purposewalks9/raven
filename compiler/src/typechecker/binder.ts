@@ -20,6 +20,17 @@ function contains(loc: SourceLocation, offset: number): boolean {
 export class Binder {
   private bindings: SymbolBinding[] = [];
 
+  constructor(bindings: SymbolBinding[] = []) {
+    this.bindings = bindings;
+  }
+
+  /**
+   * Build a `Binder` from the JSON bindings returned by the native checker.
+   */
+  static fromNative(bindings: SymbolBinding[]): Binder {
+    return new Binder(bindings);
+  }
+
   declare(
     name: string,
     kind: SymbolKind,

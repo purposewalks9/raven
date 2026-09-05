@@ -1,0 +1,22 @@
+[package]
+name = "raven-node"
+description = "napi-rs bindings exposing raven-core's typechecker to Node."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi = "2.16.17"
+napi-derive = "2.10"
+raven-core = { path = "../raven-core" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[build-dependencies]
+napi-build = "2.4"
+
+[lints]
+workspace = true

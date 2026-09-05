@@ -1,0 +1,2 @@
+let a: number = 1
+print(a and true)

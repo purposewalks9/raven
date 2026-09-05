@@ -1,0 +1,2 @@
+let arr: tuple<number, number> = [1, 2]
+print(arr[5])

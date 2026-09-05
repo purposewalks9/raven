@@ -1,0 +1,4 @@
+let n: number = 5
+if n then
+  print("hi")
+end

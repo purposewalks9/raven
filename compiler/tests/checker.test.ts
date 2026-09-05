@@ -65,9 +65,9 @@ describe("TypeChecker", () => {
       };
       const errors = new TypeChecker().check(ast);
       expect(errors.length).toBe(1);
-      expect(errors[0].message).toContain("age");
-      expect(errors[0].message).toContain("number");
-      expect(errors[0].message).toContain('"oops"');
+      expect(errors[0]!.message).toContain("age");
+      expect(errors[0]!.message).toContain("number");
+      expect(errors[0]!.message).toContain('"oops"');
     });
 
     it("catches a boolean/string mismatch", () => {
@@ -82,9 +82,9 @@ describe("TypeChecker", () => {
       };
       const errors = new TypeChecker().check(ast);
       expect(errors.length).toBe(1);
-      expect(errors[0].message).toContain("isReady");
-      expect(errors[0].message).toContain("boolean");
-      expect(errors[0].message).toContain('"yes"');
+      expect(errors[0]!.message).toContain("isReady");
+      expect(errors[0]!.message).toContain("boolean");
+      expect(errors[0]!.message).toContain('"yes"');
     });
 it("infers a tuple literal's type without an annotation", () => {
   const ast: Program = {
@@ -140,7 +140,7 @@ it("rejects a tuple literal with the wrong arity for its annotation", () => {
   };
   const errors = new TypeChecker().check(ast);
   expect(errors.length).toBe(1);
-  expect(errors[0].message).toContain("Type mismatch");
+  expect(errors[0]!.message).toContain("Type mismatch");
 });
 
 it("returns the exact positional type when indexing a tuple with a literal number", () => {
@@ -214,7 +214,7 @@ it("rejects an out-of-bounds literal index into a tuple", () => {
   };
   const errors = new TypeChecker().check(ast);
   expect(errors.length).toBe(1);
-  expect(errors[0].message).toContain("out of bounds");
+  expect(errors[0]!.message).toContain("out of bounds");
 });
     it("rejects duplicate variable declarations", () => {
       const ast: Program = {
@@ -234,7 +234,7 @@ it("rejects an out-of-bounds literal index into a tuple", () => {
       };
       const errors = new TypeChecker().check(ast);
       expect(errors.length).toBe(1);
-      expect(errors[0].message).toContain("already been declared");
+      expect(errors[0]!.message).toContain("already been declared");
     });
   });
 
@@ -286,8 +286,8 @@ it("rejects an out-of-bounds literal index into a tuple", () => {
       };
       const errors = new TypeChecker().check(ast);
       expect(errors.length).toBe(1);
-      expect(errors[0].message).toContain("Cannot reassign");
-      expect(errors[0].message).toContain("const");
+      expect(errors[0]!.message).toContain("Cannot reassign");
+      expect(errors[0]!.message).toContain("const");
     });
 
     it("allows reassigning a let variable", () => {
@@ -328,8 +328,8 @@ it("rejects an out-of-bounds literal index into a tuple", () => {
       };
       const errors = new TypeChecker().check(ast);
       expect(errors.length).toBe(1);
-      expect(errors[0].message).toContain("Type mismatch");
-      expect(errors[0].message).toContain("age");
+      expect(errors[0]!.message).toContain("Type mismatch");
+      expect(errors[0]!.message).toContain("age");
     });
   });
 
@@ -347,7 +347,7 @@ it("rejects an out-of-bounds literal index into a tuple", () => {
       };
       const errors = new TypeChecker().check(ast);
       expect(errors.length).toBe(1);
-      expect(errors[0].message).toContain("undeclared variable");
+      expect(errors[0]!.message).toContain("undeclared variable");
     });
 
     it("allows assigning a compatible type to a declared variable", () => {
@@ -385,7 +385,7 @@ it("rejects an out-of-bounds literal index into a tuple", () => {
       };
       const errors = new TypeChecker().check(ast);
       expect(errors.length).toBe(1);
-      expect(errors[0].message).toContain("boolean");
+      expect(errors[0]!.message).toContain("boolean");
     });
 
     it("allows if with boolean condition", () => {
@@ -418,7 +418,7 @@ it("rejects an out-of-bounds literal index into a tuple", () => {
       };
       const errors = new TypeChecker().check(ast);
       expect(errors.length).toBe(1);
-      expect(errors[0].message).toContain("boolean");
+      expect(errors[0]!.message).toContain("boolean");
     });
 
     it("allows while with boolean condition", () => {
@@ -558,7 +558,7 @@ it("rejects an out-of-bounds literal index into a tuple", () => {
       };
       const errors = new TypeChecker().check(ast);
       expect(errors.length).toBe(1);
-      expect(errors[0].message).toContain("number");
+      expect(errors[0]!.message).toContain("number");
     });
 
     it("allows comparing two numbers", () => {
@@ -615,7 +615,7 @@ it("rejects an out-of-bounds literal index into a tuple", () => {
       };
       const errors = new TypeChecker().check(ast);
       expect(errors.length).toBe(1);
-      expect(errors[0].message).toContain("Cannot compare");
+      expect(errors[0]!.message).toContain("Cannot compare");
     });
 
     it("allows logical AND with booleans", () => {
@@ -672,7 +672,7 @@ it("rejects an out-of-bounds literal index into a tuple", () => {
       };
       const errors = new TypeChecker().check(ast);
       expect(errors.length).toBe(1);
-      expect(errors[0].message).toContain("requires two booleans");
+      expect(errors[0]!.message).toContain("requires two booleans");
     });
   });
 
@@ -712,7 +712,7 @@ it("rejects an out-of-bounds literal index into a tuple", () => {
       };
       const errors = new TypeChecker().check(ast);
       expect(errors.length).toBe(1);
-      expect(errors[0].message).toContain("not");
+      expect(errors[0]!.message).toContain("not");
     });
   });
 
@@ -748,8 +748,8 @@ it("rejects an out-of-bounds literal index into a tuple", () => {
       };
       const errors = new TypeChecker().check(ast);
       expect(errors.length).toBe(1);
-      expect(errors[0].message).toContain("Undeclared variable");
-      expect(errors[0].message).toContain("ghost");
+      expect(errors[0]!.message).toContain("Undeclared variable");
+      expect(errors[0]!.message).toContain("ghost");
     });
 
     it("allows printing any type", () => {
@@ -863,7 +863,7 @@ it("rejects an out-of-bounds literal index into a tuple", () => {
       };
       const errors = new TypeChecker().check(ast);
       expect(errors.length).toBe(1);
-      expect(errors[0].message).toContain("Undeclared function");
+      expect(errors[0]!.message).toContain("Undeclared function");
     });
 
     it("rejects function call with wrong argument count", () => {
@@ -900,8 +900,8 @@ it("rejects an out-of-bounds literal index into a tuple", () => {
       };
       const errors = new TypeChecker().check(ast);
       expect(errors.length).toBe(1);
-      expect(errors[0].message).toContain("expects");
-      expect(errors[0].message).toContain("argument");
+      expect(errors[0]!.message).toContain("expects");
+      expect(errors[0]!.message).toContain("argument");
     });
 
     it("rejects function call with wrong argument type", () => {
@@ -939,8 +939,8 @@ it("rejects an out-of-bounds literal index into a tuple", () => {
       };
       const errors = new TypeChecker().check(ast);
       expect(errors.length).toBe(1);
-      expect(errors[0].message).toContain("Argument");
-      expect(errors[0].message).toContain("expected");
+      expect(errors[0]!.message).toContain("Argument");
+      expect(errors[0]!.message).toContain("expected");
     });
 
     it("rejects duplicate function declarations", () => {
@@ -975,7 +975,7 @@ it("rejects an out-of-bounds literal index into a tuple", () => {
       };
       const errors = new TypeChecker().check(ast);
       expect(errors.length).toBe(1);
-      expect(errors[0].message).toContain("already been declared");
+      expect(errors[0]!.message).toContain("already been declared");
     });
 
     it("handles return type mismatch", () => {
@@ -996,7 +996,7 @@ it("rejects an out-of-bounds literal index into a tuple", () => {
       };
       const errors = new TypeChecker().check(ast);
       expect(errors.length).toBe(1);
-      expect(errors[0].message).toContain("Return type mismatch");
+      expect(errors[0]!.message).toContain("Return type mismatch");
     });
   });
 
@@ -1105,7 +1105,7 @@ it("rejects an out-of-bounds literal index into a tuple", () => {
       };
       const errors = new TypeChecker().check(ast);
       expect(errors.length).toBe(1);
-      expect(errors[0].message).toContain("Cannot index");
+      expect(errors[0]!.message).toContain("Cannot index");
     });
 
     it("allows array concatenation with +", () => {
@@ -1376,9 +1376,9 @@ it("widens the element type to a union instead of rejecting an append", () => {
         }],
       };
       const errors = new TypeChecker().check(ast);
-      expect(errors[0].message).toContain("age");
-      expect(errors[0].message).toContain("number");
-      expect(errors[0].message).toContain('"oops"');
+      expect(errors[0]!.message).toContain("age");
+      expect(errors[0]!.message).toContain("number");
+      expect(errors[0]!.message).toContain('"oops"');
     });
 
     it("provides clear error message for undeclared variable", () => {
@@ -1390,8 +1390,8 @@ it("widens the element type to a union instead of rejecting an append", () => {
         }],
       };
       const errors = new TypeChecker().check(ast);
-      expect(errors[0].message).toContain("Undeclared variable");
-      expect(errors[0].message).toContain("ghost");
+      expect(errors[0]!.message).toContain("Undeclared variable");
+      expect(errors[0]!.message).toContain("ghost");
     });
 
     it("provides clear error message for const reassignment", () => {
@@ -1411,8 +1411,8 @@ it("widens the element type to a union instead of rejecting an append", () => {
         ],
       };
       const errors = new TypeChecker().check(ast);
-      expect(errors[0].message).toContain("Cannot reassign");
-      expect(errors[0].message).toContain("const");
+      expect(errors[0]!.message).toContain("Cannot reassign");
+      expect(errors[0]!.message).toContain("const");
     });
 
     it("allows records with extra inferred fields to flow into a narrower annotation", () => {
@@ -1538,8 +1538,8 @@ it("widens the element type to a union instead of rejecting an append", () => {
     it("rejects a value that doesn't match its literal annotation", () => {
       const errors = check(`let role: "admin" = "user"`);
       expect(errors.length).toBe(1);
-      expect(errors[0].message).toContain('"admin"');
-      expect(errors[0].message).toContain('"user"');
+      expect(errors[0]!.message).toContain('"admin"');
+      expect(errors[0]!.message).toContain('"user"');
     });
 
     it("accepts any member of a union of literals", () => {
@@ -1549,8 +1549,8 @@ it("widens the element type to a union instead of rejecting an append", () => {
     it("rejects a value outside a union of literals", () => {
       const errors = check(`let role: "admin" | "user" = "root"`);
       expect(errors.length).toBe(1);
-      expect(errors[0].message).toContain('"admin" | "user"');
-      expect(errors[0].message).toContain('"root"');
+      expect(errors[0]!.message).toContain('"admin" | "user"');
+      expect(errors[0]!.message).toContain('"root"');
     });
 
     it("does not let a bare primitive satisfy a literal annotation", () => {
@@ -1562,7 +1562,7 @@ it("widens the element type to a union instead of rejecting an append", () => {
         let role: "admin" = name
       `);
       expect(errors.length).toBe(1);
-      expect(errors[0].message).toContain("string");
+      expect(errors[0]!.message).toContain("string");
     });
 
     it("still widens an unannotated declaration to the base primitive", () => {
@@ -1593,8 +1593,8 @@ it("widens the element type to a union instead of rejecting an append", () => {
       `;
       const errors = check(source);
       expect(errors.length).toBe(1);
-      expect(errors[0].message).toContain("setRole");
-      expect(errors[0].message).toContain('"root"');
+      expect(errors[0]!.message).toContain("setRole");
+      expect(errors[0]!.message).toContain('"root"');
     });
 
     it("checks a return statement against a literal-typed return annotation", () => {
@@ -1610,8 +1610,8 @@ it("widens the element type to a union instead of rejecting an append", () => {
         end
       `);
       expect(errors.length).toBe(1);
-      expect(errors[0].message).toContain('"ok" | "error"');
-      expect(errors[0].message).toContain('"pending"');
+      expect(errors[0]!.message).toContain('"ok" | "error"');
+      expect(errors[0]!.message).toContain('"pending"');
     });
 
     it("does not pin an inferred (unannotated) return type to a single literal", () => {
@@ -1640,8 +1640,8 @@ it("widens the element type to a union instead of rejecting an append", () => {
         role = "root"
       `);
       expect(errors.length).toBe(1);
-      expect(errors[0].message).toContain("role");
-      expect(errors[0].message).toContain('"root"');
+      expect(errors[0]!.message).toContain("role");
+      expect(errors[0]!.message).toContain('"root"');
     });
   });
 });

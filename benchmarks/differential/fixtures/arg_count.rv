@@ -1,0 +1,4 @@
+fn f(a: number): number
+  return a
+end
+f(1, 2)

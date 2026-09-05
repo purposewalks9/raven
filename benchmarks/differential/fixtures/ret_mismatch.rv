@@ -1,0 +1,3 @@
+fn f(x: number): number
+  return "nope"
+end

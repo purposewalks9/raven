@@ -1,5 +1,6 @@
 packages:
   - "compiler"
+  - "crates/raven-node"
   - "packages/*"
   - "framework/*"
   - "vscode/extension"

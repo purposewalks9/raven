@@ -7,7 +7,7 @@ export interface SourceLocation {
 }
 
 export interface Node {
-    location: SourceLocation;
+    location?: SourceLocation;
 }
 
 export interface Program extends Node {
@@ -57,7 +57,7 @@ export interface FunctionDeclaration extends Node {
     type: "FunctionDeclaration";
     name: string;
     parameters: Parameter[];
-    returnType: TypeAnnotation;
+    returnType?: TypeAnnotation;
     body: Statement[];
 }
 

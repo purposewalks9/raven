@@ -1,0 +1,6 @@
+fn f(x: number): number
+  return x
+end
+fn f(x: string): string
+  return x
+end

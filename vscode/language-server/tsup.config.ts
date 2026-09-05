@@ -13,4 +13,7 @@ export default defineConfig({
     "vscode-languageserver",
     "vscode-languageserver-textdocument",
   ],
+  // raven-node ships a native addon; keep it as a runtime require resolved
+  // from node_modules (the compiler already depends on it the same way).
+  external: ["raven-node"],
 });

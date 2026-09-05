@@ -1,0 +1,4 @@
+fn add(a: number, b: number): number
+  return a + b
+end
+print(add("x", 1))
