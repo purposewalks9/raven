@@ -113,6 +113,11 @@ export function buildProject(root: string): ProjectResult {
 
   const registry = new WorkspaceRegistry();
 
+  // Phase 2: source-text-in. Keep TS AST for `files[].ast` storage (needed until
+  // Phase 3 ports emitter), but diagnostics now come from Rust `check_source`
+  // which re-parses the source text internally. This duplicates parsing
+  // (TS for AST, Rust for diagnostics) — intentional until Phase 3 makes the
+  // whole pipeline one native call and the AST-out leg disappears.
 
   for (const file of files) {
     const checker = new TypeChecker({
@@ -120,7 +125,9 @@ export function buildProject(root: string): ProjectResult {
       file: file.path,
       importedFunctions: importedFunctionsByFile.get(file.path),
     });
-    checker.check(file.ast);
+    // First pass populates registry with models (diagnostics ignored here,
+    // same as before — second pass collects them).
+    checker.checkSource(file.source);
   }
 
 
@@ -130,8 +137,8 @@ export function buildProject(root: string): ProjectResult {
       file: file.path,
       importedFunctions: importedFunctionsByFile.get(file.path),
     });
-    const fileDiagnostics = checker.check(file.ast);
-    file.binder = checker.getBinder();
+    const { diagnostics: fileDiagnostics, binder } = checker.bindingsForSource(file.source);
+    file.binder = binder;
     for (const diagnostic of fileDiagnostics) {
       diagnostics.push({ ...diagnostic, file: file.path });
     }

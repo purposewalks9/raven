@@ -107,7 +107,16 @@ function benchSingle(src: string, iterations: number): StageTime[] {
       for (let i = 0; i < iterations; i++) diags = new TypeChecker().check(parsed);
       return diags!;
     });
-    stageTimes.push({ stage: "check", ns: t.ns, count: iterations });
+    stageTimes.push({ stage: "check (AST-in, deprecated)", ns: t.ns, count: iterations });
+  }
+
+  {
+    const t = time(() => {
+      let diags;
+      for (let i = 0; i < iterations; i++) diags = new TypeChecker({ file: "<bench>" }).checkSource(src);
+      return diags!;
+    });
+    stageTimes.push({ stage: "check (source-in)", ns: t.ns, count: iterations });
   }
 
   {

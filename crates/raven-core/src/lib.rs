@@ -8,6 +8,8 @@ pub mod ast;
 pub mod binder;
 pub mod checker;
 pub mod diagnostics;
+pub mod lexer;
+pub mod parser;
 pub mod registry;
 pub mod symbol_table;
 pub mod type_;

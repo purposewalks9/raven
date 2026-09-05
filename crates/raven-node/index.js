@@ -310,7 +310,9 @@ if (!nativeBinding) {
   throw new Error(`Failed to load native binding`)
 }
 
-const { Registry, checkProgram } = nativeBinding
+const { Registry, checkSource, bindingsFor, checkProgram } = nativeBinding
 
 module.exports.Registry = Registry
+module.exports.checkSource = checkSource
+module.exports.bindingsFor = bindingsFor
 module.exports.checkProgram = checkProgram
