@@ -113,29 +113,24 @@ export function buildProject(root: string): ProjectResult {
 
   const registry = new WorkspaceRegistry();
 
+for (const file of files) {
+  const checker = new TypeChecker({
+    registry,
+    file: file.path,
+    importedFunctions: importedFunctionsByFile.get(file.path),
+  });
 
-  for (const file of files) {
-    const checker = new TypeChecker({
-      registry,
+  const fileDiagnostics = checker.check(file.ast);
+
+  file.binder = checker.getBinder();
+
+  for (const diagnostic of fileDiagnostics) {
+    diagnostics.push({
+      ...diagnostic,
       file: file.path,
-      importedFunctions: importedFunctionsByFile.get(file.path),
     });
-    checker.check(file.ast);
   }
-
-
-  for (const file of files) {
-    const checker = new TypeChecker({
-      registry,
-      file: file.path,
-      importedFunctions: importedFunctionsByFile.get(file.path),
-    });
-    const fileDiagnostics = checker.check(file.ast);
-    file.binder = checker.getBinder();
-    for (const diagnostic of fileDiagnostics) {
-      diagnostics.push({ ...diagnostic, file: file.path });
-    }
-  }
+}
   return {
     files,
     diagnostics,
