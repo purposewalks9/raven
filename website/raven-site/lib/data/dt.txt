@@ -107,14 +107,30 @@ RAVEN
 │   ├── Environment schema → Raven types
 │   └── Generated external models
 │
-├── 12. COMPILER PERFORMANCE
-│   ├── Incremental compilation
-│   ├── Dependency-aware recompilation
-│   ├── AST caching
-│   ├── Type/checking cache
-│   ├── Workspace metadata cache
-│   ├── Parallel compilation
-│   └── Memory + compilation benchmarks
+12. COMPILER PERFORMANCE
+│
+├── Benchmark infrastructure
+├── Compilation benchmarks
+├── Lexer benchmarks
+├── Parser benchmarks
+├── Binder benchmarks
+├── Type checker benchmarks
+├── Inference benchmarks
+├── Optimizer benchmarks
+├── Emitter benchmarks
+├── Project-scale benchmarks
+│
+├── Incremental compilation
+├── Dependency-aware recompilation
+├── AST caching
+├── Type/checking cache
+├── Workspace metadata cache
+├── Parallel compilation
+│
+├── CPU profiling
+├── Memory profiling
+├── Allocation tracking
+└── Regression detection
 │
 ├── 13. JAVASCRIPT OUTPUT
 │   ├── Correct JS emission
