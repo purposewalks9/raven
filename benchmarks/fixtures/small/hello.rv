@@ -1,0 +1,14 @@
+// small.rv — a small single-file program for Phase 0 benchmarking
+let name: string = "Raven"
+let count: number = 0
+while count < 5 do
+  print(name)
+  count = count + 1
+end
+
+fn double(x: number): number
+  return x * 2
+end
+
+print(double(count))
+print("done.")

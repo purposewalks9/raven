@@ -1,0 +1,22 @@
+// large_rv — worker file 15 for Phase 0 benchmarking
+fn use_model_15(input: number): number
+  let acc = 0
+  let i = 0
+  while i < input do
+    acc = acc + i
+    i = i + 1
+  end
+  return acc
+end
+
+fn process_15(values: array<number>): number
+  let total = 0
+  let i = 0
+  while i < len(values) do
+    if values[i] > 0 then
+      total = total + values[i]
+    end
+    i = i + 1
+  end
+  return total
+end

@@ -1,0 +1,406 @@
+// medium.rv — a mid-size single-file program for Phase 0 benchmarking (~440 lines)
+const limit: number = 100
+
+fn fib(n: number): number
+  if n < 2 then
+    return n
+  end
+  return fib(n - 1) + fib(n - 2)
+end
+
+fn sumUpTo(n: number): number
+  let total = 0
+  let i = 0
+  while i <= n do
+    total = total + i
+    i = i + 1
+  end
+  return total
+end
+
+fn isEven(n: number): boolean
+  return n % 2 == 0
+end
+
+fn classify(n: number): string
+  if n < 0 then
+    return "negative"
+  end
+  if n == 0 then
+    return "zero"
+  end
+  return "positive"
+end
+
+let small = [1, 2, 3, 4, 5]
+let total = 0
+let idx = 0
+while idx < len(small) do
+  total = total + small[idx]
+  idx = idx + 1
+end
+
+model settings = { theme: "dark", version: 2, cache: true }
+
+let alice = { name: "Alice", age: 30 }
+
+fn makePoint(name: string, age: number): any
+  return { name: name, age: age }
+end
+
+let origin = makePoint("origin", 0)
+let shifted = makePoint("shifted", origin.age + 1)
+
+const colors = ["red", "green", "blue", "yellow", "purple"]
+
+fn describe(items: array<string>): string
+  let out = ""
+  let i = 0
+  while i < len(items) do
+    out = out + items[i]
+    if i < len(items) - 1 then
+      out = out + ", "
+    end
+    i = i + 1
+  end
+  return out
+end
+
+let joined = describe(colors)
+
+fn greet(name: string): string
+  return "Hello, " + name + "!"
+end
+
+print(greet("Raven"))
+
+fn lengthOf(s: string): number
+  return len(s)
+end
+
+let m = 5
+let b2 = 3
+let p = m * b2
+let q = m - b2
+let r = m / b2
+let mod2 = m % b2
+
+if p > 10 and q < 5 then
+  print("math works")
+else
+  print("math failed")
+end
+
+fn factorial(n: number): number
+  if n <= 1 then
+    return 1
+  end
+  return n * factorial(n - 1)
+end
+
+let fact5 = factorial(5)
+
+fn power(base: number, exp: number): number
+  let result = 1
+  let i = 0
+  while i < exp do
+    result = result * base
+    i = i + 1
+  end
+  return result
+end
+
+let p10 = power(2, 10)
+
+fn abs(x: number): number
+  if x < 0 then
+    return 0 - x
+  end
+  return x
+end
+
+fn max(a: number, b: number): number
+  if a > b then
+    return a
+  end
+  return b
+end
+
+fn min(a: number, b: number): number
+  if a < b then
+    return a
+  end
+  return b
+end
+
+fn clamp(value: number, lo: number, hi: number): number
+  if value < lo then
+    return lo
+  end
+  if value > hi then
+    return hi
+  end
+  return value
+end
+
+let clamped = clamp(150, 0, 100)
+
+fn bounded(x: number): boolean
+  return x >= 0 and x <= 100
+end
+
+fn sumArray(values: array<number>): number
+  let total = 0
+  let i = 0
+  while i < len(values) do
+    total = total + values[i]
+    i = i + 1
+  end
+  return total
+end
+
+let nums = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+let bigTotal = sumArray(nums)
+
+fn average(values: array<number>): number
+  if len(values) == 0 then
+    return 0
+  end
+  return sumArray(values) / len(values)
+end
+
+let avg = average(nums)
+
+fn minInArray(values: array<number>): number
+  let best = values[0]
+  let i = 1
+  while i < len(values) do
+    if values[i] < best then
+      best = values[i]
+    end
+    i = i + 1
+  end
+  return best
+end
+
+fn maxInArray(values: array<number>): number
+  let best = values[0]
+  let i = 1
+  while i < len(values) do
+    if values[i] > best then
+      best = values[i]
+    end
+    i = i + 1
+  end
+  return best
+end
+
+let mn = minInArray(nums)
+let mx = maxInArray(nums)
+
+fn countOccurrences(values: array<number>, target: number): number
+  let count = 0
+  let i = 0
+  while i < len(values) do
+    if values[i] == target then
+      count = count + 1
+    end
+    i = i + 1
+  end
+  return count
+end
+
+let ones = countOccurrences(nums, 1)
+
+model account = { id: 1, balance: 1000, owner: "Alice" }
+
+fn applyInterest(balance: number, rate: number): number
+  return balance + (balance * rate) / 100
+end
+
+let newBalance = applyInterest(account.balance, 5)
+
+fn appendExclaim(s: string): string
+  return s + "!"
+end
+
+let excited = appendExclaim("hello")
+let shout = appendExclaim(excited)
+
+fn triple(x: number): number
+  return x * 3
+end
+
+fn quadruple(x: number): number
+  return x * 4
+end
+
+fn add(a: number, b: number): number
+  return a + b
+end
+
+fn subtract(a: number, b: number): number
+  return a - b
+end
+
+fn multiply(a: number, b: number): number
+  return a * b
+end
+
+fn divide(a: number, b: number): number
+  return a / b
+end
+
+let sum = add(4, 5)
+let diff = subtract(9, 3)
+let prod = multiply(3, 4)
+let quot = divide(10, 2)
+
+fn compute(a: number, b: number, op: string): number
+  if op == "add" then
+    return a + b
+  end
+  if op == "sub" then
+    return a - b
+  end
+  if op == "mul" then
+    return a * b
+  end
+  if op == "div" then
+    return a / b
+  end
+  return 0
+end
+
+let result = compute(12, 4, "add")
+
+model config = { env: "prod", debug: false, level: 3 }
+
+fn logAt(level: number, message: string): number
+  if level <= config.level then
+    print(message)
+  end
+  return level
+end
+
+let log1 = logAt(1, "info")
+
+fn evenUpTo(n: number): array<number>
+  let out: array<number> = []
+  let i = 0
+  while i <= n do
+    if i % 2 == 0 then
+      out = out + [i]
+    end
+    i = i + 1
+  end
+  return out
+end
+
+let evens = evenUpTo(20)
+
+fn primesUpTo(n: number): array<number>
+  let out: array<number> = []
+  let i = 2
+  while i <= n do
+    let isPrime = true
+    let j = 2
+    while j * j <= i do
+      if i % j == 0 then
+        isPrime = false
+      end
+      j = j + 1
+    end
+    if isPrime then
+      out = out + [i]
+    end
+    i = i + 1
+  end
+  return out
+end
+
+let primes = primesUpTo(100)
+
+fn gcd(a: number, b: number): number
+  while b != 0 do
+    let temp = b
+    b = a % b
+    a = temp
+  end
+  return a
+end
+
+let g = gcd(24, 36)
+
+fn fibonacciList(n: number): array<number>
+  let out: array<number> = [0, 1]
+  let i = 2
+  while i < n do
+    out = out + [out[i - 1] + out[i - 2]]
+    i = i + 1
+  end
+  return out
+end
+
+let fibs = fibonacciList(20)
+
+model product = { id: 1, title: "Widget", price: 9.99, stock: 42 }
+
+fn totalValue(items: array<number>): number
+  let total = 0
+  let i = 0
+  while i < len(items) do
+    total = total + items[i]
+    i = i + 1
+  end
+  return total
+end
+
+let inventory = [5, 3, 8, 1, 9]
+let value = totalValue(inventory)
+
+fn discounted(price: number, percent: number): number
+  return price - (price * percent) / 100
+end
+
+let sale = discounted(product.price, 20)
+
+fn isPositive(n: number): boolean
+  return n > 0
+end
+
+fn sign(n: number): string
+  if n > 0 then
+    return "+"
+  end
+  if n < 0 then
+    return "-"
+  end
+  return "0"
+end
+
+let s1 = sign(5)
+let s2 = sign(0 - 5)
+let s3 = sign(0)
+
+fn magnitude(n: number): number
+  if n < 0 then
+    return 0 - n
+  end
+  return n
+end
+
+let mag = magnitude(0 - 42)
+
+fn countDigits(n: number): number
+  let count = 1
+  while n >= 10 do
+    count = count + 1
+    n = n / 10
+  end
+  return count
+end
+
+let digits = countDigits(123456)
+
+print("benchmark medium complete")

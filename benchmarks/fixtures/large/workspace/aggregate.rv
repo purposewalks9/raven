@@ -1,0 +1,4 @@
+// aggregate.rv — ties the workspace together
+fn aggregate(): number
+  return 0
+end

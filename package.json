@@ -2,7 +2,7 @@
   "name": "Raven",
   "private": true,
   "version": "0.0.1",
-  "description": "Raven \u2014 a statically typed language for the JavaScript ecosystem that compiles to optimized JS.",
+  "description": "Raven — a statically typed language for the JavaScript ecosystem that compiles to optimized JS.",
   "license": "MIT",
   "packageManager": "pnpm@10.5.2",
   "scripts": {
@@ -14,14 +14,16 @@
     "test": "pnpm -r run test",
     "lint": "pnpm -r run lint",
     "clean": "pnpm -r run clean",
-    "package": "pnpm run build && pnpm --filter raven-language run package"
+    "package": "pnpm run build && pnpm --filter raven-language run package",
+    "bench": "node --import tsx benchmarks/run.ts"
   },
   "devDependencies": {
-    "typescript": "^5.5.4",
-    "tsup": "^8.2.4",
-    "vitest": "^2.0.5",
+    "@changesets/cli": "^2.27.7",
     "@types/node": "^20.14.10",
     "eslint": "^9.8.0",
-    "@changesets/cli": "^2.27.7"
+    "tsup": "^8.2.4",
+    "tsx": "^4.23.13",
+    "typescript": "^5.5.4",
+    "vitest": "^2.0.5"
   }
 }
