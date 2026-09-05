@@ -1,0 +1,3 @@
+fn f(a: number, a: string): number
+  return 1
+end

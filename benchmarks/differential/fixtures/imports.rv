@@ -1,0 +1,2 @@
+import { helper } from "mylib"
+print(helper("x"))

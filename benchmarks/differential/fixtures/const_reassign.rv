@@ -1,0 +1,2 @@
+const c: number = 1
+c = 2

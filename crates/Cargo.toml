@@ -1,0 +1,22 @@
+[workspace]
+resolver = "2"
+members = [
+    "raven-core",
+    "raven-node",
+]
+
+[workspace.package]
+edition = "2021"
+version = "0.1.0"
+license = "MIT"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = "warn"

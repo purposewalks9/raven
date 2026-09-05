@@ -17,18 +17,18 @@ end
 
 const numbers: array<number> = [4, 8, 15, 16, 23, 42]
 
-print("Fibonacci of 10 is:")ssfss
+print("Fibonacci of 10 is:")
 print(fibonacci(10))
 
 print("Sum of array is:")
 print(sumArray(numbers))
 
-le greeting = "Hello, " + "Raven!"
+let greeting = "Hello, " + "Raven!"
 print(greeting)
 
-le hasManyItems = len(numbers) > 3
+let hasManyItems = len(numbers) > 3
 if hasManyItems and (sumArray(numbers) > 100) then
   print("Big array, big sum.")
-els
+else
   print("Not that big.")
 end

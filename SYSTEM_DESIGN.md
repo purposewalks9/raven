@@ -134,6 +134,12 @@ size and its cross-file responsibilities):
   native binding. The TS implementation stays behind a flag until parity
   tests pass (see §6), then is deleted in the same PR that removes the flag.
 
+> **Result:** shipped in PR #18. The checker engine itself was not the
+> bottleneck (29 µs–934 µs, same order as TS) — ~91% of medium-file `check`
+> cost turned out to be FFI marshalling. Full analysis:
+> `benchmarks/results/phase1-ffi-analysis.md`. This is exactly what Phase 2
+> below removes.
+
 ### Phase 2 — Port lexer + parser
 
 - Move `lexer/` and `parser/` into `raven-core` so the FFI boundary sits at

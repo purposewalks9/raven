@@ -38,6 +38,9 @@
     "lint": "eslint src --ext .ts",
     "clean": "rm -rf dist *.tsbuildinfo"
   },
+  "dependencies": {
+    "raven-node": "file:../crates/raven-node"
+  },
   "devDependencies": {
     "@types/node": "^20.19.43",
     "tsup": "^8.2.4",
