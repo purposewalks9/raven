@@ -1,0 +1,44 @@
+---
+title: Roadmap
+description: Where Raven's compiler performance work is headed next.
+---
+
+Raven's compiler is being rewritten in stages, moving performance-critical
+parts from TypeScript into a native Rust core (`crates/raven-core`) —
+measuring before and after each stage, not assuming. See
+[Performance](/docs/improvements) for what's already shipped and measured.
+
+## Shipped
+
+- **Type checker → Rust**, reachable from Node via a native binding.
+  Architecture proven correct across 110 test fixtures. See
+  [Performance](/docs/improvements) for the honest numbers — this step
+  proved the architecture, the speed win is next.
+
+## Next
+
+- **Lexer and parser → Rust** — detail: [Phase 2 → Lexer & Parser](/docs/phases/phase-2). Right now, checking a file means building
+  the syntax tree in TypeScript, then serializing it as JSON to hand to the
+  Rust type checker. Moving the lexer and parser into Rust too means source
+  code goes in and results come out — no large JSON payload crossing the
+  boundary in between. This is expected to be where single-file check speed
+  actually improves.
+- **Emitter, optimizer, and sourcemaps → Rust** — detail: [Phase 3 → Emitter/Optimizer](/docs/phases/phase-3). Once checking is fully
+  native, the rest of the compile pipeline (turning checked code into
+  JavaScript, with sourcemaps) moves over too, so a full compile becomes one
+  native call instead of several.
+- **Language server → Rust** — detail: [Phase 4 → Language Server](/docs/phases/phase-4). The editor experience (hover, go-to-definition,
+  find-references, live diagnostics) moves to a native language server, so
+  editor feedback runs on the same fast core as the compiler.
+- **In-browser playground** — detail: [Phase 5 → WASM Playground](/docs/phases/phase-5) · live placeholder: [Playground](/docs/playground). Once the core pipeline is fully native, it
+  compiles to WebAssembly too — the same engine that powers the CLI running
+  directly in your browser, no server round-trip, for trying Raven without
+  installing anything.
+
+## Why this order
+
+Each step only happens after the previous one is measured and proven, not
+just merged. That's slower than doing it all in one rewrite, and
+deliberately so — the [Performance](/docs/improvements) page exists because
+skipping the measurement step would have meant shipping something slower
+while calling it a speedup.

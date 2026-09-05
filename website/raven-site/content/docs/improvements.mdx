@@ -1,0 +1,58 @@
+---
+title: Performance
+description: What changed when the type checker moved to Rust, measured, not guessed.
+---
+
+Raven's compiler was paused for a while to work out the right optimization
+strategy before adding more features. Instead of guessing, the approach was:
+measure first, port only what's proven slow, and always know the actual
+numbers before calling something "faster."
+
+## What shipped in this step
+
+The type checker moved from TypeScript to a native Rust core
+(`crates/raven-core`), reached from Node through a native binding
+(`crates/raven-node`). The architecture is proven: 110 TypeScript and Rust
+implementations were run side-by-side across every existing test fixture,
+and produced identical output on all of them.
+
+## What the numbers actually say
+
+This is the honest part, and it matters more than the headline:
+
+| Fixture | TypeScript | Rust (native, this step) |
+|---|---|---|
+| small file | ~15 µs | ~501 µs |
+| medium file | ~466 µs | ~15.5 ms |
+| 56-file workspace | ~16 ms | ~230 ms |
+
+Single-file checks got **slower**, not faster, in this step. The type
+checking logic itself is fine — measured in isolation it's ~29 µs to ~1 ms,
+the same order of magnitude as the TypeScript version. The cost is almost
+entirely in *marshalling*: converting data to and from JSON to cross the
+boundary between Rust and Node. For a medium file, that's roughly 91% of
+the total time.
+
+That's not a setback, it's the expected result of measuring honestly at
+each step. The next step removes that boundary crossing instead of just
+living with it — see [Roadmap](/docs/roadmap) and the planned detail in [Phase 2](/docs/phases/phase-2).
+
+## What hasn't been measured yet
+
+Phases 2–5 are **planned, not shipped** — no numbers exist yet to report. The pages below describe what will be measured when each lands; they will be filled with real tables when the benchmarks rerun (`SYSTEM_DESIGN.md §8`):
+
+- [Phase 2 — Lexer & Parser](/docs/phases/phase-2): source-text-in benchmarks should remove the ~91% marshalling cost.
+- [Phase 3 — Emitter/Optimizer](/docs/phases/phase-3): full-compile wall time (not just `check`) becomes one native call.
+- [Phase 4 — Language Server](/docs/phases/phase-4): editor hover/diagnostics latency on the 56-file workspace.
+- [Phase 5 — WASM Playground](/docs/phases/phase-5): in-browser compile latency + gzipped bundle size (`wasm-opt -Oz` gate).
+
+No phase is marked "faster" until its table is filled. That rule is what keeps this page honest.
+
+## Why measure instead of assume
+
+It would have been easy to declare this step "done, and faster" without
+checking. The numbers above are exactly why that would have been wrong to
+claim. The architecture work — a Rust core reachable from Node, a
+type-interning table for fast structural comparisons — is real and worth
+keeping. The speed win isn't here yet. Both of those things can be true at
+once, and the only way to know which parts are true is to measure.

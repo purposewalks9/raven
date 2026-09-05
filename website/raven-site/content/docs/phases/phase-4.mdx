@@ -1,0 +1,42 @@
+---
+title: "Phase 4 — Language Server to Rust"
+description: "Planned: rewrite the editor language server in Rust on tower-lsp so hover, go-to-definition and diagnostics run on the same raven-core."
+---
+
+> 🚧 **Planned — not shipped yet.** No Rust language server binary exists today. The current JS server in `vscode/language-server/` still serves the extension — see [Roadmap](/docs/roadmap).
+
+## Why this is Phase 4 (and can run in parallel)
+
+`vscode/` (extension + language server) is ~360 lines of TypeScript (`SYSTEM_DESIGN.md §2`). The extension is a thin LSP client — it spawns "whatever binary is configured" and speaks JSON-RPC over stdio. Rewriting the server as `crates/raven-lsp` with `tower-lsp` means:
+
+- The server calls `raven-core` **directly** — no napi/FFI boundary at all (both are Rust).
+- `vscode/extension/*` requires **no changes** — it doesn't know or care what language the server is written in, per `SYSTEM_DESIGN.md §4`.
+- Risk is lower than compiler phases: a laggy/restarting language server is more forgiving than a broken build, so this is the natural "first Rust trial" if the team wants one (`SYSTEM_DESIGN.md §5 Phase 4`).
+
+The doc's own rule still holds: `vscode/extension/*` is never touched by this migration beyond configuring which binary to spawn (`AGENTS.md §5`).
+
+## What is planned
+
+- New crate `crates/raven-lsp` (binary) built on `tower-lsp`, wrapping `raven-core`:
+  - `hover`, `goto-definition`, `find-references`, `diagnostics` (live), `completion` where registry data exists.
+  - Same Workspace Registry + type-interning table as the compiler — one source of truth.
+- Old `vscode/language-server/` (TS) deleted once parity is green in CI, same rule as compiler phases.
+- `vscode/extension/*` stays TypeScript permanently.
+
+## What will be measured
+
+- Differential: same files opened via the TS server and the Rust server produce identical hover contents, definition locations, references, and diagnostics across fixtures.
+- Benchmark: editor latency (hover / diagnostics on type) on the 56-file workspace fixture — not `benchmarks/run.ts` compile time but a new LSP timing harness. Numbers committed alongside the compile benchmarks.
+- Definition of Done still applies: parity green, old implementation deleted in same PR, public API unchanged (LSP is the API here).
+
+## What won't change for users
+
+- The VS Code extension's commands, settings, and UI don't change.
+- `@raven/compiler` public API unchanged.
+- No WASM or browser work in this phase — that's Phase 5.
+
+## When this ships, docs will update
+
+- Add a **Shipped** bullet in [Roadmap](/docs/roadmap) for the language server (it has no `compiler.mdx` TODO because that file doesn't list the server).
+- Remove the 🚧 banner here and replace with `## What shipped in this step` listing the LSP features and measured latency.
+- Optional: add a short "Editor speed" section to [Performance](/docs/improvements) with the LSP numbers.

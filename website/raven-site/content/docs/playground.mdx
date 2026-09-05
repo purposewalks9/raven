@@ -1,0 +1,18 @@
+---
+title: Playground
+description: Try Raven in the browser — coming with the WebAssembly build.
+---
+
+> 🚧 Not live yet. This page describes what's planned — see
+> [Roadmap](/docs/roadmap) for where this sits in the current work.
+
+Once Raven's compiler core runs in WebAssembly, this page will host an
+in-browser editor: write Raven, see the inferred types and diagnostics, and
+see the emitted JavaScript, without installing anything.
+
+A few things worth knowing ahead of time, so they're not a surprise later:
+the playground runs in a browser sandbox with no filesystem access, so
+features that depend on reading multiple files from a real project —
+`model` resolution across files via the Workspace Registry, for instance —
+may work differently than in a real project until multi-file support is
+specifically addressed for the browser context.

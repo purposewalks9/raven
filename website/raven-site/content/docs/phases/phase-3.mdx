@@ -1,0 +1,44 @@
+---
+title: "Phase 3 — Emitter, Optimizer & Sourcemap to Rust"
+description: "Planned: move the rest of the compile pipeline into raven-core so a full compile becomes one native call."
+---
+
+> 🚧 **Planned — not shipped yet.** This describes the third staged port, not a current capability. The live pipeline is in [Compiler Architecture](/docs/compiler); see [Roadmap](/docs/roadmap) for ordering.
+
+## Why this is Phase 3
+
+Once the front end is fully native (Phase 1: checker, Phase 2: lexer+parser), the remaining pipeline is small and lower-risk (`SYSTEM_DESIGN.md §2`):
+
+| Module | Lines | Role |
+|---|---|---|
+| `emitter/` | 425 | AST → JS |
+| `optimizer/` | 125 | dead-branch simplification |
+| `sourcemap/` | 156 | sourcemap generation |
+
+Ported in Phase 3, a full `compile(source) → { js, sourcemap, diagnostics }` becomes **one `raven-node` call** from `compiler/src/index.ts`, instead of several boundary crossings. `compiler/src/index.ts` becomes a thin shim; `compiler/src/cli/*` stays TypeScript permanently (`SYSTEM_DESIGN.md §3` non-goal). This also completes `raven-core` — `raven-wasm` (Phase 5) can then reuse the exact same core for the browser.
+
+## What is planned
+
+- New `raven-core::{emitter,optimizer,sourcemap}` modules.
+- Single FFI entry for the whole pipeline: source text in, JS + sourcemap + diagnostics out. No per-stage JSON handoff.
+- `compiler/src/emitter`, `compiler/src/optimizer`, `compiler/src/sourcemap` deleted in the same PR that lands the Rust versions (`SYSTEM_DESIGN.md §8` — no parallel copies past the PR).
+- Public shape of `@raven/compiler` unchanged; `vscode/extension` and `website/raven-site` work unmodified except for the wiring scoped to this phase.
+
+## What will be measured
+
+- Differential tests: emitted JS + sourcemaps + diagnostics diffed on every fixture in `examples/raven/` and `compiler/tests/`; golden files require an explicit "this diff is intentional and why" note.
+- `benchmarks/run.ts` rerun — this time the **full compile** (`lex+parse+check+optimize+emit+sourcemap`) is timed, not just `check`. Committed to `benchmarks/results/`.
+- Target: full-compile wall time improves because the last per-stage serializations are gone. If it doesn't, the page must say so — same honesty as [Performance](/docs/improvements).
+
+## What won't change
+
+- No language semantics change.
+- No CLI rewrite.
+- Bundle-size considerations are deferred to Phase 5 (`wasm-opt -Oz` check there).
+
+## When this ships, docs will update
+
+- Resolve the two `TODO(phase-3)` comments in [Compiler Architecture](/docs/compiler) (Optimizer, Emitter).
+- Move the "Emitter, optimizer, and sourcemaps → Rust" bullet from **Next** to **Shipped** in [Roadmap](/docs/roadmap).
+- Add real full-compile numbers to [Performance](/docs/improvements).
+- Remove the 🚧 banner here and replace with `## What shipped in this step`.
