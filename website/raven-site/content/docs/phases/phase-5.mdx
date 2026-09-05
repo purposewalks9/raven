@@ -1,0 +1,42 @@
+---
+title: "Phase 5 — WASM Playground"
+description: "Planned: compile raven-core to WebAssembly so the same compiler that powers the CLI runs in the browser with no server round-trip."
+---
+
+> 🚧 **Planned — not shipped yet.** The browser playground doesn't exist yet. This page describes the intended design; the live placeholder is at [Playground](/docs/playground).
+
+## Why this is last
+
+Phase 5 reuses work from Phases 1–3: once `raven-core` is the complete pipeline (lex → parse → check → optimize → emit + sourcemap), building `crates/raven-wasm` with `wasm-bindgen`/`wasm-pack` gives the **exact same engine** that powers the CLI, compiled to WASM (`SYSTEM_DESIGN.md §5 Phase 5`). That's a genuine advantage here because `website/raven-site` already exists.
+
+It is last for two practical reasons:
+
+1. No point shipping a playground that still shells out to a TS half of the pipeline.
+2. WASM bundle size needs a CI gate (`wasm-opt -Oz`, `SYSTEM_DESIGN.md §7`) — only meaningful once `raven-core` is complete.
+
+## What is planned
+
+- New crate `crates/raven-wasm` — thin `wasm-bindgen` bindings over `raven-core`; `raven-core` itself stays free of `wasm-bindgen` so it can be tested/fuzzed as a plain library (`AGENTS.md §2`).
+- `website/raven-site` loads `raven-wasm` for an in-browser editor:
+  - Left: Raven source
+  - Right: inferred types / diagnostics + emitted JS + (when Phase 3 ships) sourcemap
+  - No install, no server round-trip
+- Single implementation reused from Node (via `raven-node`) and the browser (via `raven-wasm`) — `SYSTEM_DESIGN.md §3` goal.
+
+## Known constraints (so they're not a surprise)
+
+- Browser sandbox = no filesystem. Features that depend on reading multiple files from a real project — `model` resolution across files via the Workspace Registry — may work differently than in a real project until multi-file support is specifically addressed for the browser context. The [Playground](/docs/playground) page already calls this out.
+- Bundle size gated in CI; if `wasm-opt -Oz` still exceeds the budget, the phase doesn't merge.
+- `@raven/compiler` public API unchanged; playground is a website feature, not a compiler API change.
+
+## What will be measured
+
+- WASM bundle size (gzipped) vs. budget, committed in the PR.
+- In-browser compile latency on the same small/medium fixtures used in `benchmarks/results/phase1-ffi-analysis.md` — compared to the native `raven-node` numbers, not replacing them.
+- Parity: same source compiled via `raven-node` and `raven-wasm` produces identical JS + diagnostics on all fixtures.
+
+## When this ships, docs will update
+
+- Remove the 🚧 banner from [Playground](/docs/playground) and replace it with the actual working editor description.
+- Move the "In-browser playground" bullet from **Next** to **Shipped** in [Roadmap](/docs/roadmap).
+- Remove the 🚧 banner here and replace with `## What shipped in this step` including bundle size and latency numbers.

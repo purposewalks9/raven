@@ -1,0 +1,56 @@
+---
+title: "Phase 2 — Lexer & Parser to Rust"
+description: "Planned: move tokenizing and parsing into raven-core so source text goes in and typed results come out — no JSON AST crossing the boundary."
+---
+
+> 🚧 **Planned — not shipped yet.** This page describes what's next, not what's live. The current truth is in [Compiler Architecture](/docs/compiler) and [Performance](/docs/improvements). See [Roadmap](/docs/roadmap) for where this sits in the sequence.
+
+## Why this is Phase 2
+
+Phase 1 (`crates/raven-core::typechecker` via `crates/raven-node`, PR #18) proved the architecture but made single-file checks slower — see [Performance](/docs/improvements). The cause is not the checker engine (~29 µs–1 ms in isolation) but **FFI marshalling**: `JSON.stringify` → napi → `serde_json::parse` → build result `Value` → `to_string` → `JSON.parse`, which was ~91% of a medium-file check (`benchmarks/results/phase1-ffi-analysis.md`).
+
+`SYSTEM_DESIGN.md §5 Phase 2` provisions the fix: move `lexer/` (151 lines) + `parser/` (605 lines) + `ast/nodes.ts` (222 lines, discriminated unions → Rust `enum`) into `raven-core` so the FFI boundary becomes:
+
+```
+source text in → typed AST + diagnostics out
+```
+
+instead of:
+
+```
+TS lexer+parser → JSON AST → Rust checker → JSON result → JS
+```
+
+Both halves of the marshalling cost in the Phase 1 table disappear at once. This is expected to be the first phase where single-file `check` actually gets faster — but it is **expected, not promised** until measured.
+
+## What is planned
+
+- New `raven-core::{lexer,parser,ast}` modules. `ast/nodes.ts` unions map directly to Rust enums (exhaustive `match`).
+- FFI contract changes from "serialized untyped AST in" to **`&str` source in**; Rust owns lex+parse+check and returns only diagnostics + type info + bindings.
+- `compiler/src/lexer` and `compiler/src/parser` become thin wrappers/deleted per `SYSTEM_DESIGN.md §8` — no two live implementations past the PR, same as Phase 1.
+- `compiler/src/index.ts` public API unchanged (`@raven/compiler` shape frozen across phases).
+
+## What will be measured
+
+Same as every phase (`SYSTEM_DESIGN.md §8` Definition of Done):
+
+- Differential tests on every fixture in `examples/raven/` and `compiler/tests/` — TS vs Rust AST shape + diagnostics must be identical; old TS implementation deleted only when green in CI.
+- `benchmarks/run.ts` rerun before/after on the same fixtures as Phase 1: small file (~15 µs baseline), medium file (~466 µs baseline), 56-file workspace (~16 ms baseline). New report committed to `benchmarks/results/`.
+- Target: single-file regression from Phase 1 should be gone; if it isn't, the phase is not "faster by claim" — see [Performance](/docs/improvements) honesty rule.
+
+## What won't change for users
+
+- Raven language semantics don't change in this phase (non-goal in `SYSTEM_DESIGN.md §3`).
+- `compiler/src/cli/*` stays TypeScript permanently.
+- No new syntax in this phase.
+
+## When this ships, docs will update
+
+Per the migration doc convention (`typeengine/type-intelligence.mdx` "What shipped in this step"):
+
+- Resolve the two `TODO(phase-2)` comments in [Compiler Architecture](/docs/compiler).
+- Move the "Lexer and parser → Rust" bullet from **Next** to **Shipped** in [Roadmap](/docs/roadmap).
+- Add the real before/after numbers to [Performance](/docs/improvements) — remove this "planned" estimate and replace with the measured table.
+- Remove the 🚧 banner at the top of this page and add a `## What shipped in this step` section with the actual numbers.
+
+Don't do those edits speculatively before the Final Review passes — describing it as shipped before it's true is exactly what [Performance](/docs/improvements) was written to avoid.

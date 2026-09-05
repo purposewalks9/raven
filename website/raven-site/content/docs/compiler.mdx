@@ -3,24 +3,35 @@ title: Compiler Architecture
 description: How Raven source becomes JavaScript, and where type intelligence lives in the compiler.
 ---
 
-Raven is a compiler written in TypeScript for the JavaScript ecosystem. The goal
-is not to replace TypeScript as a toolchain language; the goal is to make Raven's
-compiler do more of the type work TypeScript asks developers to write manually.
+Raven's compiler started as pure TypeScript. As of PR #18, the type checker moved to a native Rust core (`crates/raven-core`), reached through a native Node binding — more stages are moving over as they're proven to need it (see [Roadmap](/docs/roadmap)). The goal was never "replace TypeScript"; it's to make Raven's compiler do more of the type work TypeScript asks developers to write manually, and to do it fast.
 
 ## Pipeline
 
 Raven source moves through these stages:
 
 1. **Lexer** — tokenizes source and records file/line/column locations for
-   diagnostics.
+   diagnostics. {/* TODO(phase-2): update to "native (crates/raven-core)" once merged */}
 2. **Parser** — builds the AST and recognizes declarations, expressions,
    functions, imports, arrays, records, and `model` declarations.
+   {/* TODO(phase-2): update to "native (crates/raven-core)" once merged */}
 3. **Binder + SymbolTable** — records declarations, references, mutability,
    type, and origin metadata for names visible in a file.
-4. **TypeChecker** — infers expression types, validates assignments and calls,
+4. **TypeChecker** *(native, Rust)* — infers expression types, validates assignments and calls,
    resolves models from the workspace registry, and reports diagnostics.
 5. **Optimizer** — simplifies obvious dead branches and unreachable code.
+   {/* TODO(phase-3): update to "native (crates/raven-core)" once merged */}
 6. **Emitter** — emits JavaScript.
+   {/* TODO(phase-3): update to "native (crates/raven-core)" once merged */}
+
+## Where the compiler runs
+
+Not every stage runs in the same language. The type checker runs as native
+Rust (`crates/raven-core`) reached through a Node binding (`crates/raven-node`);
+the rest of the pipeline is still TypeScript today. This is a deliberate,
+staged migration for performance — see [Roadmap](/docs/roadmap) for what's
+shipped and what's next, and [Performance](/docs/improvements) for what was
+actually measured, not just planned. For the planned per-phase detail, see
+[Phases](/docs/phases/phase-2) (Phase 2 → 5).
 
 ## Program model
 
