@@ -6,10 +6,11 @@ export { Emitter } from "./emitter/emitter.js";
 export * from "./diagnostics/index.js";
 export * from "./formatter/index.js";
 export { optimize } from "./optimizer/index.js";
-// ADDED: the API surface the language server needs. checkSource is the
-// in-memory entry point (source string -> diagnostics + binder); Binder
-// and SymbolBinding are its query result types.
-export { checkSource } from "./cli/pipeline.js";
+// Language-server API: needs binder, so it pays for bindings (see
+// pipeline.ts:checkSourceWithBindings doc comment). CLI path
+// `compileFile` does NOT use this — it inlines the cheap
+// `TypeChecker.checkSource` directly.
+export { checkSourceWithBindings } from "./cli/pipeline.js";
 export type { CheckResult } from "./cli/pipeline.js";
 export { Binder } from "./typechecker/binder.js";
 export type { SymbolBinding, SymbolKind } from "./typechecker/binder.js";

@@ -17,7 +17,6 @@ import { Parser } from "../compiler/src/parser/parser.js";
 import { TypeChecker } from "../compiler/src/typechecker/checker.js";
 import { optimize } from "../compiler/src/optimizer/index.js";
 import { Emitter } from "../compiler/src/emitter/emitter.js";
-import { checkSource } from "../compiler/src/cli/pipeline.js";
 import { buildProject } from "../compiler/src/project/project.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
@@ -68,11 +67,13 @@ function warmup(): void {
     const ast = new Parser(tokenize(src)).parseProgram();
     const checker = new TypeChecker();
     checker.check(ast);
+    new TypeChecker({ file: "<warmup>" }).checkSource(src);
     optimize(ast);
     new Emitter().emit(ast);
     const wAst = new Parser(tokenize(warmSrc)).parseProgram();
     const wChecker = new TypeChecker();
     wChecker.check(wAst);
+    new TypeChecker({ file: "<warmup>" }).checkSource(warmSrc);
     new Emitter().emit(wAst);
   }
 }
@@ -107,7 +108,16 @@ function benchSingle(src: string, iterations: number): StageTime[] {
       for (let i = 0; i < iterations; i++) diags = new TypeChecker().check(parsed);
       return diags!;
     });
-    stageTimes.push({ stage: "check", ns: t.ns, count: iterations });
+    stageTimes.push({ stage: "check (AST-in, deprecated)", ns: t.ns, count: iterations });
+  }
+
+  {
+    const t = time(() => {
+      let diags;
+      for (let i = 0; i < iterations; i++) diags = new TypeChecker({ file: "<bench>" }).checkSource(src);
+      return diags!;
+    });
+    stageTimes.push({ stage: "check (source-in)", ns: t.ns, count: iterations });
   }
 
   {
@@ -139,11 +149,22 @@ function benchSingle(src: string, iterations: number): StageTime[] {
     stageTimes.push({ stage: "sourcemap", ns: t.ns, count: iterations });
   }
 
-  // Full pipeline (lex+parse+check+optimize+emit) via checkSource.
+  // Full pipeline (lex+parse+check+optimize+emit) via cheap compileFile path
+  // (AST in TS for emitter, diagnostics via Rust check_source — no bindings).
   {
     const t = time(() => {
-      let res;
-      for (let i = 0; i < iterations; i++) res = checkSource(src);
+      let res: unknown;
+      for (let i = 0; i < iterations; i++) {
+        const ast = new Parser(tokenize(src)).parseProgram();
+        const diagnostics = new TypeChecker({ file: "<bench>" }).checkSource(src);
+        if (diagnostics.some((d) => (d as { severity: string }).severity === "error")) {
+          res = { diagnostics, js: null };
+          continue;
+        }
+        const prog = optimize(ast);
+        const js = new Emitter().emit(prog);
+        res = { diagnostics, js };
+      }
       return res!;
     });
     stageTimes.push({ stage: "full-pipeline", ns: t.ns, count: iterations });
