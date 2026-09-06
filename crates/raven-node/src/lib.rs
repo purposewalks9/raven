@@ -8,6 +8,9 @@
 
 use std::sync::Mutex;
 
+mod phase3;
+pub use phase3::{compile_source, emit_program, optimize_program};
+
 use napi::{Error, Result, Status};
 use napi_derive::napi;
 use raven_core::ast::{Program, SourceLocation};

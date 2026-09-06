@@ -1,37 +1,26 @@
-//! Phase 3 FFI additions for `raven-node`.
+//! Phase 3 FFI additions for `raven-node`: expose `raven-core`'s optimizer,
+//! emitter and source-map generator to Node.
 //!
-//! I don't have your actual `crates/raven-node/src/lib.rs` in this session
-//! (no repo checked out here), so this is a **new file** you merge in
-//! rather than a diff against your real one. It follows the JSON-string
-//! in/out convention described for `check_source`/`bindings_for`: every
-//! function takes/returns `String` (serde_json underneath), so the napi
-//! binding surface doesn't need typed structs on the Rust side.
-//!
-//! To wire this in:
-//!   1. Drop this file in as `crates/raven-node/src/phase3.rs`.
-//!   2. Add `mod phase3;` to your existing `lib.rs`.
-//!   3. Add `pub use phase3::*;` (or re-export individually) if your existing
-//!      `lib.rs` doesn't already glob-export submodules.
-//!   4. Confirm the `raven_core::` paths below match your actual module
-//!      layout — I've matched them to the `lib.rs` snippet you pasted
-//!      earlier (`ast`, `optimizer`, `emitter`, `sourcemap`, `parser`,
-//!      `lexer`, `checker`, `registry`), but I can't compile-check this
-//!      against your real `raven-core::ast` types (`Program`, etc.) since
-//!      I don't have that file. If a field/type name is off, it should be
-//!      a one-line fix, not a redesign — the shape is right even if a name
-//!      isn't.
+//! Follows the same conventions as `check_source`/`bindings_for` in
+//! `lib.rs`: JSON string in, JSON string out, errors mapped through the
+//! same `Error::new(Status::GenericFailure, ...)` shape (mirrored here as
+//! a local `jerr`, since the one in `lib.rs` is private to that module).
 
-use napi::bindgen_prelude::*;
+use napi::{Error, Result, Status};
 use napi_derive::napi;
-use serde::{Deserialize, Serialize};
-
 use raven_core::ast::Program;
 use raven_core::emitter::{Emitter, EmitWithSourceMapOptions};
 use raven_core::optimizer::optimize;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
-/// Options accepted by `emit_program`, matching the TS caller's
-/// `{ sourceMap, sourceFile, sourceContent }` shape.
-#[derive(Debug, Default, Deserialize)]
+fn jerr<E: std::fmt::Display>(err: E) -> Error {
+    Error::new(Status::GenericFailure, err.to_string())
+}
+
+/// Options accepted by `emit_program`, matching the TS
+/// `EmitWithSourceMapOptions` shape (`{ sourceMap, sourceFile, sourceContent }`).
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct EmitOptionsInput {
     #[serde(default)]
@@ -40,56 +29,82 @@ struct EmitOptionsInput {
     source_file: Option<String>,
     #[serde(default)]
     source_content: Option<String>,
+    /// Only read by `compile_source` — `emit_program` has no optimize step
+    /// of its own (the caller passes in whatever AST it wants emitted).
+    /// Mirrors `compileFile`'s `shouldOptimize` parameter in `pipeline.ts`
+    /// (default `true`, e.g. `raven check` passes `false`).
+    #[serde(default = "default_true")]
+    optimize: bool,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+impl Default for EmitOptionsInput {
+    fn default() -> Self {
+        Self {
+            source_map: false,
+            source_file: None,
+            source_content: None,
+            optimize: true,
+        }
+    }
 }
 
 /// Result shape returned by `emit_program`: `{ code, map }`. `map` is the
-/// raw source-map JSON (already a JSON *value*, not a re-escaped string),
-/// or `null` when `sourceMap` wasn't requested.
+/// raw source-map JSON *value* (not re-escaped), or `null` when `sourceMap`
+/// wasn't requested.
 #[derive(Debug, Serialize)]
 struct EmitResultOutput {
     code: String,
-    map: Option<serde_json::Value>,
+    map: Option<Value>,
 }
 
 /// Runs the optimizer over a serialized AST and returns the optimized AST,
-/// still serialized. Mirrors calling `optimize()` in
-/// `compiler/src/optimizer/index.ts`.
+/// still serialized. Mirrors `optimize()` in `compiler/src/optimizer/index.ts`.
 ///
-/// ```ignore
+/// Note the one intentional behavior difference from the pre-port TS
+/// implementation, documented in `raven_core::optimizer`'s module doc
+/// comment: `ModelDeclaration`/`ImportDeclaration` statements are preserved
+/// instead of being silently dropped (a real bug in the TS switch, which has
+/// no case and no default for those two variants).
+///
+/// # Example
+/// ```js
+/// const { optimizeProgram } = require("raven-node");
 /// const optimizedJson = optimizeProgram(JSON.stringify(ast));
 /// const optimized = JSON.parse(optimizedJson);
 /// ```
-#[napi]
+#[napi(js_name = "optimizeProgram")]
 pub fn optimize_program(ast_json: String) -> Result<String> {
-    let program: Program = serde_json::from_str(&ast_json)
-        .map_err(|e| Error::from_reason(format!("invalid AST JSON: {e}")))?;
+    let program: Program = serde_json::from_str(&ast_json).map_err(jerr)?;
     let optimized = optimize(&program);
-    serde_json::to_string(&optimized)
-        .map_err(|e| Error::from_reason(format!("failed to serialize optimized AST: {e}")))
+    serde_json::to_string(&optimized).map_err(jerr)
 }
 
-/// Emits JS (and optionally a source map) from a serialized AST. Mirrors
+/// Emits JS (and optionally a v3 source map) from a serialized AST. Mirrors
 /// `Emitter#emit` / `Emitter#emitWithSourceMap` in `emitter/emitter.ts`.
 ///
 /// `options_json`, when present, deserializes to
 /// `{ sourceMap?: boolean, sourceFile?: string, sourceContent?: string }`.
-/// Returns `{ code: string, map: object | null }` as a JSON string.
+/// Returns `JSON.stringify({ code, map })` — `map` is `null` unless
+/// `sourceMap: true` was passed.
 ///
-/// ```ignore
+/// # Example
+/// ```js
+/// const { emitProgram } = require("raven-node");
 /// const resultJson = emitProgram(JSON.stringify(ast), JSON.stringify({
 ///   sourceMap: true,
 ///   sourceFile: "main.rv",
 /// }));
 /// const { code, map } = JSON.parse(resultJson);
 /// ```
-#[napi]
+#[napi(js_name = "emitProgram")]
 pub fn emit_program(ast_json: String, options_json: Option<String>) -> Result<String> {
-    let program: Program = serde_json::from_str(&ast_json)
-        .map_err(|e| Error::from_reason(format!("invalid AST JSON: {e}")))?;
-
+    let program: Program = serde_json::from_str(&ast_json).map_err(jerr)?;
     let options: EmitOptionsInput = match options_json {
-        Some(raw) => serde_json::from_str(&raw)
-            .map_err(|e| Error::from_reason(format!("invalid options JSON: {e}")))?,
+        Some(raw) => serde_json::from_str(&raw).map_err(jerr)?,
         None => EmitOptionsInput::default(),
     };
 
@@ -104,8 +119,7 @@ pub fn emit_program(ast_json: String, options_json: Option<String>) -> Result<St
                 source_content: options.source_content,
             },
         );
-        let map_value = serde_json::to_value(result.map.to_raw(None))
-            .map_err(|e| Error::from_reason(format!("failed to serialize source map: {e}")))?;
+        let map_value = serde_json::to_value(result.map.to_raw(None)).map_err(jerr)?;
         EmitResultOutput {
             code: result.code,
             map: Some(map_value),
@@ -117,80 +131,91 @@ pub fn emit_program(ast_json: String, options_json: Option<String>) -> Result<St
         }
     };
 
-    serde_json::to_string(&output)
-        .map_err(|e| Error::from_reason(format!("failed to serialize emit result: {e}")))
+    serde_json::to_string(&output).map_err(jerr)
 }
 
 /// Full pipeline in one native call: lex + parse + check + optimize + emit.
-/// This is the Phase 3 goal call — it's what lets `compileFile` stop
-/// round-tripping the AST across the FFI boundary (and stop re-parsing in
-/// TS at all).
+/// This is the Phase 3 goal call — it lets `compileFile` stop parsing the
+/// source twice (once in TS for `optimize`/`Emitter`, once in Rust for
+/// diagnostics — see the comment on `compileFile` in `cli/pipeline.ts`).
 ///
-/// `options_json` mirrors `emit_program`'s options. `registry_json`, if your
-/// `WorkspaceRegistry` has a serializable form, should be that; if cross-file
-/// `model` resolution needs a live registry object rather than a snapshot,
-/// this signature will need a real (non-JSON) registry handle instead — I
-/// don't have `registry.rs` here to confirm which. Flagging rather than
-/// guessing wrong.
+/// `options_json` mirrors `emit_program`'s options. `registry` is the same
+/// shared `Registry` object `check_source`/`bindings_for` already take —
+/// cross-file `model` resolution goes through it exactly the same way.
 ///
-/// Returns `{ diagnostics: [...], code: string | null, map: object | null }`
-/// as a JSON string. `code`/`map` are `null` when there are blocking
-/// diagnostics (mirrors the existing `compileFile` short-circuit behavior).
+/// Returns `JSON.stringify({ diagnostics, code, map })`. `code`/`map` are
+/// `null` when there's at least one error-severity diagnostic, mirroring
+/// `compileFile`'s existing short-circuit (`diagnostics.some(d => d.severity
+/// === "error")`).
 ///
-/// ```ignore
+/// # Example
+/// ```js
+/// const { compileSource, Registry } = require("raven-node");
+/// const registry = new Registry();
 /// const resultJson = compileSource(source, "main.rv", JSON.stringify({
 ///   sourceMap: true,
-/// }), registryJson);
+///   sourceFile: "main.rv",
+/// }), registry);
 /// const { diagnostics, code, map } = JSON.parse(resultJson);
 /// ```
-#[napi]
+#[napi(js_name = "compileSource")]
 pub fn compile_source(
     source: String,
     file: String,
     options_json: Option<String>,
-    registry_json: Option<String>,
+    registry: Option<&crate::Registry>,
 ) -> Result<String> {
-    // NOTE: lexer/parser/checker entry points below are named to match the
-    // module list you pasted (`lexer`, `parser`, `checker`, `registry`), but
-    // I don't have those files' actual function signatures in this session,
-    // so the calls are written as the most likely shape (`lex(&str)`,
-    // `parse(tokens)`, `check(&Program, &Registry)`), not verified against
-    // your real code. This is the one function in this file you should
-    // read closely before trusting — the FFI plumbing around it (JSON in,
-    // JSON out, error mapping) is solid either way.
-    let _ = registry_json; // wire through to `checker`/`registry` once their real signature is confirmed
+    let tokens = raven_core::lexer::tokenize(&source, &file)
+        .map_err(|e| jerr(format!("lex error: {}", e.message)))?;
+    let mut parser = raven_core::parser::Parser::new(tokens);
+    let program = parser
+        .parse_program()
+        .map_err(|e| jerr(format!("parse error: {}", e.0)))?;
 
-    let tokens = raven_core::lexer::lex(&source)
-        .map_err(|e| Error::from_reason(format!("lex error: {e}")))?;
-    let program = raven_core::parser::parse(tokens, &file)
-        .map_err(|e| Error::from_reason(format!("parse error: {e}")))?;
+    let mut shared = registry.map(crate::Registry::lock);
+    let detached = shared.as_mut().map(|guard| std::mem::take(&mut **guard));
 
-    let diagnostics = raven_core::checker::check(&program)
-        .map_err(|e| Error::from_reason(format!("check error: {e}")))?;
+    let options: EmitOptionsInput = match &options_json {
+        Some(raw) => serde_json::from_str(raw).map_err(jerr)?,
+        None => EmitOptionsInput::default(),
+    };
 
-    let has_blocking = diagnostics.iter().any(|d| d.is_error());
+    let checker_options = raven_core::checker::TypeCheckerOptions {
+        file: Some(file.clone()),
+        registry: detached,
+        ..raven_core::checker::TypeCheckerOptions::default()
+    };
+    let mut checker = raven_core::checker::TypeChecker::new(checker_options);
+    let diagnostics = checker.check(&program);
+    let has_error = diagnostics
+        .iter()
+        .any(|d| d.severity == raven_core::diagnostics::Severity::Error);
 
-    let (code, map) = if has_blocking {
+    if let Some(mut guard) = shared {
+        if let Some(reg) = checker.take_registry() {
+            *guard = reg;
+        }
+    }
+
+    let (code, map) = if has_error {
         (None, None)
     } else {
-        let optimized = optimize(&program);
-        let options: EmitOptionsInput = match options_json {
-            Some(raw) => serde_json::from_str(&raw)
-                .map_err(|e| Error::from_reason(format!("invalid options JSON: {e}")))?,
-            None => EmitOptionsInput::default(),
+        let optimized = if options.optimize {
+            optimize(&program)
+        } else {
+            program
         };
         let mut emitter = Emitter::new();
         if options.source_map {
             let result = emitter.emit_with_source_map(
                 &optimized,
                 EmitWithSourceMapOptions {
-                    source_file: options.source_file.unwrap_or(file),
+                    source_file: options.source_file.unwrap_or_else(|| file.clone()),
                     generated_file: None,
                     source_content: options.source_content,
                 },
             );
-            let map_value = serde_json::to_value(result.map.to_raw(None))
-                .map_err(|e| Error::from_reason(format!("failed to serialize source map: {e}")))?;
+            let map_value = serde_json::to_value(result.map.to_raw(None)).map_err(jerr)?;
             (Some(result.code), Some(map_value))
         } else {
             (Some(emitter.emit(&optimized)), None)
@@ -199,20 +224,17 @@ pub fn compile_source(
 
     #[derive(Serialize)]
     struct CompileResultOutput {
-        diagnostics: Vec<serde_json::Value>,
+        diagnostics: Value,
         code: Option<String>,
-        map: Option<serde_json::Value>,
+        map: Option<Value>,
     }
 
-    let diagnostics_json: Vec<serde_json::Value> = diagnostics
-        .iter()
-        .map(|d| serde_json::to_value(d).unwrap_or(serde_json::Value::Null))
-        .collect();
+    let diagnostics_json = serde_json::to_value(&diagnostics).map_err(jerr)?;
 
     serde_json::to_string(&CompileResultOutput {
         diagnostics: diagnostics_json,
         code,
         map,
     })
-    .map_err(|e| Error::from_reason(format!("failed to serialize compile result: {e}")))
+    .map_err(jerr)
 }
