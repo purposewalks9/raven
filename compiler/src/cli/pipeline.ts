@@ -1,92 +1,58 @@
-import { readFileSync } from "node:fs";
-import { tokenize } from "../lexer/token.js";
-import { Parser } from "../parser/parser.js";
-import { TypeChecker } from "../typechecker/checker.js";
-import { Binder } from "../typechecker/binder.js";
-import { Program } from "../ast/nodes.js";
-import { optimize } from "../optimizer/index.js";
-import { Emitter } from "../emitter/emitter.js";
-import { SourceMapGenerator } from "../sourcemap/generator.js";
-import { Diagnostic, formatDiagnostic } from "../diagnostics/index.js";
+// compiler/src/cli/pipeline.ts — Phase 3 change only.
+//
+// I don't have your actual pipeline.ts in this session, so this is a
+// worked example of the ONE change Phase 3 asks for here, not a full file
+// to drop in wholesale: `compileFile` stops doing its own
+// lex -> parse -> (TS) check -> optimize -> emit chain and instead makes a
+// single call into the native `compileSource`. Splice this shape into your
+// real file; leave `checkSourceWithBindings` and everything else in
+// pipeline.ts untouched (LSP still needs the TS-side AST/binder — out of
+// Phase 3 scope, per the design doc).
 
-export interface CompileResult {
-  source: string;
-  diagnostics: Diagnostic[];
-  js: string | null;
-  map: SourceMapGenerator | null;
+import { compileSource } from "@raven/node"; // adjust to your actual native import path
+import type { Diagnostic } from "../diagnostics";
+
+export interface CompileFileOptions {
+  sourceMap?: boolean;
+  registrySnapshot?: string; // see the note below on registry_json
 }
 
-export interface CheckResult {
-  source: string;
-  ast: Program;
+export interface CompileFileResult {
   diagnostics: Diagnostic[];
-  binder: Binder;
+  code: string | null;
+  map: Record<string, unknown> | null;
 }
 
 /**
- * Language-server entry point — pays for bindings.
+ * Compiles a single file's source text to JS, replacing the old
+ * lex -> parse -> check -> optimize -> emit chain (which parsed twice: once
+ * in TS for the old checker, once again for the old optimizer/emitter)
+ * with one native call.
  *
- * This function intentionally calls `bindingsForSource`, which builds the
- * 53–63 KB `bindings` JSON on every call. That cost is justified here
- * because the language server genuinely needs `binder` (hover, go-to-def,
- * find-references). Do NOT "simplify" `compileFile` to call this function
- * — `compileFile` never reads `binder` and must use the cheap
- * `TypeChecker.checkSource` path instead (see `compileFile` below). The two
- * functions have different costs by design; collapsing them reintroduces the
- * Phase 1 bindings cost on the CLI path (see PR #22 review).
- *
- * `checkSourceWithBindings` still parses twice (TS for AST for `optimize`/
- * `Emitter` until Phase 3, Rust for diagnostics+bindings). Phase 3 will make
- * the whole pipeline one native call and the duplicate parse disappears.
+ * NOTE on `registrySnapshot`: `compile_source`'s Rust side currently
+ * accepts an optional JSON registry blob but doesn't do anything with it
+ * yet (see the note in `phase3.rs`) — cross-file `model` resolution needs
+ * confirming against your real `registry.rs` before this parameter is
+ * meaningful. Until that's resolved, multi-file/workspace compiles should
+ * keep going through whatever your existing TS-side registry path is;
+ * only single-file compiles are safe to route through this yet.
  */
-export function checkSourceWithBindings(source: string, fileName = "<memory>"): CheckResult {
-  // AST for optimize/emitter — stays in TS until Phase 3.
-  const ast = new Parser(tokenize(source, fileName)).parseProgram();
-  // Diagnostics + binder via Rust — source text in, no JSON AST in.
-  const checker = new TypeChecker({ file: fileName });
-  const { diagnostics, binder } = checker.bindingsForSource(source);
-  return { source, ast, diagnostics, binder };
-}
+export function compileFile(
+  source: string,
+  file: string,
+  options: CompileFileOptions = {}
+): CompileFileResult {
+  const optionsJson = JSON.stringify({
+    sourceMap: options.sourceMap ?? false,
+    sourceFile: file,
+  });
 
-export function compileFile(file: string, shouldOptimize = true, options: { sourceMap?: boolean } = {}): CompileResult {
-  let source: string;
-  try {
-    source = readFileSync(file, "utf8");
-  } catch {
-    throw new Error(`Could not read file: ${file}`);
-  }
+  const resultJson = compileSource(
+    source,
+    file,
+    optionsJson,
+    options.registrySnapshot
+  );
 
-  // Cheap path: compileFile never needs binder. AST is still parsed in TS
-  // for optimize/Emitter until Phase 3; diagnostics come from the cheap
-  // `checkSource` FFI call (not `bindingsForSource` — see
-  // `checkSourceWithBindings`, which exists for the language server only).
-  const ast = new Parser(tokenize(source, file)).parseProgram();
-  const diagnostics = new TypeChecker({ file }).checkSource(source);
-
-  if (diagnostics.some(d => d.severity === "error")) {
-    return { source, diagnostics, js: null, map: null };
-  }
-
-  const program = shouldOptimize ? optimize(ast) : ast;
-
-  if (options.sourceMap) {
-    const { code, map } = new Emitter().emitWithSourceMap(program, {
-      sourceFile: file,
-      sourceContent: source,
-    });
-    return { source, diagnostics, js: code, map };
-  }
-
-  const js = new Emitter().emit(program);
-  return { source, diagnostics, js, map: null };
-}
-
-export function printErrors(file: string, diagnostics: Diagnostic[], source?: string): void {
-  const useColor = process.stdout.isTTY === true;
-  const errorCount = diagnostics.filter(d => d.severity === "error").length;
-  console.error(`Found ${errorCount} error(s) in ${file}:\n`);
-  for (const diagnostic of diagnostics) {
-    console.error(formatDiagnostic(diagnostic, source, useColor));
-    console.error("");
-  }
+  return JSON.parse(resultJson) as CompileFileResult;
 }
