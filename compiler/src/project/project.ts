@@ -125,18 +125,6 @@ export function buildProject(root: string): ProjectResult {
       file: file.path,
       importedFunctions: importedFunctionsByFile.get(file.path),
     });
-    // First pass populates registry with models (diagnostics ignored here,
-    // same as before — second pass collects them).
-    checker.checkSource(file.source);
-  }
-
-
-  for (const file of files) {
-    const checker = new TypeChecker({
-      registry,
-      file: file.path,
-      importedFunctions: importedFunctionsByFile.get(file.path),
-    });
     const { diagnostics: fileDiagnostics, binder } = checker.bindingsForSource(file.source);
     file.binder = binder;
     for (const diagnostic of fileDiagnostics) {
