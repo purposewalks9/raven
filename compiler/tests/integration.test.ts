@@ -4,7 +4,7 @@ import { execSync } from "node:child_process";
 import { tokenize } from "../src/lexer/token.js";
 import { Parser } from "../src/parser/parser.js";
 import { Emitter } from "../src/emitter/emitter.js";
-import { checkSource } from "../src/cli/pipeline.js";
+import { TypeChecker } from "../src/typechecker/checker.js";
 
 describe("integration", () => {
   it("runs source through the full pipeline to real output", () => {
@@ -214,13 +214,14 @@ describe("integration", () => {
       let x: number | string = 5
       let y: number | string = "five"
     `;
-    const { diagnostics } = checkSource(source);
+    // Cheap path — what compileFile actually ships (diagnostics only, no binder).
+    const diagnostics = new TypeChecker().checkSource(source);
     expect(diagnostics).toEqual([]);
   });
 
   it("reports a type error when a value doesn't match a union annotation", () => {
     const source = `let x: number | string = true`;
-    const { diagnostics } = checkSource(source);
+    const diagnostics = new TypeChecker().checkSource(source);
     expect(diagnostics.some(d => d.severity === "error")).toBe(true);
   });
 });

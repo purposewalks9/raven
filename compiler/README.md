@@ -59,9 +59,11 @@ end
 ## Using the compiler as a library
 
 ```ts
-import { checkSource } from "@raven/compiler";
+import { checkSourceWithBindings } from "@raven/compiler";
 
-const result = checkSource(`let x: number = "oops"`);
+// Language-server path — pays for binder (hover/go-to-def). For the cheap
+// CLI path that only needs diagnostics, use `new TypeChecker().checkSource()`.
+const result = checkSourceWithBindings(`let x: number = "oops"`);
 console.log(result.diagnostics);
 ```
 

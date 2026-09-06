@@ -24,34 +24,25 @@ export interface CheckResult {
 }
 
 /**
- * Phase 2 design decision (documented per prompt):
+ * Language-server entry point — pays for bindings.
  *
- * `checkSource` now has a split FFI contract:
- * - Diagnostics are fetched via Rust `check_source` (source text in, no AST
- *   marshalling). This is the cheap path used by `compileFile`.
- * - The AST is still built in TypeScript (`tokenize` + `Parser`) for
- *   `optimize`/`Emitter` until Phase 3 ports those stages. This means
- *   `checkSource` currently parses twice (once in Rust for diagnostics, once
- *   in TS for the AST). That's intentional and temporary — Phase 3 will make
- *   the whole compile one native call and the duplicate parse + the AST-out
- *   JSON leg disappear. The alternative (ship Phase 2+3 together) was
- *   considered; we chose to keep Phase 2 standalone and pay the duplicate
- *   parse cost (≈ 150 lines lexer work) rather than delay the FFI fix.
+ * This function intentionally calls `bindingsForSource`, which builds the
+ * 53–63 KB `bindings` JSON on every call. That cost is justified here
+ * because the language server genuinely needs `binder` (hover, go-to-def,
+ * find-references). Do NOT "simplify" `compileFile` to call this function
+ * — `compileFile` never reads `binder` and must use the cheap
+ * `TypeChecker.checkSource` path instead (see `compileFile` below). The two
+ * functions have different costs by design; collapsing them reintroduces the
+ * Phase 1 bindings cost on the CLI path (see PR #22 review).
  *
- * Once `crates/raven-core` owns the emitter, `checkSource` will return only
- * diagnostics and `compileFile` will become a single `compile_source` FFI
- * call with no AST crossing the boundary in either direction.
+ * `checkSourceWithBindings` still parses twice (TS for AST for `optimize`/
+ * `Emitter` until Phase 3, Rust for diagnostics+bindings). Phase 3 will make
+ * the whole pipeline one native call and the duplicate parse disappears.
  */
-export function checkSource(source: string, fileName = "<memory>"): CheckResult {
+export function checkSourceWithBindings(source: string, fileName = "<memory>"): CheckResult {
   // AST for optimize/emitter — stays in TS until Phase 3.
   const ast = new Parser(tokenize(source, fileName)).parseProgram();
   // Diagnostics + binder via Rust — source text in, no JSON AST in.
-  // This is one Rust parse (not two) — `bindingsForSource` returns both
-  // diagnostics and binder. The CLI path (`compileFile`) ignores binder, but
-  // CheckResult must provide it for `buildProject` compatibility. The extra
-  // bindings JSON cost is now opt-in: `checkSource` still pays it for
-  // compatibility, but `nativeCheckSource` (diagnostics only) is available
-  // for callers that don't need binder and want the cheaper path.
   const checker = new TypeChecker({ file: fileName });
   const { diagnostics, binder } = checker.bindingsForSource(source);
   return { source, ast, diagnostics, binder };
@@ -65,7 +56,12 @@ export function compileFile(file: string, shouldOptimize = true, options: { sour
     throw new Error(`Could not read file: ${file}`);
   }
 
-  const { ast, diagnostics } = checkSource(source, file);
+  // Cheap path: compileFile never needs binder. AST is still parsed in TS
+  // for optimize/Emitter until Phase 3; diagnostics come from the cheap
+  // `checkSource` FFI call (not `bindingsForSource` — see
+  // `checkSourceWithBindings`, which exists for the language server only).
+  const ast = new Parser(tokenize(source, file)).parseProgram();
+  const diagnostics = new TypeChecker({ file }).checkSource(source);
 
   if (diagnostics.some(d => d.severity === "error")) {
     return { source, diagnostics, js: null, map: null };
