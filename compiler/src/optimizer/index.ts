@@ -1,23 +1,18 @@
-// compiler/src/optimizer/index.ts
-//
-// Thin delegate to the native `optimizeProgram` binding. Public signature
-// (the `optimize` function name and its `Program -> Program` shape) is
-// unchanged from the pre-port TS implementation — only the body moved.
-//
-// I don't have your actual pre-port file to diff against here, so match
-// this against your real export name/signature before deleting the old
-// implementation; the body below is what should replace it once confirmed.
-
-import { optimizeProgram } from "@raven/node"; // adjust to your actual native import path
-import type { Program } from "../ast";
+import type { Program } from "../ast/index.js";
+import { nativeOptimizeProgram } from "../native.js";
 
 /**
  * Runs all optimization passes over `program`, returning a new, optimized
- * `Program`. Delegates to the Rust port (`raven-core::optimizer::optimize`);
- * see that module's doc comment for the one intentional behavior diff
- * (model/import statements are no longer silently dropped).
+ * `Program`. Phase 3: delegates to the Rust port
+ * (`raven-core::optimizer::optimize`) instead of walking the AST in TS.
+ *
+ * One intentional behavior difference from the pre-port implementation:
+ * the old TS `optimizeStatement` switch had no case (and no default) for
+ * `ModelDeclaration`/`ImportDeclaration`, so it silently deleted every
+ * `model` and `import` statement whenever `optimize()` ran (which is the
+ * default in `compileFile`). The Rust port passes both through unchanged
+ * instead — see `raven-core::optimizer`'s module doc comment.
  */
 export function optimize(program: Program): Program {
-  const resultJson = optimizeProgram(JSON.stringify(program));
-  return JSON.parse(resultJson) as Program;
+  return nativeOptimizeProgram(program);
 }

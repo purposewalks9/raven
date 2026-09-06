@@ -1,19 +1,6 @@
-// compiler/src/emitter/emitter.ts
-//
-// Thin delegate to the native `emitProgram` binding. Keeps the existing
-// `Emitter` class shape (so call sites elsewhere in the codebase don't
-// change) but every method now just serializes in, calls native, and
-// deserializes out.
-//
-// I don't have your actual pre-port `Emitter` class here to match field-
-// for-field, so double check the exact public method names/params against
-// what's really there (I've matched them to what the Rust module doc
-// comments say they mirror: `emit`, `emitWithSourceMap`,
-// `EmitWithSourceMapOptions`) before deleting the TS implementation.
-
-import { emitProgram } from "@raven/node"; // adjust to your actual native import path
-import type { Program } from "../ast";
-import type { RawSourceMap } from "../sourcemap/generator";
+import type { Program } from "../ast/nodes.js";
+import { SourceMapGenerator } from "../sourcemap/generator.js";
+import { nativeEmitProgram } from "../native.js";
 
 export interface EmitWithSourceMapOptions {
   sourceFile: string;
@@ -23,36 +10,37 @@ export interface EmitWithSourceMapOptions {
 
 export interface EmitWithSourceMapResult {
   code: string;
-  map: RawSourceMap;
+  map: SourceMapGenerator;
 }
 
 /**
- * Emits JavaScript source text from a Raven AST. Delegates to the Rust
- * emitter (`raven-core::emitter::Emitter`).
+ * Emits JavaScript source text from a Raven AST. Phase 3: delegates to the
+ * Rust emitter (`raven-core::emitter::Emitter`) instead of walking the AST
+ * in TS. Public shape (`emit`/`emitWithSourceMap`) is unchanged so existing
+ * call sites (`pipeline.ts`, tests) don't need to change.
  */
 export class Emitter {
   /** Emits `program` as plain JavaScript, with no source-map bookkeeping. */
   emit(program: Program): string {
-    const resultJson = emitProgram(JSON.stringify(program));
-    const { code } = JSON.parse(resultJson) as { code: string; map: null };
-    return code;
+    return nativeEmitProgram(program).code;
   }
 
   /** Emits `program` as JavaScript alongside a v3 source map. */
-  emitWithSourceMap(
-    program: Program,
-    options: EmitWithSourceMapOptions
-  ): EmitWithSourceMapResult {
-    const optionsJson = JSON.stringify({
+  emitWithSourceMap(program: Program, options: EmitWithSourceMapOptions): EmitWithSourceMapResult {
+    const result = nativeEmitProgram(program, {
       sourceMap: true,
       sourceFile: options.sourceFile,
       sourceContent: options.sourceContent,
     });
-    const resultJson = emitProgram(JSON.stringify(program), optionsJson);
-    const { code, map } = JSON.parse(resultJson) as {
-      code: string;
-      map: RawSourceMap;
-    };
-    return { code, map };
+    // `generatedFile` is accepted for parity with the pre-port interface
+    // but was never read internally by the old TS `Emitter` either — the
+    // generated filename only matters to whatever writes the `.map` file
+    // (`build.ts`), not to emission itself.
+    if (!result.map) {
+      // Only reachable if native ever changes to not honor `sourceMap: true`;
+      // kept as a defensive check rather than a silent `null` map.
+      throw new Error("nativeEmitProgram: expected a source map, got null");
+    }
+    return { code: result.code, map: SourceMapGenerator.fromRaw(result.map) };
   }
 }
