@@ -18,6 +18,7 @@ import { TypeChecker } from "../compiler/src/typechecker/checker.js";
 import { optimize } from "../compiler/src/optimizer/index.js";
 import { Emitter } from "../compiler/src/emitter/emitter.js";
 import { buildProject } from "../compiler/src/project/project.js";
+import { nativeCompileSource } from "../compiler/src/native.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 
@@ -149,21 +150,12 @@ function benchSingle(src: string, iterations: number): StageTime[] {
     stageTimes.push({ stage: "sourcemap", ns: t.ns, count: iterations });
   }
 
-  // Full pipeline (lex+parse+check+optimize+emit) via cheap compileFile path
-  // (AST in TS for emitter, diagnostics via Rust check_source — no bindings).
+  // Phase 3 full pipeline: one native call for lex+parse+check+optimize+emit.
   {
     const t = time(() => {
       let res: unknown;
       for (let i = 0; i < iterations; i++) {
-        const ast = new Parser(tokenize(src)).parseProgram();
-        const diagnostics = new TypeChecker({ file: "<bench>" }).checkSource(src);
-        if (diagnostics.some((d) => (d as { severity: string }).severity === "error")) {
-          res = { diagnostics, js: null };
-          continue;
-        }
-        const prog = optimize(ast);
-        const js = new Emitter().emit(prog);
-        res = { diagnostics, js };
+        res = nativeCompileSource(src, "<bench>", { optimize: true });
       }
       return res!;
     });
@@ -247,13 +239,13 @@ function main(): void {
   const sections: string[] = [];
   const today = new Date().toISOString().slice(0, 10);
 
-  sections.push(`# Raven Compiler — Benchmark Report`);
+  sections.push(`# Raven Compiler — Phase 3 Benchmark Report`);
   sections.push("");
   sections.push(`Date: ${today}`);
   sections.push(`Node: ${process.version}`);
   sections.push(`Platform: ${process.platform} ${process.arch}`);
   sections.push("");
-  sections.push("> Phase 0 deliverable. Times each pipeline stage individually using");
+  sections.push("> Phase 3 re-run. Times each pipeline stage individually using");
   sections.push("> `process.hrtime.bigint()`. All stages run on the same program instance.");
   sections.push("");
 
@@ -286,10 +278,7 @@ function main(): void {
 
   sections.push("## Analysis");
   sections.push("");
-  sections.push(
-    "Per-op averages are sub-millisecond for every single-file stage; at current fixture " +
-      "scale the compiler is fast in absolute terms.",
-  );
+  sections.push("This report is a Phase 3 baseline on the current Linux host; compare it only to runs on the same host because Node/JIT and FFI timings vary across platforms.");
   sections.push(
     `The decisive signal is the workspace: \`check (buildProject)\` — which performs the ` +
       `cross-file \`model\` resolution through the shared \`WorkspaceRegistry\` — accounts for ` +
@@ -300,10 +289,7 @@ function main(): void {
   );
   sections.push("");
   sections.push(
-    "**Phase 0 exit criterion:** a single stage (`check`/buildProject) is a clear majority " +
-      "(>50%) of wall time on the large workspace fixture. Recommendation per SYSTEM_DESIGN.md " +
-      "`Phase 1` is to port the **typechecker** to `raven-core` first, introducing the " +
-      "type-interning table for structural equality.",
+    "**Phase 3 check:** the native `full-pipeline` row now measures the production one-call path used by `compileFile`, rather than composing TypeScript parsing with individual native stages.",
   );
   sections.push("");
 

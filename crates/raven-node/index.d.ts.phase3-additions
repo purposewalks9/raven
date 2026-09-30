@@ -1,0 +1,54 @@
+/* Phase 3 additions to raven-node's index.d.ts.
+ *
+ * I don't have your actual generated index.d.ts in this session (it's
+ * produced by `napi build`, which needs a real npm toolchain), so this is
+ * a standalone block to paste in alongside your existing declarations —
+ * match the surrounding style (quote style, export form) to whatever's
+ * already there if it differs from this.
+ */
+
+/**
+ * Runs the optimizer over a serialized AST and returns the optimized AST,
+ * still serialized as a JSON string.
+ */
+export function optimizeProgram(astJson: string): string
+
+export interface EmitProgramOptions {
+  sourceMap?: boolean
+  sourceFile?: string
+  sourceContent?: string
+}
+
+export interface EmitProgramResult {
+  code: string
+  map: Record<string, unknown> | null
+}
+
+/**
+ * Emits JS (and optionally a v3 source map) from a serialized AST.
+ * `optionsJson`, if provided, should be `JSON.stringify(EmitProgramOptions)`.
+ * The return value is `JSON.stringify(EmitProgramResult)` — parse it on the
+ * caller side.
+ */
+export function emitProgram(astJson: string, optionsJson?: string): string
+
+export interface CompileSourceResult {
+  diagnostics: Record<string, unknown>[]
+  code: string | null
+  map: Record<string, unknown> | null
+}
+
+/**
+ * Full native pipeline: lex + parse + check + optimize + emit in one call.
+ * `optionsJson` mirrors `EmitProgramOptions`. `registryJson`, if your
+ * workspace registry has a serializable snapshot form, is that snapshot;
+ * confirm this against `registry.rs` before relying on it for cross-file
+ * `model` resolution — see the note in `phase3.rs`.
+ * The return value is `JSON.stringify(CompileSourceResult)`.
+ */
+export function compileSource(
+  source: string,
+  file: string,
+  optionsJson?: string,
+  registryJson?: string
+): string

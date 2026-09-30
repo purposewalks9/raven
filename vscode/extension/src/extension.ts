@@ -32,13 +32,12 @@ export function activate(context: ExtensionContext): void {
     vscode.window.registerFileDecorationProvider(new RavenFileDecorationProvider())
   );
 
-  const serverModule = context.asAbsolutePath(path.join("server", "server.cjs"));
+  const serverCommand = context.asAbsolutePath(path.join("server", "raven-lsp"));
   const serverOptions: ServerOptions = {
-    run: { module: serverModule, transport: TransportKind.ipc },
+    run: { command: serverCommand, transport: TransportKind.stdio },
     debug: {
-      module: serverModule,
-      transport: TransportKind.ipc,
-      options: { execArgv: ["--nolazy", "--inspect=6009"] },
+      command: serverCommand,
+      transport: TransportKind.stdio,
     },
   };
 

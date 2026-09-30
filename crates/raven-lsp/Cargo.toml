@@ -1,0 +1,19 @@
+[package]
+name = "raven-lsp"
+description = "Raven language server backed directly by raven-core."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "raven-lsp"
+path = "src/main.rs"
+
+[dependencies]
+raven-core = { path = "../raven-core" }
+tokio = { version = "1", features = ["io-std", "macros", "rt-multi-thread", "sync"] }
+tower-lsp = "0.20"
+url = "2"
+
+[lints]
+workspace = true

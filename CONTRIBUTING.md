@@ -1,66 +1,56 @@
 # Contributing to Raven
 
-Raven is early — pre-1.0. The most useful contributions right now are on the
-compiler core (`compiler/src`), not the framework or tooling layers, since almost
-everything downstream depends on it.
+Thanks for helping build Raven. Language semantics live in Rust; the public compiler API and CLI stay TypeScript.
 
-## Where to start
+## Start here
 
-1. Read the [README](./README.md) first — it explains why `model` and inferred
-   `let`/`const` exist, which is the core design bet the rest of the compiler
-   builds on.
-2. If your change touches the type system (`compiler/src/typechecker`,
-   `compiler/src/ast/nodes.ts`, or anything that changes what a program means,
-   not just how it is written), read
-   [`docs/type-intelligence-roadmap.md`](./docs/type-intelligence-roadmap.md)
-   first. It lays out which problems the compiler should solve on its own vs.
-   which genuinely need developer-facing syntax, and which order the underlying
-   inference/flow/project machinery needs to land in.
-3. Pick an open issue, or open one to propose a change if it is not listed.
+1. Read the [README](./README.md).
+2. Read [the architecture guide](./docs/contributing/architecture.md).
+3. Choose a focused issue or open one before changing language semantics.
 
 ## Local setup
 
+Raven needs Node 20+ with pnpm and a current Rust toolchain.
+
 ```bash
 git clone <your-fork-url>
-cd raven/compiler
+cd raven
 pnpm install
-pnpm test                # run the vitest suite (lexer/parser/checker/emitter/optimizer)
-pnpm build            # build the CLI + library
+cd crates/raven-node && npm install && npm run build
+cd ../..
+pnpm test
+cargo test --manifest-path crates/Cargo.toml --workspace
 ```
 
-## Workflow
+## Where changes belong
 
-- Branch off `main`: `feature/<short-description>` or `fix/<short-description>`.
-- Every change to `compiler/src/**` should come with a test in
-  `compiler/tests/` (see `compiler/tests/parser.test.ts` for the tokenize →
-  parse → assert pattern, or `compiler/tests/optimizer.test.ts` for the source
-  → optimize → emit → assert-on-JS pattern).
-- Run `npm test` and `npx tsc --noEmit` in `compiler/` before opening a PR.
-- If your change adds type-system surface area, answer the four questions in
-  §6 of `docs/type-intelligence-roadmap.md` in your PR description.
-- Update the relevant doc (`README.md`, `docs/`, or the roadmap doc) in the
-  same PR if you are changing grammar or semantics — the docs and the parser
-  should never drift apart.
+| Area | Location |
+|---|---|
+| Language semantics | `crates/raven-core/` |
+| Node binding | `crates/raven-node/` |
+| Language server | `crates/raven-lsp/` |
+| Public API and CLI | `compiler/src/` |
+| VS Code client | `vscode/extension/` |
+| Docs and examples | `docs/`, `examples/`, `website/` |
 
-## Commit style
-
-Conventional-ish, not strictly enforced yet:
-`feat(parser): support derived state declarations`
-`fix(lexer): handle escaped quotes in string literals`
-`docs(language): clarify task group cancellation semantics`
-
-## Versioning
-
-Uses [changesets](https://github.com/changesets/changesets). After a PR that
-changes published package behavior:
+## Before opening a pull request
 
 ```bash
-pnpm changeset
+pnpm --filter @raven/compiler test
+pnpm --filter @raven/compiler run build
+cargo fmt --manifest-path crates/Cargo.toml --check
+cargo clippy --manifest-path crates/Cargo.toml --all-targets -- -D warnings
+cargo test --manifest-path crates/Cargo.toml --workspace
 ```
 
-and follow the prompts — do not hand-edit package versions.
+For `crates/raven-lsp` or `vscode/extension` changes, also run:
+
+```bash
+pnpm --dir vscode/extension run build
+```
+
+Keep pull requests focused, include tests for changed behavior, and update documentation whenever syntax or diagnostics change. Use conventional-style subjects such as `feat(lsp): add workspace diagnostics`.
 
 ## Code of conduct
 
-Be direct about technical disagreements, kind about everything else. No
-tolerance for personal attacks in issues/PRs/discussions.
+Be direct about technical disagreements and kind to people. Harassment and personal attacks are not tolerated.

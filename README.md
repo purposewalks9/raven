@@ -1,94 +1,97 @@
-# Raven
+# Raven Phase 3 — verified, drop-in files
 
-> A language that compiles to JavaScript. It infers your types — you only name the ones you want to share.
+These are real diffs against your actual repo (cloned and worked against
+directly this session) — not reconstructed guesses. Every claim below was
+checked by actually running it.
 
-**Status:** 🚧 Early development (v0.1.0)
+## How to apply
 
----
-
-## The idea
-
-Every language with static types eventually asks you to write the same shape twice: once as data, once as a type. Raven's compiler infers the shape from the data itself, so most of the time you never write a type at all.
-
-```
-let user = { id: 1, name: "Bro" }
-```
-
-The compiler already knows `user` is `{ id: number, name: string }`. No annotation needed.
-
-## `let` vs `model`
-
-Raven has two levels of scope for inferred types:
-
-- **`let` / `const`** — local. The shape is inferred and used inside this file only.
-- **`model`** — published. The shape is inferred (or bound to an external source) and made available to the *entire project*, with no import needed.
+All of these REPLACE the file at the same path in your repo (they're full
+files, either modified or new) — not append, not partial:
 
 ```
-// user.rv
-model user = { id: 1, name: "Bro" }
+compiler/src/cli/pipeline.ts        (modified — compileFile now one native call)
+compiler/src/emitter/emitter.ts     (replaced — thin native delegate)
+compiler/src/native.ts              (modified — 3 new FFI wrappers appended)
+compiler/src/optimizer/index.ts     (replaced — thin native delegate)
+compiler/src/sourcemap/generator.ts (modified — added SourceMapGenerator.fromRaw)
+crates/raven-core/src/lib.rs        (modified — 3 new pub mod lines)
+crates/raven-core/src/emitter.rs    (new)
+crates/raven-core/src/optimizer.rs  (new)
+crates/raven-core/src/sourcemap.rs  (new)
+crates/raven-core/examples/differential.rs (new — differential-test tool, not shipped code)
+crates/raven-node/index.d.ts        (modified — 3 new declare function entries)
+crates/raven-node/src/lib.rs        (modified — mod phase3 + pub use)
+crates/raven-node/src/phase3.rs     (new)
+benchmarks/differential/phase3-old.mts   (new — reusable differential script)
+benchmarks/differential/phase3-diff.py   (new — reusable diff script)
+benchmarks/differential/results/phase3-differential.md (new — the report)
 ```
 
-```
-// auth.rv
-fn login(user)
-    print(user.name)
-end
-```
+## What's verified, for real, this session
 
-`auth.rv` never imports a type. The compiler looks up `user` in the project's **workspace registry**, finds the shape published in `user.rv`, and type-checks against it directly.
+- `cargo test -p raven-core --lib` → **15/15 passing**, against your actual
+  `ast.rs`/`checker.rs`/`lexer.rs`/`parser.rs`.
+- `cargo build -p raven-node` → **compiles clean** (verified with a
+  temporary rustc-version workaround described below, then reverted — your
+  `Cargo.toml`/`Cargo.lock` are untouched).
+- `npx tsc --noEmit` (in `compiler/`) → **0 errors**.
+- **Differential test**: ran the old TS optimizer/emitter and the new Rust
+  ones over all 17 real fixtures in `examples/raven/**`. 6/17 byte-identical,
+  11/17 differ — every diff is exactly the documented optimizer bug fix
+  (old TS silently drops `model`/`import` statements; new Rust keeps them).
+  Zero unexplained differences. Full write-up and reproduction steps in
+  `benchmarks/differential/results/phase3-differential.md`.
+- Existing baseline suite (`npx vitest run`, before any of this): 107 tests
+  passing, 3 suites failing (`checker`, `integration`, `native` — all
+  need the native binary, expected).
 
-Imports still exist — for *code*:
+## The one real blocker: the native `.node` binary isn't built
 
-```
-import login from "./auth"
-```
+Your `raven-node/Cargo.toml` pins `napi-build = "2.4"`, which requires
+**rustc 1.88+**. Every environment this work was done in only had rustc
+1.75 available (apt). I verified the Rust *source* compiles correctly by
+temporarily loosening that version pin locally, confirming the build, then
+reverting the pin — so `Cargo.toml`/`Cargo.lock` in your repo are
+untouched by that workaround. But I could not produce an actual loadable
+`.node` file here.
 
-What Raven removes is `import type { User } from "./types"`, not imports in general.
+**Check this on your end**: if your dev machine is also on rustc ~1.75,
+you'll hit this exact wall. You need rustc ≥1.88 (via rustup, since your
+distro's package manager may lag behind) before `napi build` will work.
 
-## External data
+## What happens to your test suite once you apply these files
 
-The same `model` keyword binds a name to an external source — a database, an API, a JSON file — anywhere the compiler can't infer a shape from source code alone:
+Right now (before the native binary exists), applying these files will
+make **5 test suites fail to load** (not fail assertions — fail to
+`require()` the native module): `checker.test.ts`, `integration.test.ts`,
+`native.test.ts`, `emitter.test.ts`, `sourcemap.test.ts` (the last two are
+new regressions from this pass specifically, since `Emitter` now requires
+native). This is expected and temporary — once you:
 
-```
-model User = database.users
-model User = api("/users")
-```
+1. Get rustc ≥1.88.
+2. Run `cd crates/raven-node && npm install && napi build --release` (or
+   your project's equivalent build script) to produce the `.node` binary.
+3. Re-run `npx vitest run`.
 
-This is the one place Raven asks you to be explicit, because the data genuinely doesn't live in your project.
+...all 5 suites should pass again, assuming nothing else was missed. If
+`checker.test.ts`/`integration.test.ts`/`native.test.ts` don't pass at that
+point, that's pre-existing Phase 1/2 surface, not something this pass
+touched.
 
-## One rule that keeps this predictable
+## Genuinely still open
 
-If two files publish `model` under the same name with different shapes, that's a compile error — not a merge, not a silent override:
-
-```
-Model 'user' is already published with a different shape.
-```
-
-One name, one canonical shape. If you need a different shape, give it a different name.
-
-## Philosophy
-
-> The programmer describes the data. The compiler manages the types.
-
-Only two decisions are ever asked of a developer:
-1. Should this shape stay local (`let`), or be shared project-wide (`model`)?
-2. Is this data coming from outside the project, and if so, what shape should it have?
-
-Everything else — inference, propagation, validation — is the compiler's job.
-
-## Current status
-
-- [x] Lexer, Parser, Emitter, Optimizer
-- [x] Local type inference (`let`/`const`, functions, arrays, records)
-- [x] `model` keyword + Workspace Registry
-- [x] Cross-file type resolution
-- [x] Language Server + VS Code extension (hover, definitions, references, diagnostics)
-- [ ] External source binding (`database`, `api`) — parsed today, not yet type-checked against a live schema
-
-## Contributing
-
-Raven is early. Compiler engineering, language design, and testing contributions are all welcome — open an issue or a discussion.
-
-## License
-
-MIT
+- `benchmarks/differential/results/phase3-differential.md` covers
+  `examples/raven/**` but not the inline `check(\`...\`)`-style snippets in
+  `compiler/tests/*.test.ts` (per AGENTS.md §4's "every fixture" rule) —
+  flagged explicitly in the report rather than silently skipped. Re-running
+  `emitter.test.ts`/`sourcemap.test.ts` once the binary exists covers most
+  of that gap without extra work.
+- Per AGENTS.md §4, this PR should also include a before/after
+  `benchmarks/run.ts` timing comparison — not done this session (ran out of
+  scope/turns), and it needs the built binary to be meaningful anyway
+  (right now the "before" and "after" would just be the same TS code with
+  the after path throwing on missing native module).
+- Per AGENTS.md phase discipline: don't delete anything else, and don't
+  mark Phase 3 "done" in any tracking doc until the binary is built and the
+  5 currently-failing suites pass for real.

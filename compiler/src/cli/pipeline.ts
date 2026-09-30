@@ -4,10 +4,9 @@ import { Parser } from "../parser/parser.js";
 import { TypeChecker } from "../typechecker/checker.js";
 import { Binder } from "../typechecker/binder.js";
 import { Program } from "../ast/nodes.js";
-import { optimize } from "../optimizer/index.js";
-import { Emitter } from "../emitter/emitter.js";
 import { SourceMapGenerator } from "../sourcemap/generator.js";
 import { Diagnostic, formatDiagnostic } from "../diagnostics/index.js";
+import { nativeCompileSource } from "../native.js";
 
 export interface CompileResult {
   source: string;
@@ -35,9 +34,11 @@ export interface CheckResult {
  * functions have different costs by design; collapsing them reintroduces the
  * Phase 1 bindings cost on the CLI path (see PR #22 review).
  *
- * `checkSourceWithBindings` still parses twice (TS for AST for `optimize`/
- * `Emitter` until Phase 3, Rust for diagnostics+bindings). Phase 3 will make
- * the whole pipeline one native call and the duplicate parse disappears.
+ * `checkSourceWithBindings` still parses twice (TS for the AST the language
+ * server's `Binder` needs, Rust for diagnostics+bindings) — that duplicate
+ * parse is intentional and out of Phase 3 scope. `compileFile` below is the
+ * one that changed: Phase 3 made it a single native call, so it no longer
+ * parses in TS at all.
  */
 export function checkSourceWithBindings(source: string, fileName = "<memory>"): CheckResult {
   // AST for optimize/emitter — stays in TS until Phase 3.
@@ -56,29 +57,28 @@ export function compileFile(file: string, shouldOptimize = true, options: { sour
     throw new Error(`Could not read file: ${file}`);
   }
 
-  // Cheap path: compileFile never needs binder. AST is still parsed in TS
-  // for optimize/Emitter until Phase 3; diagnostics come from the cheap
-  // `checkSource` FFI call (not `bindingsForSource` — see
-  // `checkSourceWithBindings`, which exists for the language server only).
-  const ast = new Parser(tokenize(source, file)).parseProgram();
-  const diagnostics = new TypeChecker({ file }).checkSource(source);
+  // Phase 3: lex + parse + check + optimize + emit in one native call.
+  // Previously this function parsed the source twice — once in TS
+  // (`Parser`/`tokenize`, for `optimize`/`Emitter`) and once inside Rust
+  // (`checkSource`, for diagnostics). `compileSource` does the whole
+  // pipeline natively, so neither TS-side `Parser` call nor a separate
+  // `optimize`/`Emitter` pass happens here anymore.
+  //
+  // `checkSourceWithBindings` (language server) intentionally still parses
+  // in TS — it needs the TS-side `Binder`, out of Phase 3 scope.
+  const result = nativeCompileSource(source, file, {
+    sourceMap: options.sourceMap ?? false,
+    sourceContent: source,
+    optimize: shouldOptimize,
+  });
+  const diagnostics = result.diagnostics as Diagnostic[];
 
   if (diagnostics.some(d => d.severity === "error")) {
     return { source, diagnostics, js: null, map: null };
   }
 
-  const program = shouldOptimize ? optimize(ast) : ast;
-
-  if (options.sourceMap) {
-    const { code, map } = new Emitter().emitWithSourceMap(program, {
-      sourceFile: file,
-      sourceContent: source,
-    });
-    return { source, diagnostics, js: code, map };
-  }
-
-  const js = new Emitter().emit(program);
-  return { source, diagnostics, js, map: null };
+  const map = result.map ? SourceMapGenerator.fromRaw(result.map) : null;
+  return { source, diagnostics, js: result.code, map };
 }
 
 export function printErrors(file: string, diagnostics: Diagnostic[], source?: string): void {
