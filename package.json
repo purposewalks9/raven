@@ -6,9 +6,8 @@
   "license": "MIT",
   "packageManager": "pnpm@10.5.2",
   "scripts": {
-    "build": "pnpm run build:compiler && pnpm run build:language-server && pnpm run build:extension",
+    "build": "pnpm run build:compiler && pnpm run build:extension",
     "build:compiler": "pnpm --filter @raven/compiler run build",
-    "build:language-server": "pnpm --filter @raven/language-server run build",
     "build:extension": "pnpm --filter raven-language run build",
     "dev": "pnpm --filter @raven/compiler run dev",
     "test": "pnpm -r run test",

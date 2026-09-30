@@ -97,7 +97,11 @@ impl Emitter {
         // ASTs) falls back to line/column 1 before the -1, same as the TS
         // optional-chaining fallback — never underflows.
         let line = if location.line == 0 { 1 } else { location.line };
-        let column = if location.column == 0 { 1 } else { location.column };
+        let column = if location.column == 0 {
+            1
+        } else {
+            location.column
+        };
         let source_line = line - 1;
         let source_column = column - 1;
         let file = self.source_map_file.clone();
@@ -182,7 +186,12 @@ impl Emitter {
         self.newline();
     }
 
-    fn emit_function_declaration(&mut self, name: &str, parameters: &[Parameter], body: &[Statement]) {
+    fn emit_function_declaration(
+        &mut self,
+        name: &str,
+        parameters: &[Parameter],
+        body: &[Statement],
+    ) {
         let params = parameters
             .iter()
             .map(|p| p.name.as_str())
@@ -255,7 +264,8 @@ impl Emitter {
             } => self.emit_call_expression(callee, arguments),
             Expression::ObjectLiteral { properties, .. } => self.emit_object_literal(properties),
             Expression::UnaryExpression { argument, .. } => self.emit_unary_expression(argument),
-            Expression::ArrayLiteral { elements, .. } | Expression::TupleLiteral { elements, .. } => {
+            Expression::ArrayLiteral { elements, .. }
+            | Expression::TupleLiteral { elements, .. } => {
                 self.emit_array_literal(elements);
             }
             Expression::IndexExpression { array, index, .. } => {

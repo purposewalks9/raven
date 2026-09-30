@@ -182,13 +182,15 @@ fn optimize_statement(statement: &Statement) -> Option<Statement> {
             type_annotation: type_annotation.clone(),
             external: *external,
         }),
-        Statement::ImportDeclaration { location, names, source } => {
-            Some(Statement::ImportDeclaration {
-                location: location.clone(),
-                names: names.clone(),
-                source: source.clone(),
-            })
-        }
+        Statement::ImportDeclaration {
+            location,
+            names,
+            source,
+        } => Some(Statement::ImportDeclaration {
+            location: location.clone(),
+            names: names.clone(),
+            source: source.clone(),
+        }),
     }
 }
 

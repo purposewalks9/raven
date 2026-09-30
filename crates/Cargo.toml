@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "raven-core",
+    "raven-lsp",
     "raven-node",
 ]
 

@@ -9,7 +9,7 @@
 use napi::{Error, Result, Status};
 use napi_derive::napi;
 use raven_core::ast::Program;
-use raven_core::emitter::{Emitter, EmitWithSourceMapOptions};
+use raven_core::emitter::{EmitWithSourceMapOptions, Emitter};
 use raven_core::optimizer::optimize;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -114,7 +114,9 @@ pub fn emit_program(ast_json: String, options_json: Option<String>) -> Result<St
         let result = emitter.emit_with_source_map(
             &program,
             EmitWithSourceMapOptions {
-                source_file: options.source_file.unwrap_or_else(|| "<unknown>".to_string()),
+                source_file: options
+                    .source_file
+                    .unwrap_or_else(|| "<unknown>".to_string()),
                 generated_file: None,
                 source_content: options.source_content,
             },

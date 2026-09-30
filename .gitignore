@@ -11,3 +11,4 @@ coverage/
 .novacache/
 target/
 crates/raven-node/*.node
+vscode/extension/server/

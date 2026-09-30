@@ -64,8 +64,8 @@
     ]
   },
 "scripts": {
-  "build": "tsup && npm run copy:server",
-  "copy:server": "mkdir -p server && cp ../language-server/dist/server.cjs server/server.cjs",
+  "build": "npm run build:server && tsup",
+  "build:server": "cd ../../crates && cargo build --release -p raven-lsp && mkdir -p ../vscode/extension/server && cp target/release/raven-lsp ../vscode/extension/server/raven-lsp",
   "dev": "tsup --watch",
   "lint": "eslint src --ext .ts",
   "clean": "rm -rf dist server *.tsbuildinfo",

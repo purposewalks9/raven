@@ -163,7 +163,8 @@ impl SourceMapGenerator {
             let generated_column = mapping.generated_column as i64;
 
             if generated_line != prev_generated_line {
-                mappings_text.push_str(&";".repeat((generated_line - prev_generated_line) as usize));
+                mappings_text
+                    .push_str(&";".repeat((generated_line - prev_generated_line) as usize));
                 prev_generated_line = generated_line;
                 prev_generated_column = 0;
                 first_segment_on_line = true;
